@@ -1,0 +1,40 @@
+services:
+  backend:
+    image: nginx:alpine
+    volumes:
+      - ./backend/index.html:/usr/share/nginx/html/index.html:ro
+    networks:
+      - honeypot
+
+  openresty:
+    image: openresty/openresty:latest
+    profiles:
+      - openresty
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
+      - ./config.json:/etc/openresty/config.json:ro
+    depends_on:
+      - backend
+    networks:
+      - honeypot
+
+  envoy:
+    image: envoyproxy/envoy:v1.30-latest
+    profiles:
+      - envoy
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+      - ./config.json:/etc/envoy/config.json:ro
+      - ./envoy_scripts:/etc/envoy/scripts:ro
+    depends_on:
+      - backend
+    networks:
+      - honeypot
+
+networks:
+  honeypot:
+    driver: bridge

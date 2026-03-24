@@ -1,0 +1,16 @@
+{
+  "honeytokens": {
+    "html_comments": [
+      {
+        "paths": ["/*"],
+        "comment_value": "<!-- DEV-PORTAL: internal-admin.example.com -->",
+        "trigger_keyword": "internal-admin.example.com"
+      },
+      {
+        "paths": ["/index.html"],
+        "comment_value": "<!-- TODO: remove debug endpoint /api/v1/debug?token=abc123 -->",
+        "trigger_keyword": "abc123"
+      }
+    ]
+  }
+}
