@@ -81,6 +81,47 @@ local function get_comments_for_path(uri)
   return to_inject
 end
 
+local WADM_STATE_FILE = "/tmp/detected_ips.json"
+
+local function load_detected_ips()
+  local f = io.open(WADM_STATE_FILE, "r")
+  if not f then
+    return {}
+  end
+  local raw = f:read("*a")
+  f:close()
+  if raw == "" then
+    return {}
+  end
+  local ok, data = pcall(json.decode, raw)
+  if not ok then
+    return {}
+  end
+  return data
+end
+
+local function record_attacker_ip(ip)
+  local ips = load_detected_ips()
+  if ips[ip] then
+    return
+  end
+  ips[ip] = os.time()
+  local ok, encoded = pcall(json.encode, ips)
+  if not ok then
+    return
+  end
+  local f = io.open(WADM_STATE_FILE, "w")
+  if f then
+    f:write(encoded)
+    f:close()
+  end
+end
+
+local function is_known_attacker(ip)
+  local ips = load_detected_ips()
+  return ips[ip] ~= nil
+end
+
 function envoy_on_request(request_handle)
   local triggers = get_trigger_keywords()
   if #triggers == 0 then
@@ -92,12 +133,19 @@ function envoy_on_request(request_handle)
       or request_handle:headers():get("x-real-ip")
       or "unknown"
 
-  local query_start = path:find("?")
+  if is_known_attacker(ip) then
+    request_handle:logWarn(
+      "WADM ALERT: known attacker IP " .. ip .. " detected in new request"
+    )
+  end
+
+  local dirty = false
+
+  local query_start = path:find("?") --path check
   if query_start then
     local base_path = path:sub(1, query_start - 1)
     local query_string = path:sub(query_start + 1)
     local params = parse_query_string(query_string)
-    local dirty = false
 
     for key, val in pairs(params) do
       for _, keyword in ipairs(triggers) do
@@ -120,18 +168,53 @@ function envoy_on_request(request_handle)
     end
   end
 
-  local body_handle = request_handle:body()
+  local detected = false
+
+  local body_handle = request_handle:body() --body check
   if body_handle and body_handle:length() > 0 then
     local body_str = tostring(body_handle:getBytes(0, body_handle:length()))
-    for _, keyword in ipairs(triggers) do
-      if body_str:find(keyword, 1, true) then
-        request_handle:logWarn(
-          "WADM ALERT: honeytoken triggered by " .. ip
-          .. " — keyword '" .. keyword
-          .. "' found in request body"
-        )
+    local ct = request_handle:headers():get("content-type") or ""
+
+    if ct:find("application/x%-www%-form%-urlencoded", 1) then --form urlencoded check
+      local post_params = parse_query_string(body_str)
+      local dirty_body = false
+
+      for key, val in pairs(post_params) do
+        for _, keyword in ipairs(triggers) do
+          if key:find(keyword, 1, true) or val:find(keyword, 1, true) then
+            request_handle:logWarn(
+              "WADM ALERT: honeytoken triggered by " .. ip
+              .. " — keyword '" .. keyword
+              .. "' found in POST param '" .. key .. "=" .. val .. "'"
+            )
+            post_params[key] = nil
+            dirty_body = true
+            detected = true
+          end
+        end
+      end
+
+      if dirty_body then
+        local cleaned_body = rebuild_query_string(post_params)
+        body_handle:setBytes(cleaned_body)
+        request_handle:headers():replace("content-length", tostring(#cleaned_body))
+      end
+    else --body check for other content types
+      for _, keyword in ipairs(triggers) do 
+        if body_str:find(keyword, 1, true) then
+          request_handle:logWarn(
+            "WADM ALERT: honeytoken triggered by " .. ip
+            .. " — keyword '" .. keyword
+            .. "' found in request body"
+          )
+          detected = true
+        end
       end
     end
+  end
+
+  if detected or dirty then
+    record_attacker_ip(ip)
   end
 end
 

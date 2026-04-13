@@ -3,6 +3,7 @@ services:
     image: nginx:alpine
     volumes:
       - ./backend/index.html:/usr/share/nginx/html/index.html:ro
+      - ./backend/nginx.conf:/etc/nginx/nginx.conf:ro
     networks:
       - honeypot
 
@@ -35,6 +36,38 @@ services:
     networks:
       - honeypot
 
+  rust-builder:
+    build:
+      context: ./wasm-filter
+      dockerfile: Dockerfile
+    profiles:
+      - wasm
+    volumes:
+      - wasm_output:/output
+
+  envoy-wasm:
+    image: envoyproxy/envoy:v1.30-latest
+    profiles:
+      - wasm
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./envoy-wasm/envoy-wasm.yaml:/etc/envoy/envoy-wasm.yaml:ro
+      - ./config.json:/etc/envoy/config.json:ro
+      - ./envoy-wasm/entrypoint.sh:/entrypoint.sh:ro
+      - wasm_output:/etc/envoy/wasm:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    depends_on:
+      rust-builder:
+        condition: service_completed_successfully
+      backend:
+        condition: service_started
+    networks:
+      - honeypot
+
 networks:
   honeypot:
     driver: bridge
+
+volumes:
+  wasm_output:
