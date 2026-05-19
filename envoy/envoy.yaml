@@ -1,9 +1,11 @@
+# Envoy static config for profile `envoy`: listener 8080 inside container (mapped to host 8081 in compose).
 static_resources:
   listeners:
     - name: listener_0
       address:
         socket_address:
           address: 0.0.0.0
+          # Container listen port — compose maps host 8081 here.
           port_value: 8080
       filter_chains:
         - filters:
@@ -17,15 +19,18 @@ static_resources:
                     - name: backend_vhost
                       domains: ["*"]
                       routes:
+                        # Catch-all: every path goes to backend_cluster (WADM logic is in HTTP filters, not routes).
                         - match:
                             prefix: "/"
                           route:
                             cluster: backend_cluster
                 http_filters:
+                  # Lua runs BEFORE router: can change :path/body then router forwards to cluster.
                   - name: envoy.filters.http.lua
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
                       default_source_code:
+                        # Must match volume mount in docker-compose (./envoy_scripts → /etc/envoy/scripts).
                         filename: /etc/envoy/scripts/injection.lua
                   - name: envoy.filters.http.router
                     typed_config:
@@ -42,5 +47,6 @@ static_resources:
               - endpoint:
                   address:
                     socket_address:
+                      # Docker Compose service name for the nginx:alpine origin.
                       address: backend
                       port_value: 80

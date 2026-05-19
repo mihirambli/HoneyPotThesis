@@ -1,4 +1,6 @@
+# Compose file: pick ONE edge via profile (openresty | envoy | wasm | apache). backend always defined for upstream.
 services:
+  # Origin only: static HTML; no honeytoken logic here — all WADM runs in the edge you enable.
   backend:
     image: nginx:alpine
     volumes:
@@ -7,6 +9,7 @@ services:
     networks:
       - honeypot
 
+  # Edge A — OpenResty. Host port 8080 → container 80. Mounts repo nginx.conf + config.json paths used by Lua.
   openresty:
     image: openresty/openresty:latest
     profiles:
@@ -21,6 +24,7 @@ services:
     networks:
       - honeypot
 
+  # Edge B — Envoy with Lua filter. Host 8081 → Envoy listener 8080. Scripts + config must stay in sync paths with envoy.yaml.
   envoy:
     image: envoyproxy/envoy:v1.30-latest
     profiles:
@@ -36,6 +40,7 @@ services:
     networks:
       - honeypot
 
+  # One-shot build: produces filter.wasm on shared volume for envoy-wasm (profile wasm only).
   rust-builder:
     build:
       context: ./wasm-filter
@@ -45,6 +50,7 @@ services:
     volumes:
       - wasm_output:/output
 
+  # Edge C — Envoy + WASM. Waits for rust-builder artifact and merges config into YAML at startup (entrypoint.sh).
   envoy-wasm:
     image: envoyproxy/envoy:v1.30-latest
     profiles:
@@ -65,9 +71,27 @@ services:
     networks:
       - honeypot
 
+  # Edge D — Apache httpd + mod_lua. Host port 8083 → container 80. Lua hooks read config.json and json.lua from mounted paths.
+  apache:
+    image: httpd:2.4-alpine
+    profiles:
+      - apache
+    ports:
+      - "8083:80"
+    volumes:
+      - ./apache_scripts:/usr/local/apache2/scripts/:ro
+      - ./config.json:/usr/local/apache2/conf/config.json:ro
+      - ./httpd.conf:/usr/local/apache2/conf/httpd.conf:ro
+    depends_on:
+      - backend
+    networks:
+      - honeypot
+
+# Shared bridge so service DNS names (backend, openresty, envoy) resolve.
 networks:
   honeypot:
     driver: bridge
 
+# Named volume: rust-builder writes /output/filter.wasm; envoy-wasm reads /etc/envoy/wasm/filter.wasm.
 volumes:
   wasm_output:

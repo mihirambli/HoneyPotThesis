@@ -1,0 +1,7 @@
+# CORE BEHAVIOR
+- You are an expert software engineer. Write concise, highly modular, self-documenting code.
+
+# DOCUMENTATION ENFORCEMENT
+- If you modify any database schema, you MUST update `docs/DATA_FLOW.md`.
+- If you create a new directory, you MUST create a `README.md` inside it explaining its purpose and data flow.
+- NEVER write inline comments explaining *what* code does. Only comment the *why* (business logic, edge cases, security considerations).

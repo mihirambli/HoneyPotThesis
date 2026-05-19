@@ -2,11 +2,13 @@ package.path = "/etc/envoy/scripts/?.lua;" .. package.path
 
 local json = require("json")
 
+-- Load honeytoken definitions once when the filter script loads (path is bind-mounted from docker-compose).
 local file = io.open("/etc/envoy/config.json", "r")
 local content = file:read("*a")
 file:close()
 local config = json.decode(content)
 
+-- Decode query-string components the same way browsers send them (+ and %XX).
 local function url_decode(str)
   str = str:gsub("+", " ")
   str = str:gsub("%%(%x%x)", function(h)
@@ -15,6 +17,7 @@ local function url_decode(str)
   return str
 end
 
+-- Split "a=b&c=d" into a Lua table so we can remove individual parameters that contain trigger keywords.
 local function parse_query_string(qs)
   local params = {}
   if not qs or qs == "" then
@@ -31,6 +34,7 @@ local function parse_query_string(qs)
   return params
 end
 
+-- Re-encode keys/values when rebuilding :path or x-www-form-urlencoded bodies after stripping secrets.
 local function url_encode(str)
   str = str:gsub("([^%w%-_.~])", function(c)
     return string.format("%%%02X", string.byte(c))
@@ -38,6 +42,7 @@ local function url_encode(str)
   return str
 end
 
+-- Turn the params table back into a single string for setBytes / replace :path.
 local function rebuild_query_string(params)
   local parts = {}
   for k, v in pairs(params) do
@@ -50,6 +55,7 @@ local function rebuild_query_string(params)
   return table.concat(parts, "&")
 end
 
+-- Collect all non-empty trigger_keyword values from config for request scanning.
 local function get_trigger_keywords()
   local triggers = {}
   if not config.honeytokens or not config.honeytokens.html_comments then
@@ -63,6 +69,7 @@ local function get_trigger_keywords()
   return triggers
 end
 
+-- Decide which HTML comment strings to inject for a given request URI (matches `/*` or exact path).
 local function get_comments_for_path(uri)
   local to_inject = {}
   if not config.honeytokens or not config.honeytokens.html_comments then
@@ -83,6 +90,7 @@ end
 
 local WADM_STATE_FILE = "/tmp/detected_ips.json"
 
+-- Read persisted attacker IPs (container-local; used for demo “known attacker” logging).
 local function load_detected_ips()
   local f = io.open(WADM_STATE_FILE, "r")
   if not f then
@@ -100,6 +108,7 @@ local function load_detected_ips()
   return data
 end
 
+-- Append a new IP with timestamp when a honeytoken fires (deduplicated per IP).
 local function record_attacker_ip(ip)
   local ips = load_detected_ips()
   if ips[ip] then
@@ -117,11 +126,13 @@ local function record_attacker_ip(ip)
   end
 end
 
+-- Check whether we have seen this IP before (warn on repeat visits).
 local function is_known_attacker(ip)
   local ips = load_detected_ips()
   return ips[ip] ~= nil
 end
 
+-- Envoy hook: inspect and optionally rewrite request path/body before routing to the cluster.
 function envoy_on_request(request_handle)
   local triggers = get_trigger_keywords()
   if #triggers == 0 then
@@ -218,6 +229,7 @@ function envoy_on_request(request_handle)
   end
 end
 
+-- Envoy hook: mutate HTML responses from upstream to embed honeytoken HTML comments.
 function envoy_on_response(response_handle)
   local ct = response_handle:headers():get("content-type") or ""
   if not ct:find("text/html", 1, true) then

@@ -1,9 +1,11 @@
+# Template: `{{WASM_CONFIG_JSON}}` is replaced at container start by entrypoint.sh with escaped contents of config.json.
 static_resources:
   listeners:
     - name: listener_0
       address:
         socket_address:
           address: 0.0.0.0
+          # In-container listener; compose maps host 8082 → this port.
           port_value: 8080
       filter_chains:
         - filters:
@@ -22,16 +24,20 @@ static_resources:
                           route:
                             cluster: backend_cluster
                 http_filters:
+                  # WASM filter receives JSON plugin config (embedded string) and filter.wasm from volume.
                   - name: envoy.filters.http.wasm
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
                       config:
+                        # Logical plugin name — must match root_id and Rust proxy_wasm registration expectations.
                         name: "honeypot_filter"
                         root_id: "honeypot_filter"
                         configuration:
                           "@type": type.googleapis.com/google.protobuf.StringValue
+                          # Replaced by entrypoint: full JSON for serde in wasm-filter (same schema as config.json).
                           value: "{{WASM_CONFIG_JSON}}"
                         vm_config:
+                          # V8 is required for this Envoy build; wasm file path must match volume mount.
                           runtime: "envoy.wasm.runtime.v8"
                           code:
                             local:
