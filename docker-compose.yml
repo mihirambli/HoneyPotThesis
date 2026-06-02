@@ -87,6 +87,25 @@ services:
     networks:
       - honeypot
 
+  # External load generator. Profile `loadtest` keeps it opt-in; combine with an edge profile,
+  # e.g. `docker compose --profile openresty --profile loadtest up --abort-on-container-exit`.
+  # TARGET picks which in-network edge to hit (each listens on a different container port).
+  load-tester:
+    image: grafana/k6:latest
+    profiles:
+      - loadtest
+    volumes:
+      - ./benchmarks:/scripts:ro
+    environment:
+      TARGET: ${TARGET:-http://openresty:80}
+      TRIGGER_KEYWORD: ${TRIGGER_KEYWORD:-internal-admin.example.com}
+      K6_VUS: ${K6_VUS:-5}
+      K6_DURATION: ${K6_DURATION:-30s}
+      K6_START_DELAY: ${K6_START_DELAY:-5s}
+    command: ["run", "/scripts/test.js"]
+    networks:
+      - honeypot
+
 # Shared bridge so service DNS names (backend, openresty, envoy) resolve.
 networks:
   honeypot:
