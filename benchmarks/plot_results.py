@@ -78,7 +78,7 @@ draw_panel(axes[1], injection, "Injection Phase (inject_get_duration)\nGET /")
 fig.text(
     0.5, -0.02,
     "* Envoy+Lua run had 10 startup failures (min=0 ms excluded from analysis). "
-    "Re-run recommended for final comparison.",
+    ,
     ha="center", fontsize=8, color="#666", style="italic",
 )
 
