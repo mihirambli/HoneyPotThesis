@@ -66,6 +66,62 @@ All passed through environment variables on the host (read by Compose, then forw
 | `K6_VUS` | `5` | Concurrent virtual users. |
 | `K6_DURATION` | `30s` | Run length. |
 
+## Internal OpenResty profiling automation
+
+Use the orchestrator to benchmark **internal** Lua execution timings logged by OpenResty:
+- `Detection execution time (us): ...`
+- `Injection execution time (us): ...`
+
+The script runs four VU levels (`1,10,100,500`) sequentially and prints per-VU stats for each phase (`count, min_us, avg_us, p90_us, max_us`).
+
+```bash
+python3 benchmarks/run_internal_openresty_benchmark.py
+```
+
+Optional overrides:
+
+```bash
+K6_VUS_LIST=1,10,100,500 \
+K6_DURATION=30s \
+K6_START_DELAY=5s \
+TARGET=http://openresty:80 \
+TRIGGER_KEYWORD=internal-admin.example.com \
+python3 benchmarks/run_internal_openresty_benchmark.py
+```
+
+Result artifact:
+- `benchmarks/results/internal_openresty_profile.json`
+
+If Docker is unavailable, the script exits after reporting the failed compose command output; no benchmark stats are produced for that VU.
+
+## Internal WASM profiling automation
+
+Use the orchestrator to benchmark **internal** Rust WASM execution timings logged by `envoy-wasm`:
+- `WASM Detection execution time (us): ...`
+- `WASM Injection execution time (us): ...`
+
+The script runs four VU levels (`1,10,100,500`) sequentially and prints per-VU stats for each phase (`count, min_us, avg_us, p90_us, max_us`).
+
+```bash
+python3 benchmarks/run_internal_wasm_benchmark.py
+```
+
+Optional overrides:
+
+```bash
+K6_VUS_LIST=1,10,100,500 \
+K6_DURATION=30s \
+K6_START_DELAY=5s \
+TARGET=http://envoy-wasm:8080 \
+TRIGGER_KEYWORD=internal-admin.example.com \
+python3 benchmarks/run_internal_wasm_benchmark.py
+```
+
+Result artifact:
+- `benchmarks/results/internal_wasm_profile.json`
+
+Compose profile `wasm` rebuilds the filter via `rust-builder` before starting `envoy-wasm`, so each run picks up the latest `wasm-filter` sources.
+
 ## Cross-edge comparability
 
 `detect_query_duration` measures the cost of `GET /api/login?password=<KW>` — a surface every edge already inspects, so the numbers are directly comparable:
@@ -82,4 +138,6 @@ All passed through environment variables on the host (read by Compose, then forw
 | File | Role |
 |------|------|
 | [test.js](test.js) | The k6 default-function script with the two phase requests and `Trend` definitions. |
+| [run_internal_openresty_benchmark.py](run_internal_openresty_benchmark.py) | Orchestrates internal OpenResty microsecond profiling runs and writes JSON results. |
+| [run_internal_wasm_benchmark.py](run_internal_wasm_benchmark.py) | Orchestrates internal Envoy WASM microsecond profiling runs and writes JSON results. |
 | [README.md](README.md) | This document. |

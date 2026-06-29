@@ -3,6 +3,7 @@ use proxy_wasm::traits::*;
 use proxy_wasm::types::*;
 use serde::Deserialize;
 use std::rc::Rc;
+use std::time::SystemTime;
 
 // Registers the WASM plugin with Envoy: sets log level and the root context factory (entry point for all streams).
 proxy_wasm::main! {{
@@ -87,6 +88,7 @@ impl Context for HoneypotHttp {}
 impl HttpContext for HoneypotHttp {
     // Strips trigger keywords from `:path` (including query) so secrets do not reach upstream; stores path-only for injection rules.
     fn on_http_request_headers(&mut self, _num_headers: usize, _end_of_stream: bool) -> Action {
+        let start = self.get_current_time();
         let path = self.get_http_request_header(":path").unwrap_or_default();
 
         let uri = path.split('?').next().unwrap_or(&path);
@@ -94,7 +96,13 @@ impl HttpContext for HoneypotHttp {
 
         let tokens = match self.html_comments() {
             Some(t) => t,
-            None => return Action::Continue,
+            None => {
+                warn!(
+                    "WASM Detection execution time (us): {}",
+                    self.elapsed_us(start)
+                );
+                return Action::Continue;
+            }
         };
 
         let mut cleaned = path.clone();
@@ -114,6 +122,10 @@ impl HttpContext for HoneypotHttp {
             self.set_http_request_header(":path", Some(&cleaned));
         }
 
+        warn!(
+            "WASM Detection execution time (us): {}",
+            self.elapsed_us(start)
+        );
         Action::Continue
     }
 
@@ -143,19 +155,39 @@ impl HttpContext for HoneypotHttp {
             return Action::Pause;
         }
 
+        let start = self.get_current_time();
+
         let body_bytes = match self.get_http_response_body(0, body_size) {
             Some(b) => b,
-            None => return Action::Continue,
+            None => {
+                warn!(
+                    "WASM Injection execution time (us): {}",
+                    self.elapsed_us(start)
+                );
+                return Action::Continue;
+            }
         };
 
         let body_str = match String::from_utf8(body_bytes) {
             Ok(s) => s,
-            Err(_) => return Action::Continue,
+            Err(_) => {
+                warn!(
+                    "WASM Injection execution time (us): {}",
+                    self.elapsed_us(start)
+                );
+                return Action::Continue;
+            }
         };
 
         let tokens = match self.html_comments() {
             Some(t) => t,
-            None => return Action::Continue,
+            None => {
+                warn!(
+                    "WASM Injection execution time (us): {}",
+                    self.elapsed_us(start)
+                );
+                return Action::Continue;
+            }
         };
 
         let mut to_inject = Vec::new();
@@ -169,6 +201,10 @@ impl HttpContext for HoneypotHttp {
         }
 
         if to_inject.is_empty() {
+            warn!(
+                "WASM Injection execution time (us): {}",
+                self.elapsed_us(start)
+            );
             return Action::Continue;
         }
 
@@ -187,11 +223,22 @@ impl HttpContext for HoneypotHttp {
         };
 
         self.set_http_response_body(0, body_size, new_body.as_bytes());
+        warn!(
+            "WASM Injection execution time (us): {}",
+            self.elapsed_us(start)
+        );
         Action::Continue
     }
 }
 
 impl HoneypotHttp {
+    fn elapsed_us(&self, start: SystemTime) -> u128 {
+        self.get_current_time()
+            .duration_since(start)
+            .map(|d| d.as_micros())
+            .unwrap_or(0)
+    }
+
     // Small helper to avoid repeating optional chaining when reading html_comments from nested config.
     fn html_comments(&self) -> Option<&Vec<HtmlComment>> {
         self.config
