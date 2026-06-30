@@ -30,7 +30,10 @@ function handle_inject(r)
     coroutine.yield()               -- signal ready; Apache populates `bucket` after this
 
     while bucket ~= nil do
+        local start_time = r:clock()
         local output = bucket:gsub("</body>", comment_value .. "\n</body>")
+        local end_time = r:clock()
+        r:warn("Apache Injection execution time (us): " .. tostring(end_time - start_time))
         coroutine.yield(output)     -- pass chunk (modified or unchanged) into filter chain
     end
 

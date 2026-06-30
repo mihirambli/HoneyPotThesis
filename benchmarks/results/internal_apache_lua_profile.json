@@ -1,0 +1,106 @@
+{
+  "metadata": {
+    "generated_at": "2026-06-30T16:52:11.276912+00:00",
+    "script": "benchmarks/run_internal_apache_lua_benchmark.py",
+    "target": "http://apache:80",
+    "trigger_keyword": "internal-admin.example.com",
+    "duration": "30s",
+    "start_delay": "5s",
+    "vus_list": [
+      1,
+      10,
+      100,
+      500
+    ]
+  },
+  "runs": [
+    {
+      "vus": 1,
+      "compose_exit_code": 0,
+      "detection": {
+        "count": 30,
+        "min_us": 19,
+        "avg_us": 63.07,
+        "p90_us": 99.0,
+        "max_us": 302
+      },
+      "injection": {
+        "count": 60,
+        "min_us": 2,
+        "avg_us": 43.87,
+        "p90_us": 5.0,
+        "max_us": 2037
+      },
+      "errors": {
+        "compose_stderr": "",
+        "logs_stderr": ""
+      }
+    },
+    {
+      "vus": 10,
+      "compose_exit_code": 0,
+      "detection": {
+        "count": 290,
+        "min_us": 13,
+        "avg_us": 120.53,
+        "p90_us": 231.0,
+        "max_us": 4117
+      },
+      "injection": {
+        "count": 580,
+        "min_us": 2,
+        "avg_us": 15.69,
+        "p90_us": 5.0,
+        "max_us": 2993
+      },
+      "errors": {
+        "compose_stderr": "",
+        "logs_stderr": ""
+      }
+    },
+    {
+      "vus": 100,
+      "compose_exit_code": 0,
+      "detection": {
+        "count": 3001,
+        "min_us": 12,
+        "avg_us": 211.98,
+        "p90_us": 422.0,
+        "max_us": 13915
+      },
+      "injection": {
+        "count": 6000,
+        "min_us": 1,
+        "avg_us": 17.67,
+        "p90_us": 4.0,
+        "max_us": 16027
+      },
+      "errors": {
+        "compose_stderr": "",
+        "logs_stderr": ""
+      }
+    },
+    {
+      "vus": 500,
+      "compose_exit_code": 0,
+      "detection": {
+        "count": 14455,
+        "min_us": 11,
+        "avg_us": 340.88,
+        "p90_us": 657.0,
+        "max_us": 55325
+      },
+      "injection": {
+        "count": 28877,
+        "min_us": 0,
+        "avg_us": 40.31,
+        "p90_us": 5.0,
+        "max_us": 36166
+      },
+      "errors": {
+        "compose_stderr": "",
+        "logs_stderr": ""
+      }
+    }
+  ]
+}

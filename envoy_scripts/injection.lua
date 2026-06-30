@@ -134,8 +134,11 @@ end
 
 -- Envoy hook: inspect and optionally rewrite request path/body before routing to the cluster.
 function envoy_on_request(request_handle)
+  local detection_start = os.clock()
+
   local triggers = get_trigger_keywords()
   if #triggers == 0 then
+    request_handle:logWarn("Envoy Lua Detection execution time (us): 0")
     return
   end
 
@@ -227,6 +230,10 @@ function envoy_on_request(request_handle)
   if detected or dirty then
     record_attacker_ip(ip)
   end
+  request_handle:logWarn(
+    "Envoy Lua Detection execution time (us): "
+    .. math.floor((os.clock() - detection_start) * 1e6)
+  )
 end
 
 -- Envoy hook: mutate HTML responses from upstream to embed honeytoken HTML comments.
@@ -235,6 +242,7 @@ function envoy_on_response(response_handle)
   if not ct:find("text/html", 1, true) then
     return
   end
+  local injection_start = os.clock()
 
   local request_path = response_handle:headers():get(":path") or "/"
   local uri = request_path:match("^([^?]+)") or request_path
@@ -256,4 +264,8 @@ function envoy_on_response(response_handle)
 
   response_handle:body():setBytes(new_body)
   response_handle:headers():replace("content-length", tostring(#new_body))
+  response_handle:logWarn(
+    "Envoy Lua Injection execution time (us): "
+    .. math.floor((os.clock() - injection_start) * 1e6)
+  )
 end

@@ -25,6 +25,8 @@ end
 -- Inspect the query string for any trigger keyword; strip each hit from r.args.
 -- r.args is a writable mod_lua field — assigning it rewrites the query string seen by mod_proxy upstream.
 function handle_detect(r)
+    local start_time = r:clock()
+
     if #trigger_keywords == 0 or not r.args or r.args == "" then
         return apache2.DECLINED
     end
@@ -44,5 +46,7 @@ function handle_detect(r)
     end
 
     -- DECLINED: not the authoritative access handler; continue to ProxyPass.
+    local end_time = r:clock()
+    r:warn("Apache Detection execution time (us): " .. tostring(end_time - start_time))
     return apache2.DECLINED
 end
