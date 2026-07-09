@@ -22,19 +22,29 @@ if _config.honeytokens and _config.honeytokens.html_comments then
     end
 end
 
+-- In-memory attacker store at module scope (persists across requests within this
+-- worker thread's Lua state), mirroring OpenResty's ngx.shared.wadm_state. The
+-- detection timer records into this table on a hit, so all edges do an equivalent
+-- in-memory state write inside the measured region.
+local detected_ips = {}
+
 -- Inspect the query string for any trigger keyword; strip each hit from r.args.
 -- r.args is a writable mod_lua field — assigning it rewrites the query string seen by mod_proxy upstream.
 function handle_detect(r)
-    local start_time = r:clock()
-
+    -- Guards and client-IP read stay outside the timed region (matches OpenResty),
+    -- so the timer wraps only the query scan + strip + in-memory record.
     if #trigger_keywords == 0 or not r.args or r.args == "" then
         return apache2.DECLINED
     end
 
     local ip = r.useragent_ip or "unknown"
+    local matched = false
+
+    local start_time = r:clock()
 
     for _, keyword in ipairs(trigger_keywords) do
         if r.args:find(keyword, 1, true) then
+            matched = true
             r:warn("WADM ALERT: honeytoken triggered by " .. ip
                    .. " — keyword '" .. keyword .. "' found in query string")
 
@@ -45,8 +55,17 @@ function handle_detect(r)
         end
     end
 
+    -- On detection, record the attacker IP in the in-memory store (mirrors OpenResty's wadm:set).
+    if matched then
+        detected_ips[ip] = os.time()
+    end
+
     -- DECLINED: not the authoritative access handler; continue to ProxyPass.
+    -- Only record detection timing for trigger-bearing requests so all edges
+    -- sample the same population (the keyword-matching request).
     local end_time = r:clock()
-    r:warn("Apache Detection execution time (us): " .. tostring(end_time - start_time))
+    if matched then
+        r:warn("Apache Detection execution time (us): " .. tostring(end_time - start_time))
+    end
     return apache2.DECLINED
 end

@@ -2,6 +2,8 @@ use log::warn;
 use proxy_wasm::traits::*;
 use proxy_wasm::types::*;
 use serde::Deserialize;
+use std::cell::RefCell;
+use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::SystemTime;
 
@@ -9,13 +11,21 @@ use std::time::SystemTime;
 proxy_wasm::main! {{
     proxy_wasm::set_log_level(LogLevel::Warn);
     proxy_wasm::set_root_context(|_| -> Box<dyn RootContext> {
-        Box::new(HoneypotRoot { config: None })
+        Box::new(HoneypotRoot {
+            config: None,
+            detected_ips: Rc::new(RefCell::new(HashSet::new())),
+        })
     });
 }}
 
 // Top-level JSON from Envoy plugin `configuration` (same shape as repo `config.json`).
 #[derive(Deserialize, Clone)]
 struct Config {
+    // Future feature flag: parsed for forward-compatibility (so the shared config.json
+    // key does not break parsing) but not yet acted on — WASM has no body inspection yet.
+    #[serde(default)]
+    #[allow(dead_code)]
+    post_body_inspection: Option<bool>,
     honeytokens: Option<Honeytokens>,
 }
 
@@ -36,11 +46,17 @@ struct HtmlComment {
 // Root context: created once per WASM VM; holds parsed config shared by all HTTP streams on this worker.
 struct HoneypotRoot {
     config: Option<Rc<Config>>,
+    // In-memory attacker store shared across all HTTP contexts on this worker's VM,
+    // mirroring OpenResty's ngx.shared.wadm_state. Each per-request context clones the
+    // Rc, so a detection records into the same set. Replaces any on-disk state so the
+    // detection timer measures the same work as the other edges.
+    detected_ips: Rc<RefCell<HashSet<String>>>,
 }
 
 // Per-request state: cheap clone of config Rc, URI path for injection matching, and HTML flag for body buffering.
 struct HoneypotHttp {
     config: Option<Rc<Config>>,
+    detected_ips: Rc<RefCell<HashSet<String>>>,
     request_path: String,
     is_html_response: bool,
 }
@@ -72,6 +88,7 @@ impl RootContext for HoneypotRoot {
     fn create_http_context(&self, _context_id: u32) -> Option<Box<dyn HttpContext>> {
         Some(Box::new(HoneypotHttp {
             config: self.config.clone(),
+            detected_ips: self.detected_ips.clone(),
             request_path: String::new(),
             is_html_response: false,
         }))
@@ -88,6 +105,13 @@ impl Context for HoneypotHttp {}
 impl HttpContext for HoneypotHttp {
     // Strips trigger keywords from `:path` (including query) so secrets do not reach upstream; stores path-only for injection rules.
     fn on_http_request_headers(&mut self, _num_headers: usize, _end_of_stream: bool) -> Action {
+        // Client IP read before the timer (matches OpenResty's remote_addr read outside
+        // the timed region), so detection measures only path scan + strip + in-memory record.
+        let ip = self
+            .get_http_request_header("x-forwarded-for")
+            .or_else(|| self.get_http_request_header("x-real-ip"))
+            .unwrap_or_else(|| "unknown".to_string());
+
         let start = self.get_current_time();
         let path = self.get_http_request_header(":path").unwrap_or_default();
 
@@ -96,19 +120,15 @@ impl HttpContext for HoneypotHttp {
 
         let tokens = match self.html_comments() {
             Some(t) => t,
-            None => {
-                warn!(
-                    "WASM Detection execution time (us): {}",
-                    self.elapsed_us(start)
-                );
-                return Action::Continue;
-            }
+            None => return Action::Continue,
         };
 
         let mut cleaned = path.clone();
+        let mut matched = false;
         for token in tokens {
             if let Some(ref kw) = token.trigger_keyword {
                 if !kw.is_empty() && cleaned.contains(kw.as_str()) {
+                    matched = true;
                     warn!(
                         "WADM ALERT: attacker detected -- trigger_keyword '{}' found in path '{}'",
                         kw, path
@@ -122,10 +142,16 @@ impl HttpContext for HoneypotHttp {
             self.set_http_request_header(":path", Some(&cleaned));
         }
 
-        warn!(
-            "WASM Detection execution time (us): {}",
-            self.elapsed_us(start)
-        );
+        // On detection, record the attacker IP in the in-memory store (mirrors OpenResty's
+        // wadm:set). Only trigger-bearing requests are timed so all edges sample the same
+        // population (the keyword-matching request).
+        if matched {
+            self.detected_ips.borrow_mut().insert(ip);
+            warn!(
+                "WASM Detection execution time (us): {}",
+                self.elapsed_us(start)
+            );
+        }
         Action::Continue
     }
 

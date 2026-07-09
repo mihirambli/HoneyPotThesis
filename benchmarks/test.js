@@ -30,8 +30,9 @@ export default function () {
   // Keyword in the query string is the one surface ALL four edges already inspect
   // (OpenResty get_uri_args, Envoy+Lua parse_query_string, Apache r.args, WASM :path
   // substring), so this measurement is cross-edge comparable. POST-body inspection
-  // in OpenResty/Envoy+Lua is intentionally left in place for a future iteration
-  // that raises Apache + WASM to the same level and re-introduces a body scenario.
+  // in OpenResty/Envoy+Lua is gated behind the config.json `post_body_inspection`
+  // flag (default off) so all four edges do equal detection work; a future iteration
+  // enables it on all four and re-introduces a body scenario.
   // /api/login has no backend route so the backend returns 404 — that is expected and
   // does not affect the proxy-side detection timing. 404 is marked acceptable so k6
   // does not count it as a failure and inflate http_req_failed.

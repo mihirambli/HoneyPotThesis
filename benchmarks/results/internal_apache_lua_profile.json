@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-06-30T16:52:11.276912+00:00",
+    "generated_at": "2026-07-08T17:14:05.215356+00:00",
     "script": "benchmarks/run_internal_apache_lua_benchmark.py",
     "target": "http://apache:80",
     "trigger_keyword": "internal-admin.example.com",
@@ -19,17 +19,17 @@
       "compose_exit_code": 0,
       "detection": {
         "count": 30,
-        "min_us": 19,
-        "avg_us": 63.07,
-        "p90_us": 99.0,
-        "max_us": 302
+        "min_us": 20,
+        "avg_us": 135.07,
+        "p90_us": 210.0,
+        "max_us": 1220
       },
       "injection": {
         "count": 60,
         "min_us": 2,
-        "avg_us": 43.87,
-        "p90_us": 5.0,
-        "max_us": 2037
+        "avg_us": 8.95,
+        "p90_us": 6.0,
+        "max_us": 202
       },
       "errors": {
         "compose_stderr": "",
@@ -40,18 +40,18 @@
       "vus": 10,
       "compose_exit_code": 0,
       "detection": {
-        "count": 290,
-        "min_us": 13,
-        "avg_us": 120.53,
-        "p90_us": 231.0,
-        "max_us": 4117
+        "count": 300,
+        "min_us": 12,
+        "avg_us": 124.49,
+        "p90_us": 326.0,
+        "max_us": 3011
       },
       "injection": {
-        "count": 580,
+        "count": 600,
         "min_us": 2,
-        "avg_us": 15.69,
+        "avg_us": 9.99,
         "p90_us": 5.0,
-        "max_us": 2993
+        "max_us": 578
       },
       "errors": {
         "compose_stderr": "",
@@ -62,18 +62,18 @@
       "vus": 100,
       "compose_exit_code": 0,
       "detection": {
-        "count": 3001,
+        "count": 3000,
         "min_us": 12,
-        "avg_us": 211.98,
-        "p90_us": 422.0,
-        "max_us": 13915
+        "avg_us": 250.65,
+        "p90_us": 528.0,
+        "max_us": 22981
       },
       "injection": {
-        "count": 6000,
-        "min_us": 1,
-        "avg_us": 17.67,
-        "p90_us": 4.0,
-        "max_us": 16027
+        "count": 5998,
+        "min_us": 2,
+        "avg_us": 25.32,
+        "p90_us": 5.0,
+        "max_us": 6215
       },
       "errors": {
         "compose_stderr": "",
@@ -84,18 +84,18 @@
       "vus": 500,
       "compose_exit_code": 0,
       "detection": {
-        "count": 14455,
-        "min_us": 11,
-        "avg_us": 340.88,
-        "p90_us": 657.0,
-        "max_us": 55325
+        "count": 11472,
+        "min_us": 10,
+        "avg_us": 1395.55,
+        "p90_us": 879.0,
+        "max_us": 936040
       },
       "injection": {
-        "count": 28877,
-        "min_us": 0,
-        "avg_us": 40.31,
-        "p90_us": 5.0,
-        "max_us": 36166
+        "count": 22910,
+        "min_us": 2,
+        "avg_us": 102.01,
+        "p90_us": 6.0,
+        "max_us": 267762
       },
       "errors": {
         "compose_stderr": "",

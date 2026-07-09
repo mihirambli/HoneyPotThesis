@@ -8,6 +8,28 @@ local content = file:read("*a")
 file:close()
 local config = json.decode(content)
 
+-- Wall-clock microsecond timer via LuaJIT FFI gettimeofday, mirroring OpenResty's
+-- get_micro_time. Replaces os.clock() (process CPU time, not elapsed wall-clock),
+-- so Envoy+Lua measures the same quantity as the other three edges. A uniquely
+-- named struct avoids clashing with any pre-existing `struct timeval` cdef.
+local ffi = require("ffi")
+ffi.cdef[[
+  typedef long wadm_time_t;
+  struct wadm_timeval { wadm_time_t tv_sec; long tv_usec; };
+  int gettimeofday(struct wadm_timeval *tv, void *tz);
+]]
+local function get_micro_time()
+  local tv = ffi.new("struct wadm_timeval")
+  if ffi.C.gettimeofday(tv, nil) ~= 0 then
+    return math.floor(os.time() * 1e6)  -- coarse fallback if the syscall fails
+  end
+  return tonumber(tv.tv_sec) * 1000000 + tonumber(tv.tv_usec)
+end
+
+-- POST-body inspection is a future feature; disabled unless the config flag is set,
+-- so detection stays a query-string scan only (matching Apache/WASM).
+local post_body_inspection = config.post_body_inspection
+
 -- Decode query-string components the same way browsers send them (+ and %XX).
 local function url_decode(str)
   str = str:gsub("+", " ")
@@ -88,61 +110,35 @@ local function get_comments_for_path(uri)
   return to_inject
 end
 
-local WADM_STATE_FILE = "/tmp/detected_ips.json"
+-- In-memory attacker store (module scope → persists across requests on this worker's
+-- Lua VM), mirroring OpenResty's ngx.shared.wadm_state. Replaces the previous
+-- /tmp/detected_ips.json file store so the detection timer measures the same work as
+-- the other edges — no per-request filesystem read/write or JSON (de)serialisation.
+local detected_ips = {}
 
--- Read persisted attacker IPs (container-local; used for demo “known attacker” logging).
-local function load_detected_ips()
-  local f = io.open(WADM_STATE_FILE, "r")
-  if not f then
-    return {}
-  end
-  local raw = f:read("*a")
-  f:close()
-  if raw == "" then
-    return {}
-  end
-  local ok, data = pcall(json.decode, raw)
-  if not ok then
-    return {}
-  end
-  return data
-end
-
--- Append a new IP with timestamp when a honeytoken fires (deduplicated per IP).
+-- Record an attacker IP on detection (in-memory write, matching OpenResty's wadm:set).
 local function record_attacker_ip(ip)
-  local ips = load_detected_ips()
-  if ips[ip] then
+  if detected_ips[ip] then
     return
   end
-  ips[ip] = os.time()
-  local ok, encoded = pcall(json.encode, ips)
-  if not ok then
-    return
-  end
-  local f = io.open(WADM_STATE_FILE, "w")
-  if f then
-    f:write(encoded)
-    f:close()
-  end
+  detected_ips[ip] = os.time()
 end
 
--- Check whether we have seen this IP before (warn on repeat visits).
+-- Check whether we have seen this IP before (in-memory read; called outside the timed region).
 local function is_known_attacker(ip)
-  local ips = load_detected_ips()
-  return ips[ip] ~= nil
+  return detected_ips[ip] ~= nil
 end
 
 -- Envoy hook: inspect and optionally rewrite request path/body before routing to the cluster.
 function envoy_on_request(request_handle)
-  local detection_start = os.clock()
-
+  -- Setup runs *before* the timer (matches OpenResty): building the trigger table,
+  -- reading the client IP and any known-attacker lookup are excluded from the timed
+  -- region so detection measures only query scan + strip + in-memory record.
   local triggers = get_trigger_keywords()
   if #triggers == 0 then
-    request_handle:logWarn("Envoy Lua Detection execution time (us): 0")
     return
   end
 
-  local path = request_handle:headers():get(":path") or "/"
   local ip = request_handle:headers():get("x-forwarded-for")
       or request_handle:headers():get("x-real-ip")
       or "unknown"
@@ -153,6 +149,9 @@ function envoy_on_request(request_handle)
     )
   end
 
+  local detection_start = get_micro_time()
+
+  local path = request_handle:headers():get(":path") or "/"
   local dirty = false
 
   local query_start = path:find("?") --path check
@@ -184,6 +183,8 @@ function envoy_on_request(request_handle)
 
   local detected = false
 
+  -- POST-body inspection (disabled unless post_body_inspection flag is set).
+  if post_body_inspection then
   local body_handle = request_handle:body() --body check
   if body_handle and body_handle:length() > 0 then
     local body_str = tostring(body_handle:getBytes(0, body_handle:length()))
@@ -226,14 +227,18 @@ function envoy_on_request(request_handle)
       end
     end
   end
+  end -- post_body_inspection
 
+  -- On detection, record the attacker IP in the in-memory store (mirrors OpenResty's
+  -- wadm:set) and log the timing. Only trigger-bearing requests are timed so all edges
+  -- sample the same population (the keyword-matching request).
   if detected or dirty then
     record_attacker_ip(ip)
+    request_handle:logWarn(
+      "Envoy Lua Detection execution time (us): "
+      .. (get_micro_time() - detection_start)
+    )
   end
-  request_handle:logWarn(
-    "Envoy Lua Detection execution time (us): "
-    .. math.floor((os.clock() - detection_start) * 1e6)
-  )
 end
 
 -- Envoy hook: mutate HTML responses from upstream to embed honeytoken HTML comments.
@@ -242,7 +247,7 @@ function envoy_on_response(response_handle)
   if not ct:find("text/html", 1, true) then
     return
   end
-  local injection_start = os.clock()
+  local injection_start = get_micro_time()
 
   local request_path = response_handle:headers():get(":path") or "/"
   local uri = request_path:match("^([^?]+)") or request_path
@@ -266,6 +271,6 @@ function envoy_on_response(response_handle)
   response_handle:headers():replace("content-length", tostring(#new_body))
   response_handle:logWarn(
     "Envoy Lua Injection execution time (us): "
-    .. math.floor((os.clock() - injection_start) * 1e6)
+    .. (get_micro_time() - injection_start)
   )
 end
