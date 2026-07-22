@@ -38,11 +38,11 @@ Client request
                            │ upstream response
                            ▼
 ┌─────────────────────────────────────────────────────────┐
-│ Output filter chain (text/html only)                     │
+│ Output filter chain                                      │
 │  inject.lua → handle_inject(r)  [LuaOutputFilter]       │
-│  • coroutine: yield → while bucket loop → final yield   │
-│  • gsub replaces </body> with comment_value + </body>    │
-│  • modified bucket yielded downstream per chunk          │
+│  • content-type guard + path matching (setup)           │
+│  • buffers every brigade chunk, then one gsub at EOS     │
+│  • whole modified body yielded once at end-of-stream     │
 └──────────────────────────┬──────────────────────────────┘
                            │ HTML with injected honeytoken
                            ▼
@@ -59,9 +59,13 @@ Client request
 
 ### `inject.lua` — `handle_inject(r)` (LuaOutputFilter WADM_INJECT)
 
-- **Coroutine stages:** first `coroutine.yield()` signals readiness; the `while bucket ~= nil` loop processes each brigade chunk; the final `coroutine.yield()` is the required clean-close.
-- **Per-chunk limitation:** `string.gsub` runs on each bucket individually. If `</body>` is split across two consecutive chunks the comment is not injected. This is acceptable for a demo backend serving small, complete pages. To handle it robustly, accumulate all chunks into a buffer and inject once after the loop exits (full-buffer approach used by `envoy_scripts/injection.lua`).
-- **Content-Type guard:** `AddOutputFilterByType WADM_INJECT text/html` in `httpd.conf` restricts the filter to HTML responses; no check is needed inside the script.
+Implements the **canonical injection contract** (see `benchmarks/README.md` → "Level-playing-field invariants" #6) so its injection timing is directly comparable to OpenResty / Envoy+Lua / WASM.
+
+- **Coroutine stages:** first `coroutine.yield()` signals readiness; the `while bucket ~= nil` loop **accumulates** every brigade chunk (yielding `""` so nothing is emitted yet); after end-of-stream a single whole-body transform runs and the modified body is emitted at the final `coroutine.yield(new_body)`.
+- **Buffered whole body (not per-chunk):** the previous version ran `string.gsub` on each bucket individually, which missed a `</body>` split across chunks and logged one timing line *per chunk*. It now buffers the full body first (mirroring OpenResty's `ctx.body_chunks`) and does one first-match splice, logging exactly one timing line per response.
+- **Path matching:** `comments_for_path(r.uri)` selects every honeytoken whose `paths` match this request (`/*` or exact), identical to the other edges — the previous version hardcoded `html_comments[1]` and ignored `paths`.
+- **Content-Type guard:** `handle_inject` checks `r.content_type` internally; non-HTML responses stream through unchanged and are never buffered. (`httpd.conf` uses `SetOutputFilter WADM_INJECT` — applied to every response — so the guard lives in the script.)
+- **Timed region:** only `assemble body → find first </body> → splice → produce new body`. The content-type guard, path matching, and comment join are setup and run *outside* `r:clock()`; Content-Length is handled by `Header always unset Content-Length` in `httpd.conf`, outside the timer.
 
 ## Parity reference
 
@@ -70,6 +74,17 @@ Client request
 | Config load | `init_by_lua_block` | Module scope | Module scope (`LuaScope thread`) |
 | Query string clean | `ngx.req.set_uri_args` | `request_handle:headers():replace(":path", …)` | `r.args = gsub(…)` |
 | POST body clean | `ngx.req.set_body_data` | `body_handle:setBytes(…)` | Not implemented |
-| IP tracking | `lua_shared_dict` | `/tmp/detected_ips.json` | Not implemented |
+| IP tracking | in-memory `lua_shared_dict` | in-memory module-scope Lua table | in-memory module-scope Lua table |
 | HTML injection | `body_filter_by_lua_block` | `response_handle:body():setBytes(…)` | `LuaOutputFilter` coroutine |
-| Injection scope | Full buffered body | Full body | Per bucket (see caveat above) |
+| Injection scope | Full buffered body | Full buffered body | Full buffered body |
+| Path matching | `paths` (`/*` / exact) | `paths` (`/*` / exact) † | `paths` (`/*` / exact) |
+| Request path source (response phase) | `ngx.var.uri` | dynamic metadata stashed on request † | `r.uri` |
+
+† The `:path` pseudo-header exists only on the **request**, so `envoy_on_response` cannot
+read it. Envoy+Lua therefore stashes the path-only portion in per-stream dynamic metadata
+(`streamInfo():dynamicMetadata():set("wadm.honeypot", "request_path", …)`) during
+`envoy_on_request` and reads it back during `envoy_on_response` — the same trick the WASM
+filter uses with `self.request_path`. Before this, `uri` fell back to `/`, so only `/*`
+tokens ever matched and exact-path tokens (e.g. one scoped to `/index.html`) were silently
+missed. The stash/read both sit **outside** the timed regions, so they do not affect the
+benchmark numbers.

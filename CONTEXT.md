@@ -18,6 +18,17 @@ The same `config.json` schema is consumed by the Lua, OpenResty, and Rust (WASM)
 | `comment_value` | HTML comment string embedded before `</body>` (or appended). Treat as **secret** you want leaked only if someone scrapes HTML. |
 | `trigger_keyword` | If present, edge checks **requests** for this substring (query/body/path depending on stack). Hit → log + often strip + sometimes IP tracking. Empty/absent → inject-only for that row. |
 
+### Additional honeytoken kinds (OpenResty only for now)
+
+Four further kinds live as sibling arrays under `honeytokens`. **Currently implemented on the OpenResty edge only** (`nginx/nginx.conf`); the other edges parse the same file but ignore the new keys until ported. Each row's fields are admin-settable, just like `html_comments`.
+
+| Kind (`honeytokens.<key>[]`) | Injection | Detection | Admin properties |
+|--------|-----------|-----------|------------------|
+| `http_headers` | Decoy **response header** on matching `paths`. | Keyword replay of the value in a later request (path/Host/query). | `paths`, `header_name`, `header_value`, `trigger_keyword` |
+| `cookies` | **Set-Cookie** bait on matching `paths`. | **Tamper**: returned cookie value ≠ planted `cookie_value`. A browser replays it unchanged, so only an attacker fires it. | `paths`, `cookie_name`, `cookie_value`, `attributes` (extra cookie attributes appended verbatim), `trigger_keyword` (optional value-replay) |
+| `decoy_paths` | Advertises a fake path as a hidden HTML link on `advertise_on_paths`. | **Path match**: any request whose URI matches `trap_path` (no keyword). | `trap_path`, `match_type` (`exact`\|`prefix`), `advertise_via` (`link`\|`robots`\|`none`), `advertise_on_paths`, `link_text` |
+| `form_fields` | Hidden `<input>` injected before `</form>` on matching `paths`. | **Tamper**: submitted value ≠ planted `field_value` (query always; POST only when `post_body_inspection` is on). | `paths`, `field_name`, `field_value`, `trigger_keyword` (optional) |
+
 Edit `config.json` on the host; Compose mounts it read-only into each edge container at the paths listed in `docker-compose.yml`.
 
 ---

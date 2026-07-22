@@ -110,6 +110,10 @@ local function get_comments_for_path(uri)
   return to_inject
 end
 
+-- Per-stream dynamic-metadata namespace used to carry the request path from
+-- envoy_on_request to envoy_on_response (see set/get below).
+local WADM_META_FILTER = "wadm.honeypot"
+
 -- In-memory attacker store (module scope → persists across requests on this worker's
 -- Lua VM), mirroring OpenResty's ngx.shared.wadm_state. Replaces the previous
 -- /tmp/detected_ips.json file store so the detection timer measures the same work as
@@ -131,6 +135,19 @@ end
 
 -- Envoy hook: inspect and optionally rewrite request path/body before routing to the cluster.
 function envoy_on_request(request_handle)
+  -- Carry the request path to the response phase. The ":path" pseudo-header exists only
+  -- on the request, so envoy_on_response cannot read it — it would fall back to "/" and
+  -- silently miss exact-path honeytokens (e.g. a token scoped to /index.html). Stash the
+  -- path-only portion in per-stream dynamic metadata here; envoy_on_response reads it
+  -- back. This mirrors how the WASM filter saves self.request_path on the request side.
+  -- Deliberately placed before the early return below (injection must know the path even
+  -- when no trigger keywords are configured) and before the detection timer, since this
+  -- is bookkeeping rather than detection work.
+  local raw_path = request_handle:headers():get(":path") or "/"
+  request_handle:streamInfo():dynamicMetadata():set(
+    WADM_META_FILTER, "request_path", raw_path:match("^([^?]+)") or raw_path
+  )
+
   -- Setup runs *before* the timer (matches OpenResty): building the trigger table,
   -- reading the client IP and any known-attacker lookup are excluded from the timed
   -- region so detection measures only query scan + strip + in-memory record.
@@ -242,35 +259,51 @@ function envoy_on_request(request_handle)
 end
 
 -- Envoy hook: mutate HTML responses from upstream to embed honeytoken HTML comments.
+-- Canonical injection contract (shared with OpenResty / Apache / WASM):
+--   • content-type guard + path matching + token join are setup → OUTSIDE the timer
+--   • the whole response body is buffered BEFORE the timer starts, so the measured
+--     window excludes the upstream body-arrival wait (Envoy's Lua filter buffers the
+--     full body on first :body() access, suspending the coroutine until it is complete)
+--   • timed region = read body → locate first </body> → splice → write body back
+--   • Content-Length adjustment is external to the timed region
 function envoy_on_response(response_handle)
   local ct = response_handle:headers():get("content-type") or ""
   if not ct:find("text/html", 1, true) then
     return
   end
-  local injection_start = get_micro_time()
 
-  local request_path = response_handle:headers():get(":path") or "/"
-  local uri = request_path:match("^([^?]+)") or request_path
-
+  -- Setup (outside timer): resolve which comment(s) apply to this request path and join
+  -- them. The path comes from the dynamic metadata stashed by envoy_on_request, because
+  -- ":path" is a request-only pseudo-header and is not present on response headers.
+  local uri = "/"
+  local meta = response_handle:streamInfo():dynamicMetadata():get(WADM_META_FILTER)
+  if meta and meta["request_path"] then
+    uri = meta["request_path"]
+  end
   local to_inject = get_comments_for_path(uri)
   if #to_inject == 0 then
     return
   end
-
-  local body = response_handle:body():getBytes(0, response_handle:body():length())
-  local body_str = tostring(body)
-
   local injection = table.concat(to_inject, "\n")
-  local new_body = body_str:gsub("</body>", injection .. "\n</body>", 1)
 
+  -- Force full-body buffering here, before the timer, so the arrival/buffering wait is
+  -- not charged to injection (matches OpenResty's last-chunk / WASM's end-of-stream start).
+  local body_handle = response_handle:body()
+  local body_len = body_handle:length()
+
+  -- Timed region: read body → locate first </body> → splice → write body back.
+  local injection_start = get_micro_time()
+  local body_str = tostring(body_handle:getBytes(0, body_len))
+  local new_body = body_str:gsub("</body>", injection .. "\n</body>", 1)
   if new_body == body_str then
     new_body = body_str .. injection
   end
+  body_handle:setBytes(new_body)
+  local injection_end = get_micro_time()
 
-  response_handle:body():setBytes(new_body)
+  -- Content-Length fix stays outside the timed region.
   response_handle:headers():replace("content-length", tostring(#new_body))
   response_handle:logWarn(
-    "Envoy Lua Injection execution time (us): "
-    .. (get_micro_time() - injection_start)
+    "Envoy Lua Injection execution time (us): " .. (injection_end - injection_start)
   )
 end

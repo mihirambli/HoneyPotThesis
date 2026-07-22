@@ -11,7 +11,8 @@ This directory is **not** stock nginx: the Compose service uses **`openresty/ope
 <!-- init: why once per worker — shared global wadm_config avoids re-reading JSON on every request. -->
 1. Opens `/etc/openresty/config.json` (mounted from repo root).  
 2. Decodes JSON with `cjson` into global `wadm_config`.  
-3. Logs success or parse errors.
+3. Logs success or parse errors.  
+4. Defines the `wadm_handlers` registry (global) — one handler per additional honeytoken kind (`http_headers`, `cookies`, `decoy_paths`, `form_fields`), each exposing only the hooks it needs (`detect`, `header_inject`, `body_payload`) — plus the shared `wadm_path_matches` predicate. `html_comments` keeps its own inline, benchmarked code paths; the registry drives everything else and runs **outside** the injection/detection timers.
 
 ### `access_by_lua_block` (per request, before upstream)
 
@@ -24,10 +25,12 @@ Runs only inside `location /` before `proxy_pass`:
 4. **POST:** `ngx.req.read_body()` then `ngx.req.get_post_args()` for `application/x-www-form-urlencoded`-style parsing; same trigger logic; may rebuild body with `ngx.req.set_body_data`. If post args fail, falls back to scanning raw `ngx.req.get_body_data()`.  
 5. If `detected`, stores `ip -> true` in `lua_shared_dict wadm_state` (24h TTL) and logs.
 
+**Additional-kind detection (untimed).** Before the `html_comments` scan, a registry pass runs each handler's `detect`: `cookies`/`form_fields` flag **tampering** (returned value ≠ planted value), `decoy_paths` flags a **request whose URI matches `trap_path`**, and `http_headers`/`cookies` flag **replay** of a planted value (path/Host/query). Hits reuse the same sink (`WADM ALERT` + `wadm_state`). It runs first so the `html_comments` early-returns can't skip it, and outside the detection timer so measurements stay comparable.
+
 ### `header_filter_by_lua_block` (response headers from upstream)
 
 <!-- header_filter: why clear content_length — body_filter will change byte length; nginx must not trust upstream length. -->
-If `Content-Type` looks like HTML, clears `content_length` so nginx can change the body length during filtering.
+If `Content-Type` looks like HTML, clears `content_length` so nginx can change the body length during filtering. Then a registry pass runs each handler's `header_inject` on matching `paths`: `http_headers` sets the decoy response header, `cookies` **appends** a `Set-Cookie` bait (without clobbering upstream cookies). Header-only, so it is content-type agnostic and needs no length handling.
 
 ### `body_filter_by_lua_block` (streaming response body)
 
@@ -36,6 +39,8 @@ If `Content-Type` looks like HTML, clears `content_length` so nginx can change t
 2. Computes `to_inject` from `ngx.var.uri` and path patterns (same rules as other stacks).  
 3. **Chunk accumulation:** pushes each upstream chunk into `ngx.ctx.body_chunks`, zeroes the current chunk (`ngx.arg[1] = ""`) until `ngx.arg[2]` signals EOF.  
 4. On last chunk, concatenates all pieces, runs regex replace to insert honeytokens before `</body>` (or appends), outputs final `ngx.arg[1]`.
+
+**Additional-kind body payloads (untimed).** The registry also collects `body_payload`s — `form_fields` hidden `<input>`s (spliced before the first `</form>`) and `decoy_paths` hidden links (before `</body>`). When any exist, they are spliced first, outside the timer, and the `html_comments` splice still runs under the timer. When none exist, the last-chunk path is byte-for-byte the original benchmarked code, so the `Injection execution time` measurement is unchanged.
 
 ### Upstream
 

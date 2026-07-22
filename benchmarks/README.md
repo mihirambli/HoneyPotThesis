@@ -261,6 +261,28 @@ guarantees (all four edges obey them):
    previously read and rewrote `/tmp/detected_ips.json` on the hot path (plus a
    per-request trigger-table rebuild) inside its timer, which inflated its detection
    numbers by 3–6× and was **not** comparable.
+6. **Canonical injection contract: buffered whole body, single first-match splice.**
+   All four edges perform the *same* HTML injection and time the *same* region:
+   - **Setup outside the timer:** the `text/html` content-type guard, path matching /
+     token selection, and the comment join all run *before* the injection timer starts.
+   - **Whole body buffered before the timer:** OpenResty times only its final
+     `body_filter` chunk (earlier chunks are accumulated untimed); WASM `Pause`s per
+     chunk until `end_of_stream`; Envoy+Lua forces `:body()` buffering *before* the
+     timer so the upstream body-arrival wait is excluded; Apache buffers every brigade
+     chunk before transforming.
+   - **Timed region (identical on all four):** assemble the full body → locate the
+     first `</body>` → splice the joined comment(s) before it (append if absent) →
+     write the body back. Content-Length is adjusted *outside* the timer.
+
+   Two edges were previously non-comparable on injection: Envoy+Lua started its timer
+   *before* `:body()`, charging the body-arrival/buffering wait to injection (≈5–10×
+   inflation — it drops to single-digit µs once the wait is excluded); Apache ran a
+   *per-chunk* `gsub` with **no path matching** (a different, cheaper unit that also
+   logged one timing line per chunk instead of one per response). The one residual,
+   *intended* difference is each runtime's native string primitive (OpenResty PCRE
+   `ngx.re.sub`, WASM `str::find`, Envoy+Lua/Apache Lua `gsub` with count 1) — all
+   produce the same first-match splice, so the leftover time is the runtime's body-API
+   cost, which is exactly what the injection subplot is meant to measure.
 
 ## Files
 
@@ -272,4 +294,5 @@ guarantees (all four edges obey them):
 | [run_internal_apache_lua_benchmark.py](run_internal_apache_lua_benchmark.py) | Orchestrates internal Apache mod_lua microsecond profiling runs and writes summary + raw JSON results. |
 | [run_internal_wasm_benchmark.py](run_internal_wasm_benchmark.py) | Orchestrates internal Envoy WASM microsecond profiling runs and writes summary + raw JSON results. |
 | [plot_edge_comparison.py](plot_edge_comparison.py) | Renders per-VU box-plot comparisons of all four edges from the raw sample files (falls back to summary stats). |
+| [EDGE_LEVELING.md](EDGE_LEVELING.md) | Record of the source changes that made the four edges comparable (detection state store, canonical injection contract, Envoy path capture). |
 | [README.md](README.md) | This document. |

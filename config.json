@@ -12,6 +12,40 @@
         "comment_value": "<!-- TODO: remove debug endpoint /api/v1/debug?token=abc123 -->",
         "trigger_keyword": "abc123"
       }
+    ],
+    "http_headers": [
+      {
+        "paths": ["/*"],
+        "header_name": "X-Backend-Server",
+        "header_value": "app-07.internal.example.com",
+        "trigger_keyword": "app-07.internal.example.com"
+      }
+    ],
+    "cookies": [
+      {
+        "paths": ["/*"],
+        "cookie_name": "admin_ui",
+        "cookie_value": "0",
+        "attributes": "Path=/; SameSite=Lax",
+        "trigger_keyword": ""
+      }
+    ],
+    "decoy_paths": [
+      {
+        "trap_path": "/api/v1/debug",
+        "match_type": "prefix",
+        "advertise_via": "link",
+        "advertise_on_paths": ["/*"],
+        "link_text": "debug console"
+      }
+    ],
+    "form_fields": [
+      {
+        "paths": ["/*"],
+        "field_name": "is_admin",
+        "field_value": "0",
+        "trigger_keyword": ""
+      }
     ]
   }
 }

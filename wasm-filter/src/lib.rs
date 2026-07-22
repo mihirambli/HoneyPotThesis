@@ -170,52 +170,26 @@ impl HttpContext for HoneypotHttp {
         Action::Continue
     }
 
-    // Buffers all body chunks until end_of_stream (Pause per chunk), then injects comments and releases.
-    // Non-HTML streams skip injection entirely via the flag set in on_http_response_headers.
+    // Canonical injection contract (shared with OpenResty / Envoy+Lua / Apache):
+    //   * Pause per chunk until end_of_stream so the whole body is buffered before the timer.
+    //   * Content-type guard + path matching + token join are setup → OUTSIDE the timer.
+    //   * Timed region = read body → locate first </body> → splice → write body back.
+    //   * Content-Length is dropped in on_http_response_headers (external to the timer).
     fn on_http_response_body(&mut self, body_size: usize, end_of_stream: bool) -> Action {
         if !self.is_html_response {
             return Action::Continue;
         }
 
+        // Buffer the full body first; only act once every chunk has arrived.
         if !end_of_stream {
             return Action::Pause;
         }
 
-        let start = self.get_current_time();
-
-        let body_bytes = match self.get_http_response_body(0, body_size) {
-            Some(b) => b,
-            None => {
-                warn!(
-                    "WASM Injection execution time (us): {}",
-                    self.elapsed_us(start)
-                );
-                return Action::Continue;
-            }
-        };
-
-        let body_str = match String::from_utf8(body_bytes) {
-            Ok(s) => s,
-            Err(_) => {
-                warn!(
-                    "WASM Injection execution time (us): {}",
-                    self.elapsed_us(start)
-                );
-                return Action::Continue;
-            }
-        };
-
+        // Setup (outside timer): select which comment(s) apply to this request path and join them.
         let tokens = match self.html_comments() {
             Some(t) => t,
-            None => {
-                warn!(
-                    "WASM Injection execution time (us): {}",
-                    self.elapsed_us(start)
-                );
-                return Action::Continue;
-            }
+            None => return Action::Continue,
         };
-
         let mut to_inject = Vec::new();
         for token in tokens {
             for pattern in &token.paths {
@@ -225,16 +199,23 @@ impl HttpContext for HoneypotHttp {
                 }
             }
         }
-
         if to_inject.is_empty() {
-            warn!(
-                "WASM Injection execution time (us): {}",
-                self.elapsed_us(start)
-            );
             return Action::Continue;
         }
-
         let injection = to_inject.join("\n");
+
+        // Timed region: read body → locate first </body> → splice → write body back.
+        let start = self.get_current_time();
+
+        let body_bytes = match self.get_http_response_body(0, body_size) {
+            Some(b) => b,
+            None => return Action::Continue,
+        };
+        let body_str = match String::from_utf8(body_bytes) {
+            Ok(s) => s,
+            Err(_) => return Action::Continue,
+        };
+
         let new_body = if let Some(pos) = body_str.find("</body>") {
             let mut buf = String::with_capacity(body_str.len() + injection.len() + 1);
             buf.push_str(&body_str[..pos]);

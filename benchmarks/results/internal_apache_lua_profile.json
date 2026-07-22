@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-07-08T17:14:05.215356+00:00",
+    "generated_at": "2026-07-15T17:21:25.952961+00:00",
     "script": "benchmarks/run_internal_apache_lua_benchmark.py",
     "target": "http://apache:80",
     "trigger_keyword": "internal-admin.example.com",
@@ -19,17 +19,17 @@
       "compose_exit_code": 0,
       "detection": {
         "count": 30,
-        "min_us": 20,
-        "avg_us": 135.07,
-        "p90_us": 210.0,
-        "max_us": 1220
+        "min_us": 19,
+        "avg_us": 97.9,
+        "p90_us": 229.0,
+        "max_us": 368
       },
       "injection": {
         "count": 60,
         "min_us": 2,
-        "avg_us": 8.95,
-        "p90_us": 6.0,
-        "max_us": 202
+        "avg_us": 6.65,
+        "p90_us": 8.0,
+        "max_us": 129
       },
       "errors": {
         "compose_stderr": "",
@@ -41,17 +41,17 @@
       "compose_exit_code": 0,
       "detection": {
         "count": 300,
-        "min_us": 12,
-        "avg_us": 124.49,
-        "p90_us": 326.0,
-        "max_us": 3011
+        "min_us": 11,
+        "avg_us": 171.24,
+        "p90_us": 544.0,
+        "max_us": 3047
       },
       "injection": {
         "count": 600,
         "min_us": 2,
-        "avg_us": 9.99,
-        "p90_us": 5.0,
-        "max_us": 578
+        "avg_us": 19.98,
+        "p90_us": 4.0,
+        "max_us": 3415
       },
       "errors": {
         "compose_stderr": "",
@@ -62,18 +62,18 @@
       "vus": 100,
       "compose_exit_code": 0,
       "detection": {
-        "count": 3000,
+        "count": 3004,
         "min_us": 12,
-        "avg_us": 250.65,
-        "p90_us": 528.0,
-        "max_us": 22981
+        "avg_us": 316.07,
+        "p90_us": 671.0,
+        "max_us": 17108
       },
       "injection": {
-        "count": 5998,
-        "min_us": 2,
-        "avg_us": 25.32,
+        "count": 6000,
+        "min_us": 1,
+        "avg_us": 29.5,
         "p90_us": 5.0,
-        "max_us": 6215
+        "max_us": 9656
       },
       "errors": {
         "compose_stderr": "",
@@ -84,18 +84,18 @@
       "vus": 500,
       "compose_exit_code": 0,
       "detection": {
-        "count": 11472,
+        "count": 14295,
         "min_us": 10,
-        "avg_us": 1395.55,
-        "p90_us": 879.0,
-        "max_us": 936040
+        "avg_us": 490.06,
+        "p90_us": 663.0,
+        "max_us": 94151
       },
       "injection": {
-        "count": 22910,
-        "min_us": 2,
-        "avg_us": 102.01,
-        "p90_us": 6.0,
-        "max_us": 267762
+        "count": 28536,
+        "min_us": 1,
+        "avg_us": 66.42,
+        "p90_us": 5.0,
+        "max_us": 211978
       },
       "errors": {
         "compose_stderr": "",
