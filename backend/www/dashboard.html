@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acme Portal — Dashboard</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 720px; color: #1a1a1a; }
+        nav a { margin-right: 1rem; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+        .tile { border: 1px solid #ddd; border-radius: 8px; padding: 1rem 1.25rem; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/">Home</a>
+        <a href="/login.html">Login</a>
+        <a href="/dashboard.html">Dashboard</a>
+        <a href="/admin.html">Admin</a>
+        <a href="/about.html">About</a>
+    </nav>
+
+    <h1>Dashboard</h1>
+    <div class="grid">
+        <div class="tile"><h3>Projects</h3><p>3 active</p></div>
+        <div class="tile"><h3>Reports</h3><p>Last run: today</p></div>
+        <div class="tile"><h3>Team</h3><p>5 members</p></div>
+        <div class="tile"><h3>Billing</h3><p>Up to date</p></div>
+    </div>
+</body>
+</html>

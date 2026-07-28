@@ -12,7 +12,9 @@ This directory is **not** stock nginx: the Compose service uses **`openresty/ope
 1. Opens `/etc/openresty/config.json` (mounted from repo root).  
 2. Decodes JSON with `cjson` into global `wadm_config`.  
 3. Logs success or parse errors.  
-4. Defines the `wadm_handlers` registry (global) — one handler per additional honeytoken kind (`http_headers`, `cookies`, `decoy_paths`, `form_fields`), each exposing only the hooks it needs (`detect`, `header_inject`, `body_payload`) — plus the shared `wadm_path_matches` predicate. `html_comments` keeps its own inline, benchmarked code paths; the registry drives everything else and runs **outside** the injection/detection timers.
+4. Defines the `wadm_handlers` registry (global) — one handler per additional honeytoken kind (`http_headers`, `cookies`, `decoy_paths`, `form_fields`), each exposing only the hooks it needs (`detect`, `header_inject`, `body_payload`) — plus the shared `wadm_path_matches` predicate and `wadm_token_enabled` switch. `html_comments` keeps its own inline, benchmarked code paths; the registry drives everything else and runs **outside** the injection/detection timers.
+
+Every token (all kinds) carries an optional `enabled` field checked by `wadm_token_enabled` before it is injected or watched: `1`/`on`/`true` = active, anything else = dormant, absent = on. The check is setup that stays outside both timers.
 
 ### `access_by_lua_block` (per request, before upstream)
 

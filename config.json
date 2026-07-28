@@ -3,18 +3,27 @@
   "honeytokens": {
     "html_comments": [
       {
+        "enabled": 1,
         "paths": ["/*"],
         "comment_value": "<!-- DEV-PORTAL: internal-admin.example.com -->",
         "trigger_keyword": "internal-admin.example.com"
       },
       {
+        "enabled": 1,
         "paths": ["/index.html"],
         "comment_value": "<!-- TODO: remove debug endpoint /api/v1/debug?token=abc123 -->",
         "trigger_keyword": "abc123"
+      },
+      {
+        "enabled": 1,
+        "paths": ["/dashboard.html"],
+        "comment_value": "<!-- staging API: https://staging-api.example.com key=sk_live_9f8e7d6c -->",
+        "trigger_keyword": "sk_live_9f8e7d6c"
       }
     ],
     "http_headers": [
       {
+        "enabled": 1,
         "paths": ["/*"],
         "header_name": "X-Backend-Server",
         "header_value": "app-07.internal.example.com",
@@ -23,6 +32,7 @@
     ],
     "cookies": [
       {
+        "enabled": 1,
         "paths": ["/*"],
         "cookie_name": "admin_ui",
         "cookie_value": "0",
@@ -32,6 +42,7 @@
     ],
     "decoy_paths": [
       {
+        "enabled": 1,
         "trap_path": "/api/v1/debug",
         "match_type": "prefix",
         "advertise_via": "link",
@@ -41,7 +52,8 @@
     ],
     "form_fields": [
       {
-        "paths": ["/*"],
+        "enabled": 1,
+        "paths": ["/login.html", "/admin.html"],
         "field_name": "is_admin",
         "field_value": "0",
         "trigger_keyword": ""

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acme Portal — Admin Settings</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 720px; color: #1a1a1a; }
+        nav a { margin-right: 1rem; }
+        form { border: 1px solid #ddd; border-radius: 8px; padding: 1rem 1.25rem; margin-top: 1rem; max-width: 420px; }
+        label { display: block; margin: 0.5rem 0 0.2rem; }
+        input, select { width: 100%; padding: 0.4rem; box-sizing: border-box; }
+        button { margin-top: 1rem; padding: 0.5rem 1rem; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/">Home</a>
+        <a href="/login.html">Login</a>
+        <a href="/dashboard.html">Dashboard</a>
+        <a href="/admin.html">Admin</a>
+        <a href="/about.html">About</a>
+    </nav>
+
+    <h1>Admin settings</h1>
+    <form action="/api/admin/settings" method="post">
+        <label for="org">Organisation name</label>
+        <input type="text" id="org" name="org" value="Acme Inc.">
+        <label for="plan">Plan</label>
+        <select id="plan" name="plan">
+            <option>Free</option>
+            <option>Team</option>
+            <option>Enterprise</option>
+        </select>
+        <button type="submit">Save changes</button>
+    </form>
+</body>
+</html>

@@ -14,13 +14,14 @@ The same `config.json` schema is consumed by the Lua, OpenResty, and Rust (WASM)
 | Field | Meaning for you |
 |--------|------------------|
 | `honeytokens.html_comments[]` | Each entry is one injectable “bait” plus optional detection string. |
-| `paths` | Where to inject `comment_value` into HTML: use `/*` for every page, or an exact path like `/index.html` (match is against path without query; stacks differ slightly—see READMEs). |
+| `enabled` | Per-token on/off switch (all kinds). `1`/`on`/`true` → the token is planted **and** watched; `0`/`off`/`false` → fully dormant (not injected, not detected). Absent defaults to **on**. |
+| `paths` | Which page(s) to inject into: `/*` for every page, or an **exact** request path like `/admin.html` (match is against the URI without query). The homepage is `/`, not `/index.html`. List several to target multiple pages, e.g. `["/login.html", "/admin.html"]`. Available pages live in `backend/www/`. |
 | `comment_value` | HTML comment string embedded before `</body>` (or appended). Treat as **secret** you want leaked only if someone scrapes HTML. |
 | `trigger_keyword` | If present, edge checks **requests** for this substring (query/body/path depending on stack). Hit → log + often strip + sometimes IP tracking. Empty/absent → inject-only for that row. |
 
 ### Additional honeytoken kinds (OpenResty only for now)
 
-Four further kinds live as sibling arrays under `honeytokens`. **Currently implemented on the OpenResty edge only** (`nginx/nginx.conf`); the other edges parse the same file but ignore the new keys until ported. Each row's fields are admin-settable, just like `html_comments`.
+Four further kinds live as sibling arrays under `honeytokens`. **Currently implemented on the OpenResty edge only** (`nginx/nginx.conf`); the other edges parse the same file but ignore the new keys until ported. Each row's fields are admin-settable, just like `html_comments`, and every token honours the same `enabled` switch described above.
 
 | Kind (`honeytokens.<key>[]`) | Injection | Detection | Admin properties |
 |--------|-----------|-----------|------------------|
@@ -46,7 +47,7 @@ flowchart LR
   Edge --> Backend
 ```
 
-1. **Backend** — plain nginx serving `index.html` (the “victim” application surface).
+1. **Backend** — plain nginx serving the static pages in `backend/www/` (the “victim” application surface: `/`, `/login.html`, `/dashboard.html`, `/admin.html`, `/about.html`).
 2. **Edge** (pick one compose profile) — terminates HTTP, applies WADM rules, proxies to `backend:80`.
 3. **Configuration** — `config.json` at repo root lists `honeytokens.html_comments[]` with `paths`, `comment_value`, and optional `trigger_keyword`.
 
@@ -78,7 +79,7 @@ Docker Compose wires services on a shared `honeypot` bridge network. Only the ed
 <!-- Map: why each top-level path exists — quick navigation for changes. -->
 | Path | Role |
 |------|------|
-| `backend/` | Static site + nginx config for the origin container (`index.html`, logging-focused `nginx.conf`). |
+| `backend/` | Origin container: `nginx.conf` (logging-focused) plus `www/` — the document root, mounted whole, holding the dummy app's pages. Drop any `.html` into `backend/www/` and it is served automatically. |
 | `nginx/` | OpenResty **primary** implementation: `init_by_lua` loads config; `access_by_lua` inspects args/body; `header_filter_by_lua` / `body_filter_by_lua` inject comments into HTML. Uses `lua_shared_dict` for IP marking. |
 | `envoy/` | Envoy static config: HTTP connection manager → **Lua** HTTP filter (`injection.lua`) → router → `backend` cluster. Mounts `config.json` and `envoy_scripts/`. |
 | `envoy_scripts/` | Envoy Lua filter source (`injection.lua`), JSON helper (`json.lua`), and `download_json_lua.sh` to refresh the vendored JSON library. |
