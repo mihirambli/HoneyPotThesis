@@ -8,6 +8,28 @@ local content = file:read("*a")
 file:close()
 local config = json.decode(content)
 
+-- Per-token on/off switch (all kinds): active unless explicitly disabled. 1/on/true/yes = on;
+-- anything else = off; absent = on (backward compatible).
+local function token_enabled(token)
+  local v = token.enabled
+  if v == nil then return true end
+  if v == true or v == 1 then return true end
+  if type(v) == "string" then
+    local s = v:lower()
+    return s == "1" or s == "on" or s == "true" or s == "yes"
+  end
+  return false
+end
+
+-- "/*" matches every path, otherwise exact match against the request URI.
+local function path_matches(paths, uri)
+  if not paths then return false end
+  for _, pattern in ipairs(paths) do
+    if pattern == "/*" or pattern == uri then return true end
+  end
+  return false
+end
+
 -- Wall-clock microsecond timer via LuaJIT FFI gettimeofday, mirroring OpenResty's
 -- get_micro_time. Replaces os.clock() (process CPU time, not elapsed wall-clock),
 -- so Envoy+Lua measures the same quantity as the other three edges. A uniquely
@@ -84,7 +106,7 @@ local function get_trigger_keywords()
     return triggers
   end
   for _, token in ipairs(config.honeytokens.html_comments) do
-    if token.trigger_keyword and token.trigger_keyword ~= "" then
+    if token_enabled(token) and token.trigger_keyword and token.trigger_keyword ~= "" then
       triggers[#triggers + 1] = token.trigger_keyword
     end
   end
@@ -98,7 +120,7 @@ local function get_comments_for_path(uri)
     return to_inject
   end
   for _, token in ipairs(config.honeytokens.html_comments) do
-    if token.paths then
+    if token_enabled(token) and token.paths then
       for _, pattern in ipairs(token.paths) do
         if pattern == "/*" or pattern == uri then
           to_inject[#to_inject + 1] = token.comment_value
@@ -133,6 +155,214 @@ local function is_known_attacker(ip)
   return detected_ips[ip] ~= nil
 end
 
+-- ── Fake SQL-injection trap (parity with OpenResty nginx/nginx.conf) ─────────────
+-- The login endpoint has no origin route, so the edge terminates it and plays a
+-- vulnerable MySQL app. Runs before every other detector and outside both timers.
+
+local sqli = config.sql_injection
+
+-- Owned = the request the trap answers itself. Scoped by method AND path so the
+-- benchmarked GET population (including GET /api/login?password=…) is untouched.
+local function sqli_owns(method, uri)
+  if not sqli or not token_enabled(sqli) then return false end
+  local ok_method = false
+  for _, m in ipairs(sqli.methods or {}) do
+    if m == method then ok_method = true end
+  end
+  if not ok_method then return false end
+  return path_matches(sqli.paths, uri)
+end
+
+-- Signatures are stored pre-lowercased and space-normalised, so the same folding must be
+-- applied to the input. ASCII-only lowercasing keeps this byte-identical to the WASM edge.
+local function sqli_normalize(v)
+  return (url_decode(v):lower():gsub("%s+", " "))
+end
+
+-- Ordered pair list rather than parse_query_string's map: that map is unordered and a
+-- duplicate key overwrites, which would make the reflected payload differ between edges
+-- on a multi-field hit.
+local function sqli_parse_pairs(raw)
+  local out = {}
+  for chunk in (raw or ""):gmatch("[^&]+") do
+    local k, v = chunk:match("^(.-)=(.*)$")
+    if not k then k, v = chunk, "" end
+    out[#out + 1] = { key = url_decode(k), value = url_decode(v) }
+  end
+  return out
+end
+
+-- Loop order (watch_fields → body pairs → signatures) is part of the cross-edge contract:
+-- it makes "first match wins" resolve identically on all four edges.
+local function sqli_match(body_pairs)
+  for _, field in ipairs(sqli.watch_fields or {}) do
+    for _, pair in ipairs(body_pairs) do
+      if pair.key == field then
+        local norm = sqli_normalize(pair.value)
+        for _, sig in ipairs(sqli.signatures or {}) do
+          if norm:find(sig, 1, true) then
+            return { field = field, value = pair.value, signature = sig }
+          end
+        end
+      end
+    end
+  end
+  return nil
+end
+
+-- The trap reflects attacker-controlled input; without escaping the honeypot would itself
+-- be a live reflected-XSS vector against anyone who views the page.
+local function sqli_html_escape(s)
+  s = s:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+  s = s:gsub('"', "&quot;"):gsub("'", "&#39;")
+  return s
+end
+
+local function sqli_render(template, payload)
+  local escaped = sqli_html_escape(payload:sub(1, sqli.reflect_max_len or 200))
+  -- Replacement FUNCTION, not string: a payload such as `100%' OR 1=1--` keeps a bare `%`,
+  -- which gsub would reject as an invalid replacement escape and turn into a 500.
+  return (template:gsub("{PAYLOAD}", function() return escaped end))
+end
+
+-- CR/LF would let an attacker forge whole log lines that the benchmark scrapers read.
+local function sqli_log_safe(s)
+  return (s:gsub("[\r\n]", " "))
+end
+
+-- ── Additional honeytoken kinds (parity with OpenResty nginx/nginx.conf) ──────────
+-- Everything below runs OUTSIDE the html_comments detection/injection timers so the
+-- benchmarked measurements stay comparable across edges. token_enabled / path_matches
+-- are defined near the top (shared with the html_comments path).
+
+local function tokens_of(kind)
+  return (config.honeytokens and config.honeytokens[kind]) or {}
+end
+
+-- Substring scan of a request's target surface (path, Host, query) for a replayed value.
+local function keyword_in_request(kw, ctx)
+  if not kw or kw == "" then return false end
+  if ctx.uri:find(kw, 1, true) or (ctx.host and ctx.host:find(kw, 1, true)) then
+    return true
+  end
+  for k, v in pairs(ctx.params) do
+    if k:find(kw, 1, true) or v:find(kw, 1, true) then return true end
+  end
+  return false
+end
+
+local function cookie_value(cookie_header, name)
+  if not cookie_header then return nil end
+  for pair in cookie_header:gmatch("[^;]+") do
+    local k, v = pair:match("^%s*(.-)%s*=%s*(.-)%s*$")
+    if k == name then return v end
+  end
+  return nil
+end
+
+-- Per-kind detectors. Each logs its own WADM ALERT lines and returns true on any hit;
+-- keeping them separate lets detect_additional time one kind at a time.
+local detect_kind = {
+  http_headers = function(request_handle, ctx)
+    local detected = false
+    for _, t in ipairs(tokens_of("http_headers")) do
+      if token_enabled(t) and keyword_in_request(t.trigger_keyword, ctx) then
+        request_handle:logWarn("WADM ALERT: honeytoken triggered by " .. ctx.ip
+          .. " — http_header value '" .. tostring(t.trigger_keyword) .. "' replayed in request")
+        detected = true
+      end
+    end
+    return detected
+  end,
+
+  cookies = function(request_handle, ctx)
+    local detected = false
+    for _, t in ipairs(tokens_of("cookies")) do
+      if token_enabled(t) then
+        if t.cookie_name and t.cookie_name ~= "" then
+          local v = cookie_value(ctx.cookie, t.cookie_name)
+          if v ~= nil and v ~= (t.cookie_value or "") then
+            request_handle:logWarn("WADM ALERT: honeytoken triggered by " .. ctx.ip
+              .. " — cookie '" .. t.cookie_name .. "' tampered (got '" .. v
+              .. "', expected '" .. (t.cookie_value or "") .. "')")
+            detected = true
+          end
+        end
+        if keyword_in_request(t.trigger_keyword, ctx) then
+          request_handle:logWarn("WADM ALERT: honeytoken triggered by " .. ctx.ip
+            .. " — cookie value '" .. tostring(t.trigger_keyword) .. "' replayed in request")
+          detected = true
+        end
+      end
+    end
+    return detected
+  end,
+
+  decoy_paths = function(request_handle, ctx)
+    local detected = false
+    for _, t in ipairs(tokens_of("decoy_paths")) do
+      if token_enabled(t) and t.trap_path and t.trap_path ~= "" then
+        local trap = t.trap_path
+        local hit
+        if (t.match_type or "prefix") == "exact" then
+          hit = (ctx.uri == trap)
+        else
+          hit = (ctx.uri == trap) or (ctx.uri:sub(1, #trap + 1) == trap .. "/")
+        end
+        if hit then
+          request_handle:logWarn("WADM ALERT: honeytoken triggered by " .. ctx.ip
+            .. " — decoy path '" .. trap .. "' requested (" .. ctx.uri .. ")")
+          detected = true
+        end
+      end
+    end
+    return detected
+  end,
+
+  form_fields = function(request_handle, ctx)
+    local detected = false
+    for _, t in ipairs(tokens_of("form_fields")) do
+      if token_enabled(t) and t.field_name and t.field_name ~= "" then
+        local expected = t.field_value or ""
+        local qv = ctx.params[t.field_name]
+        if qv ~= nil and qv ~= expected then
+          request_handle:logWarn("WADM ALERT: honeytoken triggered by " .. ctx.ip
+            .. " — form field '" .. t.field_name .. "' tampered (got '" .. qv
+            .. "', expected '" .. expected .. "')")
+          detected = true
+        end
+        if keyword_in_request(t.trigger_keyword, ctx) then
+          request_handle:logWarn("WADM ALERT: honeytoken triggered by " .. ctx.ip
+            .. " — form field keyword '" .. tostring(t.trigger_keyword) .. "' seen in request")
+          detected = true
+        end
+      end
+    end
+    return detected
+  end,
+}
+
+-- Fixed order so the per-kind timing regions run in the same sequence on every edge.
+local KIND_ORDER = { "http_headers", "cookies", "decoy_paths", "form_fields" }
+
+-- Detection for the additional kinds, one timed region per kind. The timed region covers
+-- the kind's own scan plus the in-memory IP record — the same unit the html_comments
+-- detection timer measures — while ctx construction stays outside as setup.
+local function detect_additional(request_handle, ctx)
+  for _, kind in ipairs(KIND_ORDER) do
+    local kind_start = get_micro_time()
+    local hit = detect_kind[kind](request_handle, ctx)
+    if hit then
+      record_attacker_ip(ctx.ip)
+    end
+    local kind_delta = get_micro_time() - kind_start
+    -- Timed only on a hit, so every edge samples the same population.
+    if hit then
+      request_handle:logWarn("WADM TOKEN " .. kind .. " detect (us): " .. kind_delta)
+    end
+  end
+end
+
 -- Envoy hook: inspect and optionally rewrite request path/body before routing to the cluster.
 function envoy_on_request(request_handle)
   -- Carry the request path to the response phase. The ":path" pseudo-header exists only
@@ -144,21 +374,87 @@ function envoy_on_request(request_handle)
   -- when no trigger keywords are configured) and before the detection timer, since this
   -- is bookkeeping rather than detection work.
   local raw_path = request_handle:headers():get(":path") or "/"
+  local path_only = raw_path:match("^([^?]+)") or raw_path
   request_handle:streamInfo():dynamicMetadata():set(
-    WADM_META_FILTER, "request_path", raw_path:match("^([^?]+)") or raw_path
+    WADM_META_FILTER, "request_path", path_only
   )
-
-  -- Setup runs *before* the timer (matches OpenResty): building the trigger table,
-  -- reading the client IP and any known-attacker lookup are excluded from the timed
-  -- region so detection measures only query scan + strip + in-memory record.
-  local triggers = get_trigger_keywords()
-  if #triggers == 0 then
-    return
-  end
 
   local ip = request_handle:headers():get("x-forwarded-for")
       or request_handle:headers():get("x-real-ip")
       or "unknown"
+
+  -- Fake SQL-injection trap. Placed first and returning unconditionally: an owned request
+  -- never reaches any other detector, keeping all four edges observably identical. POST-only,
+  -- so the k6 GET population (including GET /api/login?password=…) is unaffected.
+  if sqli_owns(request_handle:headers():get(":method"), path_only) then
+    -- body(), never bodyChunks(): respond() is rejected once headers_continued_ is set, and
+    -- only the chunked path sets it. Buffering via body() leaves the flag clear.
+    local body_handle = request_handle:body()
+    local raw = ""
+    if body_handle and body_handle:length() > 0 then
+      raw = tostring(body_handle:getBytes(0, body_handle:length()))
+    end
+
+    local sqli_start = get_micro_time()
+    local hit = sqli_match(sqli_parse_pairs(raw))
+    local page, status
+    if hit then
+      page = sqli_render(sqli.error_template, hit.value)
+      status = sqli.status_code or 500
+    else
+      page = sqli.deny_template
+      status = sqli.deny_status_code or 401
+    end
+    local sqli_delta = get_micro_time() - sqli_start
+
+    if hit then
+      request_handle:logWarn("WADM ALERT: honeytoken triggered by " .. ip
+        .. " — sql_injection signature '" .. hit.signature .. "' in field '" .. hit.field
+        .. "' on " .. (request_handle:headers():get(":method") or "?") .. " " .. path_only
+        .. " (payload '" .. sqli_log_safe(hit.value) .. "')")
+      record_attacker_ip(ip)
+      -- Label deliberately shares no substring with the benchmark scrapers'
+      -- "Detection/Injection execution time (us):" patterns.
+      request_handle:logWarn("Envoy Lua WADM SQLI trap build (us): " .. sqli_delta)
+    end
+
+    -- sendLocalReply re-enters the whole encoder chain, this filter included, so
+    -- envoy_on_response would otherwise stamp the trap page with honeytokens.
+    request_handle:streamInfo():dynamicMetadata():set(
+      WADM_META_FILTER, "local_response", "1"
+    )
+    request_handle:respond(
+      { [":status"] = tostring(status), ["content-type"] = "text/html; charset=UTF-8" },
+      page
+    )
+    return
+  end
+
+  -- Additional honeytoken kinds: cookie/form tamper, decoy-path hits, header/cookie value
+  -- replays. Runs before the html_comments block so its early-return can't skip it; same sink
+  -- (WARN log + in-memory IP). Each kind is timed separately and logged under
+  -- `WADM TOKEN <kind> detect (us):`, a label that shares no substring with the html_comments
+  -- scraper pattern, so the benchmarked detection timer below is untouched.
+  do
+    local q = raw_path:find("?", 1, true)
+    local actx = {
+      ip = ip,
+      uri = path_only,
+      host = request_handle:headers():get(":authority")
+             or request_handle:headers():get("host"),
+      params = q and parse_query_string(raw_path:sub(q + 1)) or {},
+      cookie = request_handle:headers():get("cookie"),
+    }
+    detect_additional(request_handle, actx)
+  end
+
+  -- Setup runs *before* the timer (matches OpenResty): building the trigger table and the
+  -- known-attacker lookup are excluded from the timed region so detection measures only
+  -- query scan + strip + in-memory record.
+  local triggers = get_trigger_keywords()
+  if #triggers == 0 then
+    return
+  end
 
   if is_known_attacker(ip) then
     request_handle:logWarn(
@@ -267,43 +563,140 @@ end
 --   • timed region = read body → locate first </body> → splice → write body back
 --   • Content-Length adjustment is external to the timed region
 function envoy_on_response(response_handle)
-  local ct = response_handle:headers():get("content-type") or ""
-  if not ct:find("text/html", 1, true) then
-    return
-  end
-
-  -- Setup (outside timer): resolve which comment(s) apply to this request path and join
-  -- them. The path comes from the dynamic metadata stashed by envoy_on_request, because
-  -- ":path" is a request-only pseudo-header and is not present on response headers.
+  -- Path stashed by envoy_on_request (":path" is request-only, absent on the response).
   local uri = "/"
   local meta = response_handle:streamInfo():dynamicMetadata():get(WADM_META_FILTER)
   if meta and meta["request_path"] then
     uri = meta["request_path"]
   end
-  local to_inject = get_comments_for_path(uri)
-  if #to_inject == 0 then
+
+  -- The SQLi trap page is emitted by respond(), whose local reply still traverses this
+  -- filter's encoder path. Bail out before any headers()/body() call so the page ships
+  -- exactly as built — matching the edges that bypass their own filters on a local reply.
+  if meta and meta["local_response"] then
     return
   end
-  local injection = table.concat(to_inject, "\n")
 
-  -- Force full-body buffering here, before the timer, so the arrival/buffering wait is
-  -- not charged to injection (matches OpenResty's last-chunk / WASM's end-of-stream start).
+  -- Header-phase injection (any content type): decoy response headers + Set-Cookie baits.
+  -- Header-only, so it runs before the content-type guard and needs no length fix. Token
+  -- selection is setup and stays outside; the timed region is the header write itself.
+  local header_tokens = {}
+  for _, t in ipairs(tokens_of("http_headers")) do
+    if token_enabled(t) and path_matches(t.paths, uri)
+       and t.header_name and t.header_name ~= "" then
+      header_tokens[#header_tokens + 1] = t
+    end
+  end
+  if #header_tokens > 0 then
+    local hstart = get_micro_time()
+    for _, t in ipairs(header_tokens) do
+      response_handle:headers():add(t.header_name, t.header_value or "")
+    end
+    response_handle:logWarn("WADM TOKEN http_headers inject (us): " .. (get_micro_time() - hstart))
+  end
+
+  local cookie_tokens = {}
+  for _, t in ipairs(tokens_of("cookies")) do
+    if token_enabled(t) and path_matches(t.paths, uri)
+       and t.cookie_name and t.cookie_name ~= "" then
+      cookie_tokens[#cookie_tokens + 1] = t
+    end
+  end
+  if #cookie_tokens > 0 then
+    local cstart = get_micro_time()
+    for _, t in ipairs(cookie_tokens) do
+      local c = t.cookie_name .. "=" .. (t.cookie_value or "")
+      if t.attributes and t.attributes ~= "" then c = c .. "; " .. t.attributes end
+      response_handle:headers():add("set-cookie", c)
+    end
+    response_handle:logWarn("WADM TOKEN cookies inject (us): " .. (get_micro_time() - cstart))
+  end
+
+  -- Body injection is HTML-only.
+  local ct = response_handle:headers():get("content-type") or ""
+  if not ct:find("text/html", 1, true) then
+    return
+  end
+
+  -- Setup (outside timer): html_comments payloads + additional-kind body payloads (hidden
+  -- form fields before </form>, decoy links before </body>).
+  local to_inject = get_comments_for_path(uri)
+  local extra = {}
+  for _, t in ipairs(tokens_of("decoy_paths")) do
+    if token_enabled(t) and (t.advertise_via or "link") == "link"
+       and path_matches(t.advertise_on_paths, uri) then
+      extra[#extra + 1] = {
+        kind = "decoy_paths",
+        markup = '<a href="' .. (t.trap_path or "") .. '" style="display:none">'
+                 .. (t.link_text or "") .. '</a>',
+        anchor = "</body>",
+      }
+    end
+  end
+  for _, t in ipairs(tokens_of("form_fields")) do
+    if token_enabled(t) and path_matches(t.paths, uri)
+       and t.field_name and t.field_name ~= "" then
+      extra[#extra + 1] = {
+        kind = "form_fields",
+        markup = '<input type="hidden" name="' .. t.field_name .. '" value="'
+                 .. (t.field_value or "") .. '">',
+        anchor = "</form>",
+      }
+    end
+  end
+
+  if #to_inject == 0 and #extra == 0 then
+    return
+  end
+
+  -- Force full-body buffering here, before the timer (matches OpenResty / WASM).
   local body_handle = response_handle:body()
   local body_len = body_handle:length()
 
-  -- Timed region: read body → locate first </body> → splice → write body back.
-  local injection_start = get_micro_time()
-  local body_str = tostring(body_handle:getBytes(0, body_len))
-  local new_body = body_str:gsub("</body>", injection .. "\n</body>", 1)
-  if new_body == body_str then
-    new_body = body_str .. injection
+  if #extra == 0 then
+    -- Unchanged benchmarked path: read body → splice → write back, inside the timer.
+    local injection = table.concat(to_inject, "\n")
+    local injection_start = get_micro_time()
+    local body_str = tostring(body_handle:getBytes(0, body_len))
+    local new_body = body_str:gsub("</body>", injection .. "\n</body>", 1)
+    if new_body == body_str then
+      new_body = body_str .. injection
+    end
+    body_handle:setBytes(new_body)
+    local injection_end = get_micro_time()
+    response_handle:headers():replace("content-length", tostring(#new_body))
+    response_handle:logWarn(
+      "Envoy Lua Injection execution time (us): " .. (injection_end - injection_start)
+    )
+  else
+    -- Additional-kind payloads present: splice each under its own per-kind timer, then run
+    -- the html_comments splice under its (unchanged) timer on the already-assembled body.
+    -- The per-kind timed region is locate-anchor → splice only; the single setBytes write-back
+    -- happens once, outside.
+    local body_str = tostring(body_handle:getBytes(0, body_len))
+    for _, p in ipairs(extra) do
+      local extra_start = get_micro_time()
+      local replaced = body_str:gsub(p.anchor, p.markup .. "\n" .. p.anchor, 1)
+      local extra_delta = get_micro_time() - extra_start
+      if replaced ~= body_str then body_str = replaced end
+      response_handle:logWarn("WADM TOKEN " .. p.kind .. " inject (us): " .. extra_delta)
+    end
+    if #to_inject > 0 then
+      local injection = table.concat(to_inject, "\n")
+      local injection_start = get_micro_time()
+      local new_body = body_str:gsub("</body>", injection .. "\n</body>", 1)
+      if new_body == body_str then
+        new_body = body_str .. injection
+      end
+      body_handle:setBytes(new_body)
+      local injection_end = get_micro_time()
+      response_handle:headers():replace("content-length", tostring(#new_body))
+      response_handle:logWarn(
+        "Envoy Lua Injection execution time (us): " .. (injection_end - injection_start)
+      )
+    else
+      body_handle:setBytes(body_str)
+      response_handle:headers():replace("content-length", tostring(#body_str))
+    end
   end
-  body_handle:setBytes(new_body)
-  local injection_end = get_micro_time()
-
-  -- Content-Length fix stays outside the timed region.
-  response_handle:headers():replace("content-length", tostring(#new_body))
-  response_handle:logWarn(
-    "Envoy Lua Injection execution time (us): " .. (injection_end - injection_start)
-  )
 end

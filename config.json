@@ -1,5 +1,40 @@
 {
   "post_body_inspection": false,
+  "sql_injection": {
+    "enabled": 1,
+    "paths": ["/api/login"],
+    "methods": ["POST"],
+    "watch_fields": ["username", "password"],
+    "reflect_max_len": 200,
+    "signatures": [
+      "' or ",
+      "' and ",
+      "' or '",
+      ") or (",
+      "or 1=1",
+      "or 1 = 1",
+      "'--",
+      "' --",
+      "'#",
+      "' #",
+      "admin'",
+      "' union",
+      "union select",
+      "union all select",
+      "; drop ",
+      "drop table",
+      "information_schema",
+      "sleep(",
+      "benchmark(",
+      "waitfor delay",
+      "xp_cmdshell",
+      "/*"
+    ],
+    "status_code": 500,
+    "error_template": "<!DOCTYPE html><html><head><title>Database Error</title></head><body><h1>Database Error</h1><p><b>Warning</b>: mysqli_query(): (42000/1064): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '{PAYLOAD}' at line 1 in <b>/var/www/html/inc/db.php</b> on line <b>118</b></p><pre>SELECT id, username, email, role FROM users WHERE username = '{PAYLOAD}' AND password = MD5(?) LIMIT 1</pre><hr><address>Apache/2.4.41 (Ubuntu) Server at localhost Port 80</address></body></html>",
+    "deny_status_code": 401,
+    "deny_template": "<!DOCTYPE html><html><head><title>Sign in</title></head><body><h1>Sign in failed</h1><p>Invalid username or password.</p><p><a href=/login.html>Back to login</a></p></body></html>"
+  },
   "honeytokens": {
     "html_comments": [
       {

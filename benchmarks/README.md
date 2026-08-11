@@ -1,18 +1,22 @@
 <!-- benchmarks/README.md: external k6 load generator for WADM edge benchmarking; lives outside any edge profile so it never auto-runs with a normal `up`. -->
 # benchmarks (k6 load generator)
 
-External request-latency probe for the WADM edge proxies. A `grafana/k6` container joins the `honeypot` Docker network and hits whichever edge is selected via the `TARGET` env var, recording per-phase latency for the two WADM behaviours that matter:
+External request-latency probe for the WADM edge proxies. A `grafana/k6` container joins the `honeypot` Docker network and hits whichever edge is selected via the `TARGET` env var. One iteration issues four `GET`s, chosen so that **every honeytoken kind has both its injection and its detection path exercised**:
 
-| Phase | Request | k6 Trend metric |
-|-------|---------|-----------------|
-| HTML injection (response rewrite) | `GET ${TARGET}/` | `inject_get_duration` |
-| Detection + stripping (request scrub) | `GET ${TARGET}/api/login?password=${TRIGGER_KEYWORD}` | `detect_query_duration` |
+| Request | k6 Trend metric | Detection fired | Injection fired |
+|---------|-----------------|-----------------|-----------------|
+| `GET ${TARGET}/` | `inject_get_duration` | — | html_comments, http_headers, cookies, decoy_paths |
+| `GET ${TARGET}/api/login?password=${TRIGGER_KEYWORD}` | `detect_query_duration` | html_comments | html_comments, http_headers, cookies, decoy_paths |
+| `GET ${TARGET}${FORM_PAGE}?${FORM_FIELD}=1&probe=${HEADER_KEYWORD}` with a tampered `Cookie` | `token_tamper_duration` | form_fields, http_headers, cookies | all five kinds |
+| `GET ${TARGET}${DECOY_PATH}` | `token_decoy_duration` | decoy_paths | html_comments, http_headers, cookies, decoy_paths |
 
-The two custom `Trend`s are reported separately in k6's end-of-run summary; the built-in `http_req_duration` mixes both calls and is less useful for per-phase analysis.
+The custom `Trend`s are reported separately in k6's end-of-run summary; the built-in `http_req_duration` mixes all four calls and is less useful for per-phase analysis. Note these Trends measure *end-to-end request latency*; the per-phase, per-kind microsecond numbers that the thesis plots use come from the edges' own internal timers (see below).
+
+The third request deliberately bundles three kinds: each edge times each kind in its own region, so bundling costs nothing in attribution while keeping the iteration short.
 
 ## Why the keyword is in the query string
 
-All four edges already inspect the request **query string** (OpenResty `get_uri_args`, Envoy+Lua `parse_query_string`, Apache `r.args`, WASM `:path` substring). Putting `TRIGGER_KEYWORD` in `?password=...` therefore exercises the detection path on every edge, so `detect_query_duration` is comparable across all four.
+All four edges already inspect the request **query string** (OpenResty `get_uri_args`, Envoy+Lua `parse_query_string`, Apache `r.args`, WASM `:path` substring). Putting `TRIGGER_KEYWORD` in `?password=...` therefore exercises the detection path on every edge, so `detect_query_duration` is comparable across all four. The same reasoning drives the `form_fields` and `http_headers` surfaces in request 3 — both are query-string checks on every edge.
 
 POST-body inspection still exists in OpenResty (`nginx/nginx.conf`) and Envoy+Lua (`envoy_scripts/injection.lua`); it is intentionally left in place for a follow-up iteration that raises Apache and Envoy+WASM to the same level (by implementing body inspection in `apache_scripts/detect.lua` and `wasm-filter/src/lib.rs`) and re-introduces a `detect_body_duration` scenario alongside this one.
 
@@ -24,7 +28,7 @@ flowchart LR
   Edge["Edge proxy (TARGET)"]
   Backend[backend nginx]
 
-  k6 -->|"GET / and GET /api/login?password=KW"| Edge
+  k6 -->|"4 GETs per iteration (see table above)"| Edge
   Edge --> Backend
   Backend --> Edge
   Edge --> k6
@@ -62,9 +66,15 @@ All passed through environment variables on the host (read by Compose, then forw
 | Var | Default | Effect |
 |-----|---------|--------|
 | `TARGET` | `http://openresty:80` | Base URL the script hits. Must be an in-network address. |
-| `TRIGGER_KEYWORD` | `internal-admin.example.com` | Substring placed in the query string to fire the detection phase. Should match a `trigger_keyword` in `config.json`. |
+| `TRIGGER_KEYWORD` | `internal-admin.example.com` | Substring placed in the query string to fire the html_comments detection phase. Should match a `trigger_keyword` in `config.json`. |
+| `HEADER_KEYWORD` | `app-07.internal.example.com` | Planted `http_headers` value, replayed in the query to fire that kind's detection. |
+| `COOKIE_NAME` / `COOKIE_TAMPER_VALUE` | `admin_ui` / `1` | Bait cookie sent back with a value that differs from the planted `cookie_value`, firing the tamper check. |
+| `DECOY_PATH` | `/api/v1/debug` | Trap URI requested to fire `decoy_paths` detection. |
+| `FORM_PAGE` / `FORM_FIELD` / `FORM_TAMPER_VALUE` | `/login.html` / `is_admin` / `1` | Page carrying the hidden input (it must contain a `</form>`) and the tampered value submitted in the query string. |
 | `K6_VUS` | `5` | Concurrent virtual users. |
 | `K6_DURATION` | `30s` | Run length. |
+
+All the honeytoken defaults mirror `config.json`; override them if the token definitions change.
 
 ## Internal OpenResty profiling automation
 
@@ -186,8 +196,8 @@ Each internal benchmark writes two artifacts per edge:
 
 | File | Contents |
 |------|----------|
-| `internal_<edge>_profile.json` | Per-VU **summary** stats (`count, min_us, avg_us, p90_us, max_us`) for each phase. Small, human-readable. |
-| `internal_<edge>_raw.json` | Per-VU **raw** per-request latency arrays: `runs[].detection_us[]` and `runs[].injection_us[]`, in microseconds. |
+| `internal_<edge>_profile.json` | Per-VU **summary** stats (`count, min_us, avg_us, p90_us, max_us`) for each phase, plus a `tokens` section with the same stats per honeytoken kind. Small, human-readable. |
+| `internal_<edge>_raw.json` | Per-VU **raw** per-request latency arrays: `runs[].detection_us[]`, `runs[].injection_us[]`, and the same samples split per kind under `runs[].tokens`. All in microseconds. |
 
 The raw file exists so that box plots can be drawn from the true latency distribution (real quartiles), which the summary stats alone cannot reconstruct. Shape:
 
@@ -195,11 +205,40 @@ The raw file exists so that box plots can be drawn from the true latency distrib
 {
   "metadata": { "...": "same as the profile file, plus a note field" },
   "runs": [
-    { "vus": 1, "detection_us": [97, 41, ...], "injection_us": [26, 8, ...] },
-    { "vus": 10, "detection_us": [...], "injection_us": [...] }
+    {
+      "vus": 1,
+      "detection_us": [97, 41, ...],
+      "injection_us": [26, 8, ...],
+      "tokens": {
+        "html_comments": { "detect_us": [97, 41, ...], "inject_us": [26, 8, ...] },
+        "http_headers":  { "detect_us": [...], "inject_us": [...] },
+        "cookies":       { "detect_us": [...], "inject_us": [...] },
+        "decoy_paths":   { "detect_us": [...], "inject_us": [...] },
+        "form_fields":   { "detect_us": [...], "inject_us": [...] }
+      }
+    }
   ]
 }
 ```
+
+`tokens.html_comments` repeats `detection_us` / `injection_us` verbatim, so every kind can be queried through one uniform path while the top-level keys stay where the older plots expect them.
+
+## Per-honeytoken-kind timing
+
+Every edge times each honeytoken kind in its own microsecond region and logs:
+
+```
+WADM TOKEN <kind> detect (us): N
+WADM TOKEN <kind> inject (us): N
+```
+
+for `kind` in `http_headers | cookies | decoy_paths | form_fields`. `html_comments` keeps its original `Detection/Injection execution time (us)` lines and is folded into the same `tokens` structure by the orchestrators.
+
+The lowercase `detect` / `inject` words are deliberate: they share no substring with either html_comments scraper pattern, so OpenResty's **unprefixed** `Detection execution time \(us\):` regex cannot match a per-kind line and silently corrupt `detection_us`.
+
+What each timer wraps, and why the html_comments numbers are unaffected, is documented in [EDGE_LEVELING.md](../docs/EDGE_LEVELING.md#additional-honeytoken-kinds-get-their-own-timed-regions). In short: per-request setup (client IP, URI, parsed query, `Cookie`) is read once outside every timer; a `detect` timer wraps that kind's scan + alert + in-memory IP record and fires only on a hit; an `inject` timer wraps the header write or the anchor-locate-and-splice, with token selection and markup construction hoisted out.
+
+Because an iteration now carries four requests rather than two, absolute html_comments numbers are **not** comparable with runs recorded before this change. All four edges are re-measured together, so the cross-edge comparison remains valid.
 
 ## Box-plot comparison across edges
 
@@ -217,6 +256,27 @@ For each edge it prefers `internal_<edge>_raw.json` and draws a **true box plot*
 
 Output artifacts:
 - `benchmarks/results/plots/edge_comparison_vus_<N>.png` (one per VU level).
+
+## Per-honeytoken-kind plots
+
+`plot_token_comparison.py` renders the `tokens` sections: every honeytoken kind, both phases, all four edges.
+
+```bash
+# defaults to benchmarks/results/, writes PNGs to benchmarks/results/plots/
+python3 benchmarks/plot_token_comparison.py
+
+# or point it at a different results directory
+python3 benchmarks/plot_token_comparison.py path/to/results
+```
+
+Output artifacts:
+
+| File | Layout |
+|------|--------|
+| `token_comparison_vus_<N>.png` (one per VU level) | 2 rows (detection, injection) × 5 columns (one per kind); four edge box plots per panel, log-scale y shared across each row so kinds are comparable within a phase. |
+| `token_scaling_detect.png`, `token_scaling_inject.png` | Median latency vs. VU level, one panel per kind, one direct-labelled line per edge with a Q1–Q3 band — shows how each kind scales with load. |
+
+Both use the same raw-preferred / summary-fallback rule as `plot_edge_comparison.py` (hatched, faded boxes mark an approximation) and the same fixed edge colours, so an edge keeps one colour across every figure.
 
 ## Cross-edge comparability
 
@@ -241,7 +301,10 @@ guarantees (all four edges obey them):
 2. **Detection is timed only for trigger-bearing requests.** Each edge logs
    "Detection execution time (us)" only when a trigger keyword actually matched,
    so all four sample the same population (the `?password=<KW>` request), not the
-   cheap no-keyword `GET /`. Expect `detection_us` count ≈ iterations.
+   cheap no-keyword `GET /`. Expect `detection_us` count ≈ iterations. The same
+   rule holds per kind: a `WADM TOKEN <kind> detect (us)` line is emitted only when
+   that kind fired, so each kind's distribution is a hit-only population on every
+   edge.
 3. **Warm start.** Each orchestrator runs one throwaway warm-up burst
    (`WARMUP_VUS=100`, `WARMUP_DURATION=20s`) before the recorded levels and
    discards it, so JIT/caches are hot and VU=1 is not a cold-start outlier. The
@@ -251,6 +314,13 @@ guarantees (all four edges obey them):
    OpenResty and Envoy+Lua do the same detection work as Apache and WASM. The
    body-scan code is kept in place for a future iteration that enables it on all
    four edges at once (set the flag `true` and implement it in Apache + WASM).
+   The `sql_injection` trap does read POST bodies, but only on `POST /api/login`,
+   and `test.js` is `http.get`-only — so it never touches the measured population.
+   It logs under `WADM SQLI trap build (us):`, which deliberately shares no substring
+   with either scraper regex. Note the OpenResty pattern is *unprefixed*
+   (`Detection execution time \(us\):`), so any prefixed variant of those words —
+   e.g. `SQLi Detection execution time (us):` — would have been matched by it and
+   silently corrupted `detection_us`. See `docs/EDGE_LEVELING.md`.
 5. **Equal timed region: in-memory state, no disk I/O.** Every edge records the
    attacker IP into an *in-memory* store on a hit, inside the timed region, mirroring
    OpenResty's `ngx.shared.wadm_state` (`wadm:set`): Envoy+Lua and Apache use a
@@ -283,16 +353,40 @@ guarantees (all four edges obey them):
    `ngx.re.sub`, WASM `str::find`, Envoy+Lua/Apache Lua `gsub` with count 1) — all
    produce the same first-match splice, so the leftover time is the runtime's body-API
    cost, which is exactly what the injection subplot is meant to measure.
+7. **Per-kind contract: same setup hoisting, same fixed order.** The four additional
+   honeytoken kinds follow the same rules as html_comments. Per-request setup (client
+   IP, URI, parsed query args, `Cookie` header) is read **once** outside every timer
+   and shared by all kinds; a `detect` timer wraps only that kind's scan, its alert
+   log and the in-memory IP record; an `inject` timer wraps only the header write or
+   the anchor-locate-and-splice, with token selection and markup construction hoisted
+   out. Kinds are always walked in the fixed order
+   `http_headers → cookies → decoy_paths → form_fields` (OpenResty previously used
+   `pairs()`, whose order is unspecified). The body-kind timers exclude the write-back
+   because the extra payloads chain on an in-memory string that is written once at the
+   end — so no edge charges its body-API write to a per-kind number.
+
+   **Caveat — the alert log is inside the detect timer.** This matches the
+   html_comments contract (whose timer has always enclosed its `WADM ALERT` write),
+   so the kinds stay comparable with the reference measurement and with each other
+   across edges. It does mean a detect number is *log-write cost + scan cost*, and
+   the write dominates: the first kind to fire on a request pays more of the flush
+   than the ones behind it. Because the kind order is pinned, that bias is identical
+   on all four edges — read a detect column as "cost of a firing detector including
+   its alert", and compare **across edges within a kind** rather than ranking kinds
+   against each other. Injection numbers carry no such term (nothing is logged inside
+   those timers).
 
 ## Files
 
 | File | Role |
 |------|------|
-| [test.js](test.js) | The k6 default-function script with the two phase requests and `Trend` definitions. |
+| [test.js](test.js) | The k6 default-function script: four `GET`s per iteration covering every honeytoken kind's injection and detection paths, plus the `Trend` definitions. |
 | [run_internal_openresty_benchmark.py](run_internal_openresty_benchmark.py) | Orchestrates internal OpenResty microsecond profiling runs and writes summary + raw JSON results. |
 | [run_internal_envoy_lua_benchmark.py](run_internal_envoy_lua_benchmark.py) | Orchestrates internal Envoy Lua microsecond profiling runs and writes summary + raw JSON results. |
 | [run_internal_apache_lua_benchmark.py](run_internal_apache_lua_benchmark.py) | Orchestrates internal Apache mod_lua microsecond profiling runs and writes summary + raw JSON results. |
 | [run_internal_wasm_benchmark.py](run_internal_wasm_benchmark.py) | Orchestrates internal Envoy WASM microsecond profiling runs and writes summary + raw JSON results. |
-| [plot_edge_comparison.py](plot_edge_comparison.py) | Renders per-VU box-plot comparisons of all four edges from the raw sample files (falls back to summary stats). |
+| [wadm_timings.py](wadm_timings.py) | Shared summary-statistics helpers and the cross-edge `WADM TOKEN <kind> <phase> (us):` scraper used by all four orchestrators. |
+| [plot_edge_comparison.py](plot_edge_comparison.py) | Renders per-VU box-plot comparisons of all four edges from the raw sample files (falls back to summary stats). html_comments only. |
+| [plot_token_comparison.py](plot_token_comparison.py) | Renders the per-honeytoken-kind figures: box plots per (phase, kind) at each VU level, plus median-vs-load scaling panels. |
 | [EDGE_LEVELING.md](EDGE_LEVELING.md) | Record of the source changes that made the four edges comparable (detection state store, canonical injection contract, Envoy path capture). |
 | [README.md](README.md) | This document. |

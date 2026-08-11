@@ -127,3 +127,155 @@ All changes were checked, not just written:
 The result JSON in `results/` and the plots in `results/plots/` should be regenerated
 (re-run the four `run_internal_*_benchmark.py` scripts, then `plot_edge_comparison.py`) to
 capture the leveled distributions — the injection subplot in particular.
+
+---
+
+## Additional honeytoken kinds get their own timed regions
+
+Beyond `html_comments`, all four edges implement `http_headers`, `cookies`, `decoy_paths`,
+and `form_fields` (plus a per-token `enabled` switch), with matching semantics and identical
+`WADM ALERT` message formats. These four kinds are now **benchmarked in their own right**:
+each edge times each kind separately and logs
+
+```
+WADM TOKEN <kind> detect (us): N
+WADM TOKEN <kind> inject (us): N
+```
+
+The lowercase `detect` / `inject` words are load-bearing. They share no substring with either
+scraper pattern, so OpenResty's **unprefixed** `Detection execution time \(us\):` regex cannot
+swallow a per-kind line and silently corrupt `detection_us` — the same hazard the SQLi trap
+label was designed around (see below).
+
+### What each per-kind timer wraps
+
+Mirroring the html_comments contract, per-request setup is hoisted out and the timer covers only
+the kind's own work:
+
+| Phase | Outside the timer (setup) | Inside the timer |
+|---|---|---|
+| **detect** | client IP, request URI, parsed query args, `Cookie` header — read once and shared by all four kinds | that kind's scan over its enabled tokens, its `WADM ALERT` log, and the in-memory attacker-IP record on a hit |
+| **inject** (header kinds) | enabled + path-match token selection | building the header/cookie value and writing it onto the response |
+| **inject** (body kinds) | enabled + path-match selection and markup construction | locating the anchor (`</form>` / `</body>`) and producing the spliced body |
+
+Two deliberate consequences:
+
+- **Detection is timed only on a hit**, exactly as for html_comments, so every edge samples the
+  same population per kind.
+- **The body-kind timers exclude the write-back.** The extra payloads are chained on an in-memory
+  string and written once at the end, so no edge charges its body-API write to a per-kind number.
+  (This is *more* uniform than the html_comments contract, where Apache's timer ends before its
+  `coroutine.yield` while the other three include their write — a pre-existing asymmetry the
+  per-kind measurements do not inherit.)
+
+### The html_comments measurement is untouched
+
+The per-kind timers were added **around already-existing code**, never inside the html_comments
+timed regions:
+
+- The additional-kind detection pass still runs *before* the html_comments timer opens.
+- The extra body payloads are still spliced *before* the html_comments splice, and that splice's
+  timed region is byte-for-byte what it was. When a request matches no additional-kind body
+  payload, the original single-branch code path runs unchanged.
+
+Kind iteration order is pinned to `http_headers → cookies → decoy_paths → form_fields` on all four
+edges. OpenResty previously walked its handler registry with `pairs()`, whose order is unspecified;
+with per-kind timers that would have let the regions run in a different sequence on every request
+and on every edge.
+
+One intentional asymmetry remains: form-field **POST-body** tamper detection is implemented on
+OpenResty only. Every edge detects the query-string case, which is the only one active while
+`post_body_inspection` is `false` (the default), so the default-config behaviour is uniform.
+
+### Request population
+
+`benchmarks/test.js` issues four `GET`s per iteration so every kind has both phases exercised:
+
+| Request | Detection it fires | Injection it fires |
+|---|---|---|
+| `GET /` | — | html_comments, http_headers, cookies, decoy_paths |
+| `GET /api/login?password=<trigger>` | html_comments | html_comments, http_headers, cookies, decoy_paths |
+| `GET /login.html?is_admin=1&probe=<header-kw>` + tampered `Cookie` | form_fields, http_headers, cookies | all five kinds (`/login.html` is the page with a `</form>`) |
+| `GET /api/v1/debug` | decoy_paths | html_comments, http_headers, cookies, decoy_paths |
+
+Per 30 s level and per edge this yields equal sample counts across all four edges — verified as
+`detect` = iterations for each kind, `inject` = 4× iterations for the `/*` kinds and 1× for
+`form_fields`. Because the iteration now carries four requests instead of two, the absolute
+html_comments numbers are **not** comparable with runs recorded before this change; all four edges
+were re-measured together, so the cross-edge comparison they exist for is intact.
+
+---
+
+## The SQLi trap is outside the timed regions too
+
+The `sql_injection` trap (see `CONTEXT.md`) terminates `POST /api/login` on all four edges. Three
+properties keep it from disturbing the leveled measurements:
+
+1. **POST-only.** `benchmarks/test.js` issues nothing but `http.get` (the four requests
+   tabulated above). Gating the trap on `methods: ["POST"]` leaves every benchmark request on
+   exactly the code path it used before. In particular the `GET` to
+   `/api/login` still reaches the origin and still returns nginx's `text/html` 404, so it keeps
+   contributing the same injection sample it always did. This is why the Apache edge deliberately
+   does **not** add `ProxyPass /api/login !` — that would answer the GET from Apache's own 404
+   page, a different-sized body, and shift the injection distribution.
+2. **Before both timers.** The trap runs at the top of each edge's request phase, ahead of
+   `get_micro_time()` / `r:clock()` / `get_current_time()`. The response-side filters gain only a
+   first-line early return, which for a non-owned request is a single nil/flag check.
+3. **A non-colliding log label.** The trap logs `WADM SQLI trap build (us):` (edge-prefixed on
+   Envoy/WASM/Apache). It shares no substring with either scraper pattern. This matters because
+   the OpenResty scraper regex is **unprefixed** — `Detection execution time \(us\):` — so any
+   prefixed variant such as `SQLi Detection execution time (us):` would have been matched by it
+   and silently corrupted `detection_us`.
+
+**One owned request runs one detector.** An owned request short-circuits *all* other WADM
+detection. Enforcing this needs an explicit guard only on Apache, whose `LuaHookAccessChecker` and
+`LuaHookFixups` hooks structurally run before the content handler and so cannot be short-circuited
+the way the other three edges' single filter can — hence the `sqli.owns(...)` early return at the
+top of `detect.lua`'s `handle_detect` and `inject.lua`'s `handle_headers`. Without it a crafted
+`POST /api/login?password=<trigger>` would emit an extra alert *and* an extra detection timing line
+on Apache alone.
+
+### Response generation: what could not be levelled
+
+The trap is the first WADM feature where an edge generates its own response, and the four runtimes
+do not all allow it in the same place. The **body bytes are byte-identical on all four** (verified
+by `md5sum`); the differences are in framing and in whether the origin is touched.
+
+| Edge | How the page is emitted | Origin contacted? |
+|---|---|---|
+| OpenResty | `ngx.print` + `ngx.exit(ngx.HTTP_OK)` in `access_by_lua_block` | No |
+| Envoy+Lua | `request_handle:respond()` in `envoy_on_request` | No |
+| Apache | `r:puts` + `apache2.OK` from a `LuaMapHandler` | No |
+| Envoy+WASM | Detects on the request body, then **rewrites the upstream response** | **Yes** — one round-trip |
+
+The WASM divergence is forced by Envoy's proxy-wasm host, and both alternatives were tried and
+measured to fail:
+
+- Returning `Action::Pause` from `on_http_request_headers` stops the stream outright — Envoy never
+  delivers `on_http_request_body`, so the request hangs until it times out.
+- Returning `Action::Continue` and then calling `send_http_response` from `on_http_request_body`
+  fails with `BadArgument` (status 2), which the Rust SDK `unwrap()`s into a VM panic
+  (`Function: proxy_on_request_body failed: Uncaught RuntimeError: unreachable`). This happens
+  whether or not the data path was paused first.
+
+`send_http_response` *is* legal from `on_http_request_headers`, which is how the trap answers a
+body-less `POST`. For the normal case the filter instead stashes the rendered page on the request
+side and swaps the status, `Content-Type` and body in `on_http_response_headers` /
+`on_http_response_body`. The attacker sees the same bytes; the cost is one round-trip to a
+same-network static nginx that would have 404'd anyway.
+
+Envoy+Lua is the mirror-image case and *is* levelled: `request_handle:respond()` is rejected once
+`headers_continued_` is set, and buffering with `body()` leaves that flag clear — but
+`bodyChunks()` does not. The trap therefore uses `body()` deliberately.
+
+**Framing** also differs on Apache: `httpd.conf`'s `Header always unset Content-Length` is
+unconditional, so the trap page has no `Content-Length` and is close-delimited, while the other
+three send an explicit length. Scoping that `unset` with an `expr` would fix it but risks the
+existing injection path, so it is accepted rather than fixed.
+
+**Response-filter suppression.** Every edge re-enters its own response phase for a locally
+generated reply, so each needed an explicit opt-out or the trap page would arrive stamped with the
+`DEV-PORTAL` comment, the hidden decoy link, `X-Backend-Server` and `Set-Cookie: admin_ui=0`:
+`ngx.ctx.wadm_local_response` (OpenResty), a `local_response` key in the existing
+`wadm.honeypot` dynamic-metadata namespace (Envoy+Lua), `self.sqli_page.is_some()` (WASM), and the
+two `sqli.owns(...)` guards in `inject.lua` (Apache).

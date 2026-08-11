@@ -11,8 +11,12 @@ if [ ! -f "$CONFIG_FILE" ]; then
   exit 1
 fi
 
-# Minify to one line and escape sed-sensitive chars so JSON can be safely embedded in YAML `value: "..."`.
-CONFIG_JSON=$(tr -d '\n' < "$CONFIG_FILE" | sed 's/[&\\/]/\\&/g' | sed 's/"/\\\\"/g')
+# Minify to one line, then escape for a YAML SINGLE-quoted scalar (only ' needs doubling) and
+# for sed's replacement text. Double-quoted YAML was previously used, but it processes escapes:
+# a `"` in any config value collapsed to `\"` and terminated the scalar (Envoy refused to boot),
+# and a `\n` was unescaped into a literal control character that serde_json then rejected.
+# Single-quoted YAML processes no escapes, so `"` and `\` reach the filter untouched.
+CONFIG_JSON=$(tr -d '\n' < "$CONFIG_FILE" | sed "s/'/''/g" | sed 's/[&\\/]/\\&/g')
 
 # Produce a concrete Envoy config file for this run (Envoy does not expand env vars in YAML itself).
 sed "s/{{WASM_CONFIG_JSON}}/${CONFIG_JSON}/" "$TEMPLATE" > "$RESOLVED"

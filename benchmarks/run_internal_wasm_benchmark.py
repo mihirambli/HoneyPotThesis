@@ -13,16 +13,17 @@ Writes machine-readable results to:
 from __future__ import annotations
 
 import json
-import math
 import os
 import re
-import statistics
 import subprocess
 import sys
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+# Stats helpers and the cross-edge `WADM TOKEN <kind> <phase> (us):` scraper are shared by
+# all four orchestrators; only the html_comments regexes below differ per edge.
+from wadm_timings import KINDS, build_token_sections, format_token_line, summarize
 
 
 DETECTION_RE = re.compile(r"WASM Detection execution time \(us\):\s*(\d+)")
@@ -39,47 +40,8 @@ DEFAULT_TRIGGER = "internal-admin.example.com"
 DEFAULT_TARGET = "http://envoy-wasm:8080"
 
 
-@dataclass
-class PhaseStats:
-    count: int
-    min_us: int | None
-    avg_us: float | None
-    p90_us: float | None
-    max_us: int | None
-
-    def to_json(self) -> dict[str, Any]:
-        return {
-            "count": self.count,
-            "min_us": self.min_us,
-            "avg_us": self.avg_us,
-            "p90_us": self.p90_us,
-            "max_us": self.max_us,
-        }
-
-
 def run_cmd(command: list[str], env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, env=env, text=True, capture_output=True, check=False)
-
-
-def percentile_nearest_rank(values: list[int], pct: int) -> float | None:
-    if not values:
-        return None
-    ordered = sorted(values)
-    rank = int(math.ceil((pct / 100.0) * len(ordered)))
-    idx = max(1, rank) - 1
-    return float(ordered[idx])
-
-
-def summarize(values: list[int]) -> PhaseStats:
-    if not values:
-        return PhaseStats(count=0, min_us=None, avg_us=None, p90_us=None, max_us=None)
-    return PhaseStats(
-        count=len(values),
-        min_us=min(values),
-        avg_us=round(statistics.fmean(values), 2),
-        p90_us=round(percentile_nearest_rank(values, 90) or 0.0, 2),
-        max_us=max(values),
-    )
 
 
 def parse_timings(envoy_logs: str) -> tuple[list[int], list[int]]:
@@ -197,7 +159,10 @@ def main() -> int:
     raw_results: dict[str, Any] = {
         "metadata": {
             **all_results["metadata"],
-            "note": "Raw per-request latencies in microseconds, one list per VU level.",
+            "note": (
+                "Raw per-request latencies in microseconds, one list per VU level. "
+                "`tokens` repeats the same samples split by honeytoken kind and phase."
+            ),
         },
         "runs": [],
     }
@@ -255,11 +220,18 @@ def main() -> int:
         detect_stats = summarize(detection_values)
         inject_stats = summarize(injection_values)
 
+        # Per-honeytoken-kind sections. html_comments is carried over from the two stats
+        # above, so `detection`/`injection` stay as the pre-existing plots expect them.
+        token_summary, token_raw = build_token_sections(
+            logs_result.stdout, detection_values, injection_values
+        )
+
         run_data = {
             "vus": vus,
             "compose_exit_code": up_result.returncode,
             "detection": detect_stats.to_json(),
             "injection": inject_stats.to_json(),
+            "tokens": token_summary,
             "errors": {
                 "compose_stderr": up_result.stderr.strip(),
                 "logs_stderr": logs_result.stderr.strip(),
@@ -271,11 +243,15 @@ def main() -> int:
                 "vus": vus,
                 "detection_us": detection_values,
                 "injection_us": injection_values,
+                "tokens": token_raw,
             }
         )
 
         print(f"Detection: count={detect_stats.count} min_us={detect_stats.min_us} avg_us={detect_stats.avg_us} p90_us={detect_stats.p90_us} max_us={detect_stats.max_us}")
         print(f"Injection: count={inject_stats.count} min_us={inject_stats.min_us} avg_us={inject_stats.avg_us} p90_us={inject_stats.p90_us} max_us={inject_stats.max_us}")
+        print("Honeytoken kinds:")
+        for kind in KINDS:
+            print(format_token_line(kind, token_summary))
         print(f"compose_exit_code={up_result.returncode}")
         print("")
 

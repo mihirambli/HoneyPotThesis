@@ -99,6 +99,14 @@ services:
     environment:
       TARGET: ${TARGET:-http://openresty:80}
       TRIGGER_KEYWORD: ${TRIGGER_KEYWORD:-internal-admin.example.com}
+      # Surfaces for the non-html_comments honeytoken kinds; defaults mirror config.json.
+      HEADER_KEYWORD: ${HEADER_KEYWORD:-app-07.internal.example.com}
+      COOKIE_NAME: ${COOKIE_NAME:-admin_ui}
+      COOKIE_TAMPER_VALUE: ${COOKIE_TAMPER_VALUE:-1}
+      DECOY_PATH: ${DECOY_PATH:-/api/v1/debug}
+      FORM_PAGE: ${FORM_PAGE:-/login.html}
+      FORM_FIELD: ${FORM_FIELD:-is_admin}
+      FORM_TAMPER_VALUE: ${FORM_TAMPER_VALUE:-1}
       K6_VUS: ${K6_VUS:-5}
       K6_DURATION: ${K6_DURATION:-30s}
       K6_START_DELAY: ${K6_START_DELAY:-5s}

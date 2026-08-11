@@ -35,7 +35,7 @@ static_resources:
                         configuration:
                           "@type": type.googleapis.com/google.protobuf.StringValue
                           # Replaced by entrypoint: full JSON for serde in wasm-filter (same schema as config.json).
-                          value: "{{WASM_CONFIG_JSON}}"
+                          value: '{{WASM_CONFIG_JSON}}'
                         vm_config:
                           # V8 is required for this Envoy build; wasm file path must match volume mount.
                           runtime: "envoy.wasm.runtime.v8"

@@ -21,7 +21,9 @@ The same `config.json` schema is consumed by the Lua, OpenResty, and Rust (WASM)
 
 ### Additional honeytoken kinds (OpenResty only for now)
 
-Four further kinds live as sibling arrays under `honeytokens`. **Currently implemented on the OpenResty edge only** (`nginx/nginx.conf`); the other edges parse the same file but ignore the new keys until ported. Each row's fields are admin-settable, just like `html_comments`, and every token honours the same `enabled` switch described above.
+Four further kinds live as sibling arrays under `honeytokens`, **implemented on all four edges** (OpenResty, Envoy+Lua, Envoy+WASM, Apache) with matching semantics and identical `WADM ALERT` log formats so the edges stay comparable for benchmarking. Each row's fields are admin-settable, just like `html_comments`, and every token honours the same `enabled` switch described above.
+
+Two intentional parity notes: (1) form-field **POST-body** tamper detection is OpenResty-only for now — every edge detects the query-string case, which is the only case active while `post_body_inspection` is `false` (the default); (2) each kind is timed in **its own** microsecond region, logged as `WADM TOKEN <kind> detect|inject (us): N`, added *around* the existing code rather than inside the html_comments timers — so the html_comments measurement is unchanged and every kind is separately benchmarkable. See `benchmarks/README.md` and `docs/EDGE_LEVELING.md`.
 
 | Kind (`honeytokens.<key>[]`) | Injection | Detection | Admin properties |
 |--------|-----------|-----------|------------------|
@@ -29,6 +31,36 @@ Four further kinds live as sibling arrays under `honeytokens`. **Currently imple
 | `cookies` | **Set-Cookie** bait on matching `paths`. | **Tamper**: returned cookie value ≠ planted `cookie_value`. A browser replays it unchanged, so only an attacker fires it. | `paths`, `cookie_name`, `cookie_value`, `attributes` (extra cookie attributes appended verbatim), `trigger_keyword` (optional value-replay) |
 | `decoy_paths` | Advertises a fake path as a hidden HTML link on `advertise_on_paths`. | **Path match**: any request whose URI matches `trap_path` (no keyword). | `trap_path`, `match_type` (`exact`\|`prefix`), `advertise_via` (`link`\|`robots`\|`none`), `advertise_on_paths`, `link_text` |
 | `form_fields` | Hidden `<input>` injected before `</form>` on matching `paths`. | **Tamper**: submitted value ≠ planted `field_value` (query always; POST only when `post_body_inspection` is on). | `paths`, `field_name`, `field_value`, `trigger_keyword` (optional) |
+
+### Fake SQL-injection trap (`sql_injection`)
+
+A **top-level** key, not a honeytoken kind: it plants nothing, and it is a single response
+policy rather than an array of baits. It makes the login endpoint look like a vulnerable LAMP
+app. When a request matches `methods` + `paths`, the edge **stops proxying and answers itself** —
+the origin is never asked (see the WASM exception in the parity notes below). Each watched form
+field is percent-decoded, ASCII-lowercased and whitespace-collapsed, then substring-matched
+against `signatures`. A hit logs a `WADM ALERT`, records the client IP, and returns
+`status_code` with `error_template`; anything else returns `deny_status_code` with
+`deny_template`. `{PAYLOAD}` in either template is replaced by the attacker's own (HTML-escaped,
+`reflect_max_len`-capped) input.
+
+| Field | Meaning for you |
+|--------|------------------|
+| `enabled` | Same on/off semantics as every other kind. Off → the endpoint proxies normally again. |
+| `paths` / `methods` | What the trap owns. Kept narrow (`POST` `/api/login`) so the benchmarked `GET` population is untouched. |
+| `watch_fields` | Which form fields are inspected, in priority order — first match wins. |
+| `signatures` | Literal lowercase substrings. Literal (not regex) because Apache mod_lua and Envoy Lua have no PCRE and the Rust `regex` crate would bloat the wasm binary. |
+| `reflect_max_len` | Cap on how much of the payload is echoed back into `{PAYLOAD}`. |
+| `status_code` / `error_template` | The fake MySQL error. Leaks a plausible `SELECT` to invite `UNION SELECT` follow-ups. |
+| `deny_status_code` / `deny_template` | What a clean login sees, so the endpoint looks real rather than 404ing. |
+
+Accepted false-positive surface: `/*` and `'--` are legitimate (if odd) password characters, so a
+real user could trip the trap. That is fine here — nothing but attack traffic reaches this app,
+and over-triggering costs only a fake error page.
+
+Templates must stay **single-line and free of `"` and `\`**: `envoy-wasm/entrypoint.sh` inlines
+`config.json` into a YAML scalar, and while that scalar is now single-quoted (so escapes are no
+longer processed), keeping the strings simple is cheap defence in depth.
 
 Edit `config.json` on the host; Compose mounts it read-only into each edge container at the paths listed in `docker-compose.yml`.
 
@@ -47,11 +79,11 @@ flowchart LR
   Edge --> Backend
 ```
 
-1. **Backend** — plain nginx serving the static pages in `backend/www/` (the “victim” application surface: `/`, `/login.html`, `/dashboard.html`, `/admin.html`, `/about.html`).
+1. **Backend** — plain nginx serving the static pages in `backend/www/` (the “victim” application surface: `/`, `/login.html`, `/dashboard.html`, `/admin.html`, `/about.html`). It has **no** `/api/login` route; that endpoint belongs to the edge (see `sql_injection` above).
 2. **Edge** (pick one compose profile) — terminates HTTP, applies WADM rules, proxies to `backend:80`.
-3. **Configuration** — `config.json` at repo root lists `honeytokens.html_comments[]` with `paths`, `comment_value`, and optional `trigger_keyword`.
+3. **Configuration** — `config.json` at repo root lists `honeytokens.html_comments[]` with `paths`, `comment_value`, and optional `trigger_keyword`, plus the top-level `sql_injection` policy.
 
-Docker Compose wires services on a shared `honeypot` bridge network. Only the edge service exposes a host port (`8080`, `8081`, or `8082` depending on profile).
+Docker Compose wires services on a shared `honeypot` bridge network. Only the edge service exposes a host port (`8080`, `8081`, `8082`, or `8083` depending on profile).
 
 ---
 

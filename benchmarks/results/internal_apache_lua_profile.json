@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-07-15T17:21:25.952961+00:00",
+    "generated_at": "2026-08-09T15:38:33.362977+00:00",
     "script": "benchmarks/run_internal_apache_lua_benchmark.py",
     "target": "http://apache:80",
     "trigger_keyword": "internal-admin.example.com",
@@ -19,17 +19,99 @@
       "compose_exit_code": 0,
       "detection": {
         "count": 30,
-        "min_us": 19,
-        "avg_us": 97.9,
-        "p90_us": 229.0,
-        "max_us": 368
+        "min_us": 17,
+        "avg_us": 109.0,
+        "p90_us": 206.0,
+        "max_us": 749
       },
       "injection": {
-        "count": 60,
+        "count": 120,
         "min_us": 2,
-        "avg_us": 6.65,
-        "p90_us": 8.0,
-        "max_us": 129
+        "avg_us": 9.57,
+        "p90_us": 12.0,
+        "max_us": 145
+      },
+      "tokens": {
+        "html_comments": {
+          "detect": {
+            "count": 30,
+            "min_us": 17,
+            "avg_us": 109.0,
+            "p90_us": 206.0,
+            "max_us": 749
+          },
+          "inject": {
+            "count": 120,
+            "min_us": 2,
+            "avg_us": 9.57,
+            "p90_us": 12.0,
+            "max_us": 145
+          }
+        },
+        "http_headers": {
+          "detect": {
+            "count": 30,
+            "min_us": 12,
+            "avg_us": 90.83,
+            "p90_us": 180.0,
+            "max_us": 658
+          },
+          "inject": {
+            "count": 120,
+            "min_us": 1,
+            "avg_us": 2.52,
+            "p90_us": 3.0,
+            "max_us": 6
+          }
+        },
+        "cookies": {
+          "detect": {
+            "count": 30,
+            "min_us": 6,
+            "avg_us": 15.07,
+            "p90_us": 25.0,
+            "max_us": 111
+          },
+          "inject": {
+            "count": 120,
+            "min_us": 1,
+            "avg_us": 3.5,
+            "p90_us": 4.0,
+            "max_us": 60
+          }
+        },
+        "decoy_paths": {
+          "detect": {
+            "count": 30,
+            "min_us": 7,
+            "avg_us": 82.7,
+            "p90_us": 174.0,
+            "max_us": 408
+          },
+          "inject": {
+            "count": 120,
+            "min_us": 2,
+            "avg_us": 8.54,
+            "p90_us": 10.0,
+            "max_us": 144
+          }
+        },
+        "form_fields": {
+          "detect": {
+            "count": 30,
+            "min_us": 3,
+            "avg_us": 12.53,
+            "p90_us": 10.0,
+            "max_us": 217
+          },
+          "inject": {
+            "count": 30,
+            "min_us": 7,
+            "avg_us": 19.5,
+            "p90_us": 10.0,
+            "max_us": 266
+          }
+        }
       },
       "errors": {
         "compose_stderr": "",
@@ -41,17 +123,99 @@
       "compose_exit_code": 0,
       "detection": {
         "count": 300,
-        "min_us": 11,
-        "avg_us": 171.24,
-        "p90_us": 544.0,
-        "max_us": 3047
+        "min_us": 12,
+        "avg_us": 187.67,
+        "p90_us": 444.0,
+        "max_us": 3935
       },
       "injection": {
-        "count": 600,
+        "count": 1200,
         "min_us": 2,
-        "avg_us": 19.98,
-        "p90_us": 4.0,
-        "max_us": 3415
+        "avg_us": 15.36,
+        "p90_us": 9.0,
+        "max_us": 1743
+      },
+      "tokens": {
+        "html_comments": {
+          "detect": {
+            "count": 300,
+            "min_us": 12,
+            "avg_us": 187.67,
+            "p90_us": 444.0,
+            "max_us": 3935
+          },
+          "inject": {
+            "count": 1200,
+            "min_us": 2,
+            "avg_us": 15.36,
+            "p90_us": 9.0,
+            "max_us": 1743
+          }
+        },
+        "http_headers": {
+          "detect": {
+            "count": 300,
+            "min_us": 9,
+            "avg_us": 196.41,
+            "p90_us": 459.0,
+            "max_us": 5010
+          },
+          "inject": {
+            "count": 1200,
+            "min_us": 1,
+            "avg_us": 4.24,
+            "p90_us": 3.0,
+            "max_us": 598
+          }
+        },
+        "cookies": {
+          "detect": {
+            "count": 300,
+            "min_us": 5,
+            "avg_us": 59.32,
+            "p90_us": 79.0,
+            "max_us": 2422
+          },
+          "inject": {
+            "count": 1200,
+            "min_us": 1,
+            "avg_us": 7.02,
+            "p90_us": 4.0,
+            "max_us": 971
+          }
+        },
+        "decoy_paths": {
+          "detect": {
+            "count": 300,
+            "min_us": 5,
+            "avg_us": 154.05,
+            "p90_us": 357.0,
+            "max_us": 3896
+          },
+          "inject": {
+            "count": 1200,
+            "min_us": 1,
+            "avg_us": 26.21,
+            "p90_us": 10.0,
+            "max_us": 5631
+          }
+        },
+        "form_fields": {
+          "detect": {
+            "count": 300,
+            "min_us": 2,
+            "avg_us": 17.66,
+            "p90_us": 19.0,
+            "max_us": 562
+          },
+          "inject": {
+            "count": 300,
+            "min_us": 7,
+            "avg_us": 28.5,
+            "p90_us": 11.0,
+            "max_us": 720
+          }
+        }
       },
       "errors": {
         "compose_stderr": "",
@@ -62,18 +226,100 @@
       "vus": 100,
       "compose_exit_code": 0,
       "detection": {
-        "count": 3004,
-        "min_us": 12,
-        "avg_us": 316.07,
-        "p90_us": 671.0,
-        "max_us": 17108
+        "count": 2985,
+        "min_us": 11,
+        "avg_us": 368.96,
+        "p90_us": 681.0,
+        "max_us": 78048
       },
       "injection": {
-        "count": 6000,
+        "count": 11940,
         "min_us": 1,
-        "avg_us": 29.5,
-        "p90_us": 5.0,
-        "max_us": 9656
+        "avg_us": 40.09,
+        "p90_us": 9.0,
+        "max_us": 71846
+      },
+      "tokens": {
+        "html_comments": {
+          "detect": {
+            "count": 2985,
+            "min_us": 11,
+            "avg_us": 368.96,
+            "p90_us": 681.0,
+            "max_us": 78048
+          },
+          "inject": {
+            "count": 11940,
+            "min_us": 1,
+            "avg_us": 40.09,
+            "p90_us": 9.0,
+            "max_us": 71846
+          }
+        },
+        "http_headers": {
+          "detect": {
+            "count": 2985,
+            "min_us": 5,
+            "avg_us": 297.78,
+            "p90_us": 535.0,
+            "max_us": 55664
+          },
+          "inject": {
+            "count": 11940,
+            "min_us": 1,
+            "avg_us": 22.38,
+            "p90_us": 4.0,
+            "max_us": 17897
+          }
+        },
+        "cookies": {
+          "detect": {
+            "count": 2985,
+            "min_us": 4,
+            "avg_us": 123.06,
+            "p90_us": 111.0,
+            "max_us": 49342
+          },
+          "inject": {
+            "count": 11940,
+            "min_us": 1,
+            "avg_us": 14.38,
+            "p90_us": 4.0,
+            "max_us": 12673
+          }
+        },
+        "decoy_paths": {
+          "detect": {
+            "count": 2985,
+            "min_us": 4,
+            "avg_us": 222.64,
+            "p90_us": 443.0,
+            "max_us": 30911
+          },
+          "inject": {
+            "count": 11940,
+            "min_us": 1,
+            "avg_us": 36.24,
+            "p90_us": 9.0,
+            "max_us": 14220
+          }
+        },
+        "form_fields": {
+          "detect": {
+            "count": 2985,
+            "min_us": 2,
+            "avg_us": 63.25,
+            "p90_us": 17.0,
+            "max_us": 27700
+          },
+          "inject": {
+            "count": 2985,
+            "min_us": 7,
+            "avg_us": 41.64,
+            "p90_us": 11.0,
+            "max_us": 6358
+          }
+        }
       },
       "errors": {
         "compose_stderr": "",
@@ -84,18 +330,100 @@
       "vus": 500,
       "compose_exit_code": 0,
       "detection": {
-        "count": 14295,
-        "min_us": 10,
-        "avg_us": 490.06,
-        "p90_us": 663.0,
-        "max_us": 94151
+        "count": 7854,
+        "min_us": 11,
+        "avg_us": 6429.6,
+        "p90_us": 11750.0,
+        "max_us": 939151
       },
       "injection": {
-        "count": 28536,
+        "count": 31416,
         "min_us": 1,
-        "avg_us": 66.42,
-        "p90_us": 5.0,
-        "max_us": 211978
+        "avg_us": 1403.01,
+        "p90_us": 11.0,
+        "max_us": 357043
+      },
+      "tokens": {
+        "html_comments": {
+          "detect": {
+            "count": 7854,
+            "min_us": 11,
+            "avg_us": 6429.6,
+            "p90_us": 11750.0,
+            "max_us": 939151
+          },
+          "inject": {
+            "count": 31416,
+            "min_us": 1,
+            "avg_us": 1403.01,
+            "p90_us": 11.0,
+            "max_us": 357043
+          }
+        },
+        "http_headers": {
+          "detect": {
+            "count": 7854,
+            "min_us": 5,
+            "avg_us": 4455.82,
+            "p90_us": 5870.0,
+            "max_us": 1019751
+          },
+          "inject": {
+            "count": 31416,
+            "min_us": 1,
+            "avg_us": 603.84,
+            "p90_us": 4.0,
+            "max_us": 593295
+          }
+        },
+        "cookies": {
+          "detect": {
+            "count": 7854,
+            "min_us": 4,
+            "avg_us": 2759.06,
+            "p90_us": 542.0,
+            "max_us": 420579
+          },
+          "inject": {
+            "count": 31416,
+            "min_us": 1,
+            "avg_us": 672.5,
+            "p90_us": 5.0,
+            "max_us": 910343
+          }
+        },
+        "decoy_paths": {
+          "detect": {
+            "count": 7854,
+            "min_us": 3,
+            "avg_us": 4447.76,
+            "p90_us": 4977.0,
+            "max_us": 656213
+          },
+          "inject": {
+            "count": 31416,
+            "min_us": 1,
+            "avg_us": 1593.7,
+            "p90_us": 10.0,
+            "max_us": 496642
+          }
+        },
+        "form_fields": {
+          "detect": {
+            "count": 7854,
+            "min_us": 2,
+            "avg_us": 1678.83,
+            "p90_us": 48.0,
+            "max_us": 890739
+          },
+          "inject": {
+            "count": 7854,
+            "min_us": 6,
+            "avg_us": 1945.58,
+            "p90_us": 16.0,
+            "max_us": 621801
+          }
+        }
       },
       "errors": {
         "compose_stderr": "",

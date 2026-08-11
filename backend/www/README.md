@@ -11,12 +11,17 @@ These pages carry **no** honeytoken logic. A client request reaches the edge pro
 (OpenResty/Envoy/Apache), which runs WADM detection on the way in and injects honeytokens into
 the HTML on the way back out, then proxies to `backend:80`, which simply returns the file here.
 
+**Exception — `/api/login`.** There is no such file and no origin route for it; `login.html`'s
+form action is answered by the **edge**, which plays a vulnerable MySQL app there (the top-level
+`sql_injection` policy in `config.json`). A `GET` to that path still falls through to the origin
+and 404s as before; only `POST` is trapped.
+
 ## Pages
 
 | Path | Purpose | Has `<form>`? |
 |------|---------|---------------|
 | `/` (`index.html`) | Landing page | no |
-| `/login.html` | Login form | **yes** |
+| `/login.html` | Login form (posts to `/api/login`, answered by the edge) | **yes** |
 | `/dashboard.html` | User dashboard tiles | no |
 | `/admin.html` | Admin settings form | **yes** |
 | `/about.html` | Static info | no |

@@ -40,11 +40,13 @@ EDGES = {
     "Envoy+Lua": "internal_envoy_lua",
 }
 
+# Categorical slots 1-4 of the validated data-viz palette, assigned in fixed order and
+# shared with plot_token_comparison.py so an edge keeps one colour across every figure.
 COLORS = {
-    "OpenResty": "#4C72B0",
-    "WASM (Envoy)": "#55A868",
-    "Apache+Lua": "#C44E52",
-    "Envoy+Lua": "#8172B3",
+    "OpenResty": "#2a78d6",
+    "WASM (Envoy)": "#eb6834",
+    "Apache+Lua": "#1baf7a",
+    "Envoy+Lua": "#eda100",
 }
 
 METRICS = ["detection", "injection"]

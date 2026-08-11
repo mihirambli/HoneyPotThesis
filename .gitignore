@@ -3,3 +3,7 @@ docs/tree.txt
 
 # Secrets and dependencies
 .env
+
+# Python bytecode (the benchmark orchestrators import benchmarks/wadm_timings.py)
+__pycache__/
+*.pyc
