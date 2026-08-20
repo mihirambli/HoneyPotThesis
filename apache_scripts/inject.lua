@@ -48,6 +48,21 @@ local function path_matches(paths, uri)
     return false
 end
 
+-- Fixed-anchor first-match splice, mirroring the WASM filter's `splice_before`: a *plain*
+-- find (the `true` disables pattern matching) then two subs. Returns nil when the anchor is
+-- absent so callers pick their own fallback.
+--
+-- This replaces `string.gsub`, which was costing 2-3x more for the same result: gsub runs
+-- Lua's backtracking pattern matcher rather than an optimised substring search, builds the
+-- output through a luaL_Buffer match loop, and re-concatenates the replacement on every
+-- request. Using it for a fixed-string insert made the injection figure rank an
+-- implementation choice rather than the runtime — see docs/EDGE_LEVELING.md.
+local function splice_before(body, anchor, insert)
+    local pos = body:find(anchor, 1, true)
+    if not pos then return nil end
+    return body:sub(1, pos - 1) .. insert .. "\n" .. body:sub(pos)
+end
+
 -- Setup helper (runs outside the timed region): select every ENABLED comment whose path
 -- patterns match this request, mirroring the OpenResty / Envoy / WASM path-matching logic.
 local function comments_for_path(uri)
@@ -187,12 +202,12 @@ function handle_inject(r)
 
     if #extra == 0 then
         -- Unchanged benchmarked path: assemble body → locate first </body> → splice → write back.
-        -- The `1` count limits the substitution to the first </body> so every edge does the
-        -- same first-match splice (OpenResty ngx.re.sub / Envoy gsub count=1 / WASM find).
+        -- splice_before takes only the FIRST match so every edge does the same single splice
+        -- (OpenResty ngx.re.sub / Envoy+Lua splice_before / WASM str::find).
         local start_time = r:clock()
         local body = table.concat(chunks)
-        local new_body = body:gsub("</body>", injection .. "\n</body>", 1)
-        if new_body == body then
+        local new_body = splice_before(body, "</body>", injection)
+        if not new_body then
             new_body = body .. injection
         end
         local end_time = r:clock()
@@ -206,15 +221,15 @@ function handle_inject(r)
         local body = table.concat(chunks)
         for _, p in ipairs(extra) do
             local extra_start = r:clock()
-            local nb = body:gsub(p.anchor, p.markup .. "\n" .. p.anchor, 1)
+            local nb = splice_before(body, p.anchor, p.markup)
             local extra_end = r:clock()
-            if nb ~= body then body = nb end
+            if nb then body = nb end
             r:warn("WADM TOKEN " .. p.kind .. " inject (us): " .. tostring(extra_end - extra_start))
         end
         if injection ~= "" then
             local start_time = r:clock()
-            local new_body = body:gsub("</body>", injection .. "\n</body>", 1)
-            if new_body == body then
+            local new_body = splice_before(body, "</body>", injection)
+            if not new_body then
                 new_body = body .. injection
             end
             local end_time = r:clock()

@@ -82,10 +82,48 @@ Injection was the least fair phase:
 | **Apache** | per-chunk `gsub`, no path matching, hardcoded first token, one log line per chunk | **rewritten**: buffers every brigade chunk, then one first-match splice at end-of-stream; real path matching; content-type guard; one log line per response |
 | **WASM** | path-matching/join inside the timer; timing logged even on the no-op paths | path-matching/join hoisted out of the timer; timer wraps only read → find → splice → write |
 
-The single **intended** remaining difference is each runtime's native string primitive
-(OpenResty PCRE `ngx.re.sub`, WASM `str::find`, Envoy+Lua / Apache Lua `gsub` with count 1).
-All produce the same first-match splice, so the leftover time is the runtime's body-API
-cost — which is exactly what the injection subplot is meant to measure.
+### The splice primitive was not a fair "intended difference"
+
+This section previously argued that each runtime's native string primitive (OpenResty PCRE
+`ngx.re.sub`, WASM `str::find`, Envoy+Lua / Apache Lua `gsub`) was an *intended* residual
+difference, on the grounds that all three produce the same first-match splice. That was wrong:
+`gsub` runs Lua's backtracking **pattern matcher** for what is a fixed-string insert, builds the
+output through a `luaL_Buffer` match loop, and re-concatenates the replacement on every request.
+It is strictly more work than the job needs, so the injection figure was ranking an implementation
+choice on two edges rather than the runtimes.
+
+**Evidence.** Splitting injection by what its timed region does — write a response header vs.
+locate an anchor and splice — isolated the effect exactly (VU=100 medians, before the fix):
+
+| Edge | Header-write kinds | Body-splice kinds | Ratio | Primitive |
+|---|---|---|---|---|
+| WASM | 2 µs | 1 µs | 0.5× | `str::find` |
+| OpenResty | 1 µs | 3 µs | 3.0× | `ngx.re.sub` (PCRE, JIT, cached) |
+| Envoy+Lua | 2 µs | 5 µs | 2.5× | `string.gsub` |
+| Apache | 2 µs | 6 µs | 3.0× | `string.gsub` |
+
+The two `gsub` edges were the two slowest at body splices while being fully competitive at header
+writes. The sharpest evidence sat *inside* Envoy's own filter: detection uses
+`key:find(keyword, 1, true)` — a **plain** find, pattern matching disabled — and came out at 1 µs,
+tied for fastest of all four edges, while injection's `gsub` in the same file on the same request
+took 5 µs. Same runtime, same VM, ~5× apart.
+
+**The fix.** Both Lua edges now use a `splice_before` helper that mirrors the WASM filter's:
+
+```lua
+local pos = body:find(anchor, 1, true)   -- plain find, no patterns
+return body:sub(1, pos - 1) .. insert .. "\n" .. body:sub(pos)
+```
+
+Result (VU=100 body-splice medians): **Envoy+Lua 5 → 1 µs**, **Apache 6 → 3 µs**. Envoy+Lua now
+ties WASM. Output is byte-identical — verified by fetching `/` and `/login.html` through all four
+edges in-network and comparing md5sums (`e79c8b9d…` for `/login.html` on every edge).
+
+The genuinely intended difference that remains is narrower: **OpenResty still uses `ngx.re.sub`**
+(PCRE with JIT and a cached compile via the `o` flag) while the other three now do a plain
+find-and-splice. That leaves OpenResty with the highest body-to-header ratio (3.0×, 3 µs vs 1 µs)
+— worth either aligning it too, or stating plainly in the write-up that its body-splice column
+reflects PCRE rather than the runtime.
 
 ### Result
 A warm request through Envoy+Lua now logs injection at **≈ 4–6 µs**, in line with
@@ -154,11 +192,60 @@ the kind's own work:
 
 | Phase | Outside the timer (setup) | Inside the timer |
 |---|---|---|
-| **detect** | client IP, request URI, parsed query args, `Cookie` header — read once and shared by all four kinds | that kind's scan over its enabled tokens, its `WADM ALERT` log, and the in-memory attacker-IP record on a hit |
+| **detect** | client IP, request URI, parsed query args, `Cookie` header — read once and shared by all four kinds; plus alert rendering and the `WADM ALERT` write, which happen *after* the timer closes (see "No log I/O inside a timer" below) | that kind's scan over its enabled tokens and the in-memory attacker-IP record on a hit |
 | **inject** (header kinds) | enabled + path-match token selection | building the header/cookie value and writing it onto the response |
 | **inject** (body kinds) | enabled + path-match selection and markup construction | locating the anchor (`</form>` / `</body>`) and producing the spliced body |
 
-Two deliberate consequences:
+### No log I/O inside a timer
+
+Detectors record hits as small descriptors; the alert is rendered and written **after** the timer
+closes. This applies to the additional kinds and to html_comments, on all four edges.
+
+**Why it had to change.** The first version enclosed the `WADM ALERT` write inside the detect
+timer, matching what html_comments had always done. Measured that way, a kind's cost tracked
+*whether it was the first to log on that request* rather than how much scanning it did. At 100 VUs:
+
+| Kind | First to log on its request? | OpenResty | WASM | Apache | Envoy+Lua |
+|---|---|---|---|---|---|
+| html_comments | yes | 20 | 18 | 47 | 8 |
+| http_headers | yes | 10 | 12 | 38 | 8 |
+| decoy_paths | yes | 9 | 11 | 35 | 8 |
+| cookies | no (2nd) | 5 | 2 | 8 | 3 |
+| form_fields | no (3rd) | 2 | 3 | 4 | 1 |
+
+A 3–10× split reproduced independently on all four edges, even though `cookies` does *more* string
+work than `http_headers`. The injection timers, which never contained a write, showed no such
+split. The detection figure was therefore ranking each runtime's logging path rather than its
+detection logic.
+
+**The fix.** Each per-kind detector appends `{tpl, a, b, c}` descriptors (Lua) or `Alert` enum
+variants (Rust) to a list; a `format_alert` function outside the timer renders them to the exact
+same wire text. So neither string formatting nor the write is charged to detection. The
+`WADM ALERT` message format is byte-identical to before on every edge — verified by diffing the
+distinct alert lines from a smoke run per edge.
+
+One residual asymmetry: the Lua edges' descriptors hold references to existing strings, while the
+Rust edge clones small `String`s into its `Alert` variants. At ~20 ns for a short-string clone
+against a 1 µs timer resolution, this is far below one tick.
+
+**Result.** The same table after the change, at the same 100 VUs:
+
+| Kind | Logged first? | OpenResty | WASM | Apache | Envoy+Lua |
+|---|---|---|---|---|---|
+| html_comments | yes | 3 | 3 | 11 | 7 |
+| http_headers | yes | 2 | 1 | 6 | 1 |
+| decoy_paths | yes | 1 | 1 | 3 | 0 |
+| cookies | no | 3 | 1 | 6 | 2 |
+| form_fields | no | 1 | 2 | 2 | 0 |
+
+The split is gone — logging position no longer predicts the number — and detection drops roughly
+10×, confirming the write was the dominant term rather than a constant offset. A second artefact
+disappeared with it: detection medians used to *fall* as load rose (OpenResty 11→5 µs from VU 1 to
+500), which had been provisionally attributed to cold caches at low load. Post-change the curves
+are essentially flat (OpenResty 2/2/2/1, Apache 5/6/6/6), so that slope was mostly the log-flush
+term amortising under concurrency, not cache behaviour.
+
+### Other consequences
 
 - **Detection is timed only on a hit**, exactly as for html_comments, so every edge samples the
   same population per kind.

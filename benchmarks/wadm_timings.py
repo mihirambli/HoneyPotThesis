@@ -25,7 +25,9 @@ from __future__ import annotations
 import math
 import re
 import statistics
+import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 TOKEN_LINE_RE = re.compile(r"WADM TOKEN (\w+) (detect|inject) \(us\):\s*(\d+)")
@@ -103,6 +105,68 @@ def build_token_sections(
         }
         raw[kind] = {f"{phase}_us": per_phase.get(phase, []) for phase in PHASES}
     return summary, raw
+
+
+def wait_for_quiet_host(max_load: float = 2.0, timeout_s: int = 420, poll_s: int = 10) -> None:
+    """Block until the 1-minute load average falls below `max_load`.
+
+    The 500-VU level saturates the host, and the load takes a while to decay after the
+    containers stop. Running the edges back-to-back therefore measured whichever edge came
+    later against a busy machine: in one run Envoy started at load 5.5 and its VU=1
+    detection avg came out at 1636 µs against 2 µs once the host was idle — an ordering
+    bias, not an edge property. Waiting here gives every edge the same starting state.
+
+    Linux-only (`/proc/loadavg`); silently skipped where that file is unreadable, and
+    capped by `timeout_s` so a permanently busy host cannot hang the run.
+    """
+    loadavg = Path("/proc/loadavg")
+    if not loadavg.exists():
+        return
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        try:
+            current = float(loadavg.read_text().split()[0])
+        except (OSError, ValueError):
+            return
+        if current < max_load:
+            return
+        print(f"  host busy (load {current:.2f} >= {max_load}); waiting {poll_s}s...")
+        time.sleep(poll_s)
+    print(f"  warning: host still busy after {timeout_s}s; proceeding anyway")
+
+
+def duration_seconds(duration: str) -> int:
+    """Parse a k6 duration like '30s' / '2m' into seconds (0 if unparseable)."""
+    match = re.fullmatch(r"(\d+)([sm])", duration.strip())
+    if not match:
+        return 0
+    value, unit = int(match.group(1)), match.group(2)
+    return value * (60 if unit == "m" else 1)
+
+
+def throughput_check(vus: int, duration: str, iterations: int) -> dict[str, Any]:
+    """Compare achieved iterations against what the k6 script's sleep(1) allows.
+
+    One iteration per VU per second is the ceiling the script itself imposes, so at low VU
+    levels a healthy edge lands within a few percent of `vus * seconds`. Falling far short
+    means the host was busy, not that the edge is slow — this repo's 2-core host has
+    silently produced runs where one edge managed 47% of the achievable iterations while
+    its per-operation numbers still looked plausible. Recording the ratio makes that
+    visible instead of leaving it to be inferred from odd-looking latencies.
+
+    At the highest VU level the edge itself saturates, so a ratio below 1 is expected there
+    and `expected_reachable` is False — compare edges against each other, not against 1.0.
+    """
+    seconds = duration_seconds(duration)
+    expected = vus * seconds
+    ratio = (iterations / expected) if expected else None
+    return {
+        "iterations": iterations,
+        "expected_iterations": expected or None,
+        "throughput_ratio": round(ratio, 3) if ratio is not None else None,
+        # Levels where sleep(1) governs rather than the edge; a shortfall here is host noise.
+        "expected_reachable": vus <= 100,
+    }
 
 
 def format_token_line(kind: str, summary: dict[str, Any]) -> str:

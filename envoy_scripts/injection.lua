@@ -132,6 +132,21 @@ local function get_comments_for_path(uri)
   return to_inject
 end
 
+-- Fixed-anchor first-match splice, mirroring the WASM filter's `splice_before`: a *plain*
+-- find (the `true` disables pattern matching, same call detection already uses) then two
+-- subs. Returns nil when the anchor is absent so callers pick their own fallback.
+--
+-- This replaces `string.gsub`, which was costing 2-3x more for the same result: gsub runs
+-- Lua's backtracking pattern matcher rather than an optimised substring search, builds the
+-- output through a luaL_Buffer match loop, and re-concatenates the replacement on every
+-- request. Using it for a fixed-string insert made the injection figure rank an
+-- implementation choice rather than the runtime — see docs/EDGE_LEVELING.md.
+local function splice_before(body, anchor, insert)
+  local pos = body:find(anchor, 1, true)
+  if not pos then return nil end
+  return body:sub(1, pos - 1) .. insert .. "\n" .. body:sub(pos)
+end
+
 -- Per-stream dynamic-metadata namespace used to carry the request path from
 -- envoy_on_request to envoy_on_response (see set/get below).
 local WADM_META_FILTER = "wadm.honeypot"
@@ -260,46 +275,60 @@ local function cookie_value(cookie_header, name)
   return nil
 end
 
--- Per-kind detectors. Each logs its own WADM ALERT lines and returns true on any hit;
--- keeping them separate lets detect_additional time one kind at a time.
+-- Detectors record hits as small descriptors and this renders them afterwards, so that
+-- alert *formatting and writing* both sit outside the detection timer. Log I/O otherwise
+-- dominated the measurement: it made a kind's cost depend on whether it was the first to
+-- log on that request rather than on its scan (see docs/EDGE_LEVELING.md). The wire format
+-- is unchanged and identical on all edges.
+local function format_alert(ip, hit)
+  local prefix = "WADM ALERT: honeytoken triggered by " .. ip .. " — "
+  local t = hit.tpl
+  if t == "header_replay" then
+    return prefix .. "http_header value '" .. hit.a .. "' replayed in request"
+  elseif t == "cookie_tamper" then
+    return prefix .. "cookie '" .. hit.a .. "' tampered (got '" .. hit.b
+      .. "', expected '" .. hit.c .. "')"
+  elseif t == "cookie_replay" then
+    return prefix .. "cookie value '" .. hit.a .. "' replayed in request"
+  elseif t == "decoy_hit" then
+    return prefix .. "decoy path '" .. hit.a .. "' requested (" .. hit.b .. ")"
+  elseif t == "form_tamper" then
+    return prefix .. "form field '" .. hit.a .. "' tampered (got '" .. hit.b
+      .. "', expected '" .. hit.c .. "')"
+  else
+    return prefix .. "form field keyword '" .. hit.a .. "' seen in request"
+  end
+end
+
+-- Per-kind detectors. Each only appends hit descriptors to `hits`; keeping them separate
+-- lets detect_additional time one kind at a time.
 local detect_kind = {
-  http_headers = function(request_handle, ctx)
-    local detected = false
+  http_headers = function(ctx, hits)
     for _, t in ipairs(tokens_of("http_headers")) do
       if token_enabled(t) and keyword_in_request(t.trigger_keyword, ctx) then
-        request_handle:logWarn("WADM ALERT: honeytoken triggered by " .. ctx.ip
-          .. " — http_header value '" .. tostring(t.trigger_keyword) .. "' replayed in request")
-        detected = true
+        hits[#hits + 1] = { tpl = "header_replay", a = tostring(t.trigger_keyword) }
       end
     end
-    return detected
   end,
 
-  cookies = function(request_handle, ctx)
-    local detected = false
+  cookies = function(ctx, hits)
     for _, t in ipairs(tokens_of("cookies")) do
       if token_enabled(t) then
         if t.cookie_name and t.cookie_name ~= "" then
           local v = cookie_value(ctx.cookie, t.cookie_name)
           if v ~= nil and v ~= (t.cookie_value or "") then
-            request_handle:logWarn("WADM ALERT: honeytoken triggered by " .. ctx.ip
-              .. " — cookie '" .. t.cookie_name .. "' tampered (got '" .. v
-              .. "', expected '" .. (t.cookie_value or "") .. "')")
-            detected = true
+            hits[#hits + 1] = { tpl = "cookie_tamper", a = t.cookie_name, b = v,
+              c = t.cookie_value or "" }
           end
         end
         if keyword_in_request(t.trigger_keyword, ctx) then
-          request_handle:logWarn("WADM ALERT: honeytoken triggered by " .. ctx.ip
-            .. " — cookie value '" .. tostring(t.trigger_keyword) .. "' replayed in request")
-          detected = true
+          hits[#hits + 1] = { tpl = "cookie_replay", a = tostring(t.trigger_keyword) }
         end
       end
     end
-    return detected
   end,
 
-  decoy_paths = function(request_handle, ctx)
-    local detected = false
+  decoy_paths = function(ctx, hits)
     for _, t in ipairs(tokens_of("decoy_paths")) do
       if token_enabled(t) and t.trap_path and t.trap_path ~= "" then
         local trap = t.trap_path
@@ -310,35 +339,25 @@ local detect_kind = {
           hit = (ctx.uri == trap) or (ctx.uri:sub(1, #trap + 1) == trap .. "/")
         end
         if hit then
-          request_handle:logWarn("WADM ALERT: honeytoken triggered by " .. ctx.ip
-            .. " — decoy path '" .. trap .. "' requested (" .. ctx.uri .. ")")
-          detected = true
+          hits[#hits + 1] = { tpl = "decoy_hit", a = trap, b = ctx.uri }
         end
       end
     end
-    return detected
   end,
 
-  form_fields = function(request_handle, ctx)
-    local detected = false
+  form_fields = function(ctx, hits)
     for _, t in ipairs(tokens_of("form_fields")) do
       if token_enabled(t) and t.field_name and t.field_name ~= "" then
         local expected = t.field_value or ""
         local qv = ctx.params[t.field_name]
         if qv ~= nil and qv ~= expected then
-          request_handle:logWarn("WADM ALERT: honeytoken triggered by " .. ctx.ip
-            .. " — form field '" .. t.field_name .. "' tampered (got '" .. qv
-            .. "', expected '" .. expected .. "')")
-          detected = true
+          hits[#hits + 1] = { tpl = "form_tamper", a = t.field_name, b = qv, c = expected }
         end
         if keyword_in_request(t.trigger_keyword, ctx) then
-          request_handle:logWarn("WADM ALERT: honeytoken triggered by " .. ctx.ip
-            .. " — form field keyword '" .. tostring(t.trigger_keyword) .. "' seen in request")
-          detected = true
+          hits[#hits + 1] = { tpl = "form_keyword", a = tostring(t.trigger_keyword) }
         end
       end
     end
-    return detected
   end,
 }
 
@@ -347,17 +366,23 @@ local KIND_ORDER = { "http_headers", "cookies", "decoy_paths", "form_fields" }
 
 -- Detection for the additional kinds, one timed region per kind. The timed region covers
 -- the kind's own scan plus the in-memory IP record — the same unit the html_comments
--- detection timer measures — while ctx construction stays outside as setup.
+-- detection timer measures — while ctx construction stays outside as setup and alert
+-- rendering/logging happens after the timer closes.
 local function detect_additional(request_handle, ctx)
   for _, kind in ipairs(KIND_ORDER) do
+    local hits = {}
     local kind_start = get_micro_time()
-    local hit = detect_kind[kind](request_handle, ctx)
-    if hit then
+    detect_kind[kind](ctx, hits)
+    if #hits > 0 then
       record_attacker_ip(ctx.ip)
     end
     local kind_delta = get_micro_time() - kind_start
+
+    for _, hit in ipairs(hits) do
+      request_handle:logWarn(format_alert(ctx.ip, hit))
+    end
     -- Timed only on a hit, so every edge samples the same population.
-    if hit then
+    if #hits > 0 then
       request_handle:logWarn("WADM TOKEN " .. kind .. " detect (us): " .. kind_delta)
     end
   end
@@ -462,6 +487,9 @@ function envoy_on_request(request_handle)
     )
   end
 
+  -- Hits are collected here and rendered after the timer closes, keeping alert formatting
+  -- and log I/O out of the measured region (see docs/EDGE_LEVELING.md).
+  local alerts = {}
   local detection_start = get_micro_time()
 
   local path = request_handle:headers():get(":path") or "/"
@@ -476,11 +504,7 @@ function envoy_on_request(request_handle)
     for key, val in pairs(params) do
       for _, keyword in ipairs(triggers) do
         if key:find(keyword, 1, true) or val:find(keyword, 1, true) then
-          request_handle:logWarn(
-            "WADM ALERT: honeytoken triggered by " .. ip
-            .. " — keyword '" .. keyword
-            .. "' found in query param '" .. key .. "=" .. val .. "'"
-          )
+          alerts[#alerts + 1] = { kw = keyword, key = key, val = val, where = "query param" }
           params[key] = nil
           dirty = true
         end
@@ -510,11 +534,7 @@ function envoy_on_request(request_handle)
       for key, val in pairs(post_params) do
         for _, keyword in ipairs(triggers) do
           if key:find(keyword, 1, true) or val:find(keyword, 1, true) then
-            request_handle:logWarn(
-              "WADM ALERT: honeytoken triggered by " .. ip
-              .. " — keyword '" .. keyword
-              .. "' found in POST param '" .. key .. "=" .. val .. "'"
-            )
+            alerts[#alerts + 1] = { kw = keyword, key = key, val = val, where = "POST param" }
             post_params[key] = nil
             dirty_body = true
             detected = true
@@ -528,13 +548,9 @@ function envoy_on_request(request_handle)
         request_handle:headers():replace("content-length", tostring(#cleaned_body))
       end
     else --body check for other content types
-      for _, keyword in ipairs(triggers) do 
+      for _, keyword in ipairs(triggers) do
         if body_str:find(keyword, 1, true) then
-          request_handle:logWarn(
-            "WADM ALERT: honeytoken triggered by " .. ip
-            .. " — keyword '" .. keyword
-            .. "' found in request body"
-          )
+          alerts[#alerts + 1] = { kw = keyword, where = "body" }
           detected = true
         end
       end
@@ -543,14 +559,28 @@ function envoy_on_request(request_handle)
   end -- post_body_inspection
 
   -- On detection, record the attacker IP in the in-memory store (mirrors OpenResty's
-  -- wadm:set) and log the timing. Only trigger-bearing requests are timed so all edges
-  -- sample the same population (the keyword-matching request).
+  -- wadm:set) inside the timer.
   if detected or dirty then
     record_attacker_ip(ip)
-    request_handle:logWarn(
-      "Envoy Lua Detection execution time (us): "
-      .. (get_micro_time() - detection_start)
-    )
+  end
+  local detection_delta = get_micro_time() - detection_start
+
+  -- Alert rendering and log I/O sit outside the timer: writing them inside made the
+  -- measurement track log-flush cost rather than scan cost.
+  for _, a in ipairs(alerts) do
+    if a.where == "body" then
+      request_handle:logWarn("WADM ALERT: honeytoken triggered by " .. ip
+        .. " — keyword '" .. a.kw .. "' found in request body")
+    else
+      request_handle:logWarn("WADM ALERT: honeytoken triggered by " .. ip
+        .. " — keyword '" .. a.kw .. "' found in " .. a.where
+        .. " '" .. a.key .. "=" .. a.val .. "'")
+    end
+  end
+  -- Only trigger-bearing requests are timed so all edges sample the same population
+  -- (the keyword-matching request).
+  if detected or dirty then
+    request_handle:logWarn("Envoy Lua Detection execution time (us): " .. detection_delta)
   end
 end
 
@@ -658,8 +688,8 @@ function envoy_on_response(response_handle)
     local injection = table.concat(to_inject, "\n")
     local injection_start = get_micro_time()
     local body_str = tostring(body_handle:getBytes(0, body_len))
-    local new_body = body_str:gsub("</body>", injection .. "\n</body>", 1)
-    if new_body == body_str then
+    local new_body = splice_before(body_str, "</body>", injection)
+    if not new_body then
       new_body = body_str .. injection
     end
     body_handle:setBytes(new_body)
@@ -676,16 +706,16 @@ function envoy_on_response(response_handle)
     local body_str = tostring(body_handle:getBytes(0, body_len))
     for _, p in ipairs(extra) do
       local extra_start = get_micro_time()
-      local replaced = body_str:gsub(p.anchor, p.markup .. "\n" .. p.anchor, 1)
+      local replaced = splice_before(body_str, p.anchor, p.markup)
       local extra_delta = get_micro_time() - extra_start
-      if replaced ~= body_str then body_str = replaced end
+      if replaced then body_str = replaced end
       response_handle:logWarn("WADM TOKEN " .. p.kind .. " inject (us): " .. extra_delta)
     end
     if #to_inject > 0 then
       local injection = table.concat(to_inject, "\n")
       local injection_start = get_micro_time()
-      local new_body = body_str:gsub("</body>", injection .. "\n</body>", 1)
-      if new_body == body_str then
+      local new_body = splice_before(body_str, "</body>", injection)
+      if not new_body then
         new_body = body_str .. injection
       end
       body_handle:setBytes(new_body)

@@ -78,7 +78,8 @@ carries **its own** `get_current_time()` region logged as
   planted), and decoy-path **URI match** (`exact` / `prefix`). Form-field tamper is query-only (WASM
   has no POST-body inspection). Hits log `WADM ALERT` and insert the IP. The `DetectCtx` struct (IP,
   `:path`, authority, path-only URI, `cookie`) is built once outside every timer; each kind's timer
-  wraps its scan + alert + `detected_ips` insert and only logs on a hit. Kinds run in the fixed
+  wraps its scan + `detected_ips` insert only — detectors push `Alert` descriptors and the
+  alerts are rendered and written after the timer closes, so no log I/O is charged to detection. Kinds run in the fixed
   `KIND_ORDER` so the timed regions sequence identically on every edge.
 - **Header injection** (`inject_response_headers`, in `on_http_response_headers`): decoy headers via
   `set_http_response_header`, `Set-Cookie` via `add_http_response_header` (any content type). Token

@@ -41,7 +41,7 @@ Client request
 │ Output filter chain                                      │
 │  inject.lua → handle_inject(r)  [LuaOutputFilter]       │
 │  • content-type guard + path matching (setup)           │
-│  • buffers every brigade chunk, then one gsub at EOS     │
+│  • buffers all chunks, one splice_before at EOS          │
 │  • whole modified body yielded once at end-of-stream     │
 └──────────────────────────┬──────────────────────────────┘
                            │ HTML with injected honeytoken
@@ -89,7 +89,7 @@ content handler that answers the request.
 Implements the **canonical injection contract** (see `benchmarks/README.md` → "Level-playing-field invariants" #6) so its injection timing is directly comparable to OpenResty / Envoy+Lua / WASM.
 
 - **Coroutine stages:** first `coroutine.yield()` signals readiness; the `while bucket ~= nil` loop **accumulates** every brigade chunk (yielding `""` so nothing is emitted yet); after end-of-stream a single whole-body transform runs and the modified body is emitted at the final `coroutine.yield(new_body)`.
-- **Buffered whole body (not per-chunk):** the previous version ran `string.gsub` on each bucket individually, which missed a `</body>` split across chunks and logged one timing line *per chunk*. It now buffers the full body first (mirroring OpenResty's `ctx.body_chunks`) and does one first-match splice, logging exactly one timing line per response.
+- **Buffered whole body (not per-chunk):** the previous version ran `string.gsub` on each bucket individually, which missed a `</body>` split across chunks and logged one timing line *per chunk*. It now buffers the full body first (mirroring OpenResty's `ctx.body_chunks`) and does one first-match splice, logging exactly one timing line per response. That splice is `splice_before` — a plain `find` (patterns disabled) plus two `sub`s, mirroring the WASM filter — rather than `string.gsub`, whose pattern matcher cost ~2× for a fixed-string insert; see `docs/EDGE_LEVELING.md`.
 - **Path matching:** `comments_for_path(r.uri)` selects every honeytoken whose `paths` match this request (`/*` or exact), identical to the other edges — the previous version hardcoded `html_comments[1]` and ignored `paths`.
 - **Content-Type guard:** `handle_inject` checks `r.content_type` internally; non-HTML responses stream through unchanged and are never buffered. (`httpd.conf` uses `SetOutputFilter WADM_INJECT` — applied to every response — so the guard lives in the script.)
 - **Timed region:** only `assemble body → find first </body> → splice → produce new body`. The content-type guard, path matching, and comment join are setup and run *outside* `r:clock()`; Content-Length is handled by `Header always unset Content-Length` in `httpd.conf`, outside the timer.
@@ -135,8 +135,9 @@ as `WADM TOKEN <kind> detect|inject (us): N` (see `benchmarks/README.md`).
   paths and cookies carry no query string): header/cookie value **replay**, cookie & form-field
   **tamper**, and decoy-path **URI match**. Form-field tamper is query-only (Apache has no POST-body
   inspection). Hits log `WADM ALERT` and record the IP. The shared ctx (URI, Host, `r:parseargs()`,
-  `Cookie`) is built once outside every timer; each kind's timer wraps its scan + alert + IP record
-  and only logs on a hit. Kinds run in the fixed order
+  `Cookie`) is built once outside every timer; each kind's timer wraps its scan + IP record only —
+  detectors record hit descriptors and the alerts are rendered and written after the timer
+  closes, so no log I/O is charged to detection. Kinds run in the fixed order
   `http_headers → cookies → decoy_paths → form_fields`.
 - **Body injection** (`inject.lua` output filter): hidden form inputs before `</form>`, decoy links
   before `</body>`. Each splice is timed on its own (region = locate anchor → splice; markup

@@ -23,7 +23,14 @@ from typing import Any
 
 # Stats helpers and the cross-edge `WADM TOKEN <kind> <phase> (us):` scraper are shared by
 # all four orchestrators; only the html_comments regexes below differ per edge.
-from wadm_timings import KINDS, build_token_sections, format_token_line, summarize
+from wadm_timings import (
+    KINDS,
+    build_token_sections,
+    format_token_line,
+    summarize,
+    throughput_check,
+    wait_for_quiet_host,
+)
 
 
 DETECTION_RE = re.compile(r"Envoy Lua Detection execution time \(us\):\s*(\d+)")
@@ -176,6 +183,12 @@ def main() -> int:
     base_env["TRIGGER_KEYWORD"] = trigger
     base_env["TARGET"] = target
 
+    # Cool-down before touching anything: the previous edge's 500-VU level leaves the host
+    # saturated, and starting here would measure this edge's low-VU levels against a busy
+    # machine (an ordering bias, not an edge property).
+    print("Waiting for a quiet host...")
+    wait_for_quiet_host()
+
     print("Starting Envoy Lua stack...")
     ensure_compose_cleanup(base_env)
     start_result = start_envoy_stack(base_env)
@@ -226,9 +239,14 @@ def main() -> int:
             logs_result.stdout, detection_values, injection_values
         )
 
+        # Host-contamination guard: a shortfall at a reachable level means the machine was
+        # busy, not that the edge is slow. Recorded so a bad run is visible in the results.
+        throughput = throughput_check(vus, duration, detect_stats.count)
+
         run_data = {
             "vus": vus,
             "compose_exit_code": up_result.returncode,
+            "throughput": throughput,
             "detection": detect_stats.to_json(),
             "injection": inject_stats.to_json(),
             "tokens": token_summary,
@@ -252,6 +270,13 @@ def main() -> int:
         print("Honeytoken kinds:")
         for kind in KINDS:
             print(format_token_line(kind, token_summary))
+        ratio = throughput["throughput_ratio"]
+        if ratio is not None:
+            note = ""
+            if throughput["expected_reachable"] and ratio < 0.9:
+                note = "  <-- WARNING: host was busy, treat this level as invalid"
+            print(f"Throughput: {throughput['iterations']}/{throughput['expected_iterations']}"
+                  f" iterations ({ratio:.0%} of the sleep(1) ceiling){note}")
         print(f"compose_exit_code={up_result.returncode}")
         print("")
 

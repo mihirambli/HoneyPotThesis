@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
-"""Compare the four honeypot edges per honeytoken kind, for both WADM phases.
+"""Break the four honeypot edges down per honeytoken kind, for both WADM phases.
 
-Every edge now times each honeytoken kind in its own microsecond region and logs it
-as `WADM TOKEN <kind> <phase> (us): N` (html_comments keeps its original
+Every edge times each honeytoken kind in its own microsecond region and logs it as
+`WADM TOKEN <kind> <phase> (us): N` (html_comments keeps its original
 `Detection/Injection execution time (us)` lines). The orchestrators fold both families
-into a `tokens` section of their result files; this script renders them.
+into a `tokens` section of their result files; this script renders them per kind.
+
+This is the companion to plot_edge_comparison.py, which pools the same samples into
+one distribution per edge. Use that one to rank edges, this one to see which kind
+drives the cost. The `sql_injection` trap appears in neither: it plants no token and
+is a response policy rather than a honeytoken kind.
 
 Two figure families are produced into <results_dir>/plots/:
 
@@ -14,16 +19,10 @@ Two figure families are produced into <results_dir>/plots/:
     token_scaling_<phase>.png      median latency vs. VU level per kind, one line per
                                    edge with an IQR band, showing how each kind scales.
 
-Data sources (per edge, written by run_internal_<edge>_benchmark.py):
-
-    internal_<edge>_raw.json      raw per-request latencies -> true box plots
-    internal_<edge>_profile.json  summary stats -> fallback approximation, drawn hatched
-
 Usage:
     python3 benchmarks/plot_token_comparison.py [results_dir]
 """
 
-import json
 import sys
 from pathlib import Path
 
@@ -32,204 +31,26 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
-from matplotlib.ticker import FuncFormatter, SymmetricalLogLocator
 
-# Display name -> file stem. Order here is the left-to-right box order and the
-# categorical slot assignment order below.
-EDGES = {
-    "OpenResty": "internal_openresty",
-    "WASM (Envoy)": "internal_wasm",
-    "Apache+Lua": "internal_apache_lua",
-    "Envoy+Lua": "internal_envoy_lua",
-}
-
-# Categorical slots 1-4 of the validated default data-viz palette, assigned in fixed
-# order. Adjacent-pair CVD separation is what the ordering guarantees, so edges keep
-# these colours across every figure — colour follows the edge, never its rank.
-COLORS = {
-    "OpenResty": "#2a78d6",
-    "WASM (Envoy)": "#eb6834",
-    "Apache+Lua": "#1baf7a",
-    "Envoy+Lua": "#eda100",
-}
-
-INK = "#0b0b0b"
-INK_MUTED = "#52514e"
-
-# html_comments leads: it is the reference measurement the added kinds are compared to.
-KINDS = ["html_comments", "http_headers", "cookies", "decoy_paths", "form_fields"]
-KIND_LABELS = {
-    "html_comments": "html_comments\n(body comment)",
-    "http_headers": "http_headers\n(response header)",
-    "cookies": "cookies\n(Set-Cookie bait)",
-    "decoy_paths": "decoy_paths\n(hidden link / trap URI)",
-    "form_fields": "form_fields\n(hidden input)",
-}
-PHASES = ["detect", "inject"]
-PHASE_LABELS = {"detect": "Detection", "inject": "Injection"}
-
-
-def load_edge(results_dir, stem):
-    """Return (raw, summary) as {vus: {kind: {phase: samples|stats}}} or None each."""
-    raw_by_vus = None
-    raw_path = results_dir / f"{stem}_raw.json"
-    if raw_path.exists():
-        doc = json.loads(raw_path.read_text())
-        raw_by_vus = {}
-        for run in doc["runs"]:
-            tokens = run.get("tokens") or {}
-            raw_by_vus[run["vus"]] = {
-                kind: {
-                    phase: tokens.get(kind, {}).get(f"{phase}_us", []) for phase in PHASES
-                }
-                for kind in KINDS
-            }
-
-    summary_by_vus = None
-    profile_path = results_dir / f"{stem}_profile.json"
-    if profile_path.exists():
-        doc = json.loads(profile_path.read_text())
-        summary_by_vus = {}
-        for run in doc["runs"]:
-            tokens = run.get("tokens") or {}
-            summary_by_vus[run["vus"]] = {
-                kind: {phase: tokens.get(kind, {}).get(phase) for phase in PHASES}
-                for kind in KINDS
-            }
-
-    return raw_by_vus, summary_by_vus
-
-
-def collect(results_dir):
-    data = {}
-    vus_seen = set()
-    for name, stem in EDGES.items():
-        raw_by_vus, summary_by_vus = load_edge(results_dir, stem)
-        if not raw_by_vus and not summary_by_vus:
-            print(f"  ! skipping {name}: no result files found for '{stem}'")
-            continue
-        data[name] = {"raw": raw_by_vus, "summary": summary_by_vus}
-        for src in (raw_by_vus, summary_by_vus):
-            if src:
-                vus_seen.update(src.keys())
-    return data, sorted(vus_seen)
-
-
-def samples_for(edge, vus, kind, phase):
-    raw = (edge["raw"] or {}).get(vus)
-    return (raw or {}).get(kind, {}).get(phase) or []
-
-
-def stats_for(edge, vus, kind, phase):
-    summary = (edge["summary"] or {}).get(vus)
-    stats = (summary or {}).get(kind, {}).get(phase)
-    if not stats or not stats.get("count"):
-        return None
-    return stats
-
-
-def summary_bxp_stats(stats, label):
-    """Approximate box-plot stats from summary numbers (min/avg/p90/max)."""
-    return {
-        "label": label,
-        "whislo": stats["min_us"],
-        "q1": stats["min_us"],   # Q1 unavailable -> min
-        "med": stats["avg_us"],  # mean stands in for the median
-        "q3": stats["p90_us"],   # Q3 unavailable -> p90
-        "whishi": stats["max_us"],
-        "fliers": [],
-    }
-
-
-def quartiles(values):
-    """(q1, median, q3) by the nearest-rank convention used across this repo."""
-    ordered = sorted(values)
-    n = len(ordered)
-
-    def at(pct):
-        idx = max(1, int(-(-pct * n // 100))) - 1
-        return float(ordered[idx])
-
-    return at(25), at(50), at(75)
-
-
-def style_axis(ax):
-    # symlog, not log: the edges time in whole microseconds and 8-13% of samples on the
-    # fast edges land on exactly 0 µs (work finished inside one tick). A pure log axis
-    # cannot render 0 and would silently drop that mass; symlog is linear below 1 µs and
-    # logarithmic above, so the sub-microsecond samples stay visible and honest.
-    ax.set_yscale("symlog", linthresh=1, linscale=0.4)
-    ax.set_ylim(bottom=0)
-    # Injection panels span barely one decade, where decade-only ticks leave the axis
-    # nearly unlabelled; label the 2/3/5 sub-steps too.
-    ax.yaxis.set_minor_locator(SymmetricalLogLocator(base=10, linthresh=1, subs=[2, 3, 5]))
-    ax.yaxis.set_minor_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
-    ax.grid(True, which="major", axis="y", alpha=0.25, linewidth=0.8)
-    ax.tick_params(colors=INK_MUTED, labelsize=9)
-    ax.tick_params(axis="y", which="minor", labelsize=7, colors=INK_MUTED)
-    for spine in ("top", "right"):
-        ax.spines[spine].set_visible(False)
-    for spine in ("left", "bottom"):
-        ax.spines[spine].set_color("#d5d4cf")
-
-
-def add_headroom(ax, factor=1.35):
-    """Keep the topmost mark and its label clear of the axis frame."""
-    top = ax.get_ylim()[1]
-    ax.set_ylim(0, top * factor)
-
-
-def draw_panel(ax, data, edges_present, vus, kind, phase):
-    """One (kind, phase) panel: one box per edge. Returns True if a fallback was drawn."""
-    used_fallback = False
-    approx, approx_pos, approx_colors = [], [], []
-
-    for i, name in enumerate(edges_present, start=1):
-        edge = data[name]
-        values = samples_for(edge, vus, kind, phase)
-        if values:
-            bp = ax.boxplot(
-                values,
-                positions=[i],
-                widths=0.62,
-                patch_artist=True,
-                showfliers=False,
-                medianprops={"color": INK, "linewidth": 2},
-                whiskerprops={"color": INK_MUTED, "linewidth": 1},
-                capprops={"color": INK_MUTED, "linewidth": 1},
-                boxprops={"edgecolor": "white", "linewidth": 2},
-            )
-            for patch in bp["boxes"]:
-                patch.set_facecolor(COLORS[name])
-                patch.set_alpha(0.9)
-            continue
-
-        stats = stats_for(edge, vus, kind, phase)
-        if not stats:
-            continue
-        approx.append(summary_bxp_stats(stats, name))
-        approx_pos.append(i)
-        approx_colors.append(COLORS[name])
-        used_fallback = True
-
-    if approx:
-        bp = ax.bxp(
-            approx,
-            positions=approx_pos,
-            widths=0.62,
-            showfliers=False,
-            patch_artist=True,
-            medianprops={"color": INK, "linewidth": 2, "linestyle": "--"},
-        )
-        for patch, color in zip(bp["boxes"], approx_colors):
-            patch.set_facecolor(color)
-            patch.set_alpha(0.45)
-            patch.set_hatch("//")
-
-    ax.set_xlim(0.4, len(edges_present) + 0.6)
-    ax.set_xticks(range(1, len(edges_present) + 1))
-    style_axis(ax)
-    return used_fallback
+from plot_common import (
+    COLORS,
+    EDGES,
+    INK,
+    INK_MUTED,
+    KIND_LABELS,
+    KINDS,
+    PHASE_LABELS,
+    PHASES,
+    add_headroom,
+    collect,
+    draw_edge_boxes,
+    finalize_flat_boxes,
+    place_direct_labels,
+    quartiles,
+    samples_for,
+    stats_for,
+    style_axis,
+)
 
 
 def plot_for_vus(vus, data, edges_present, out_dir):
@@ -240,11 +61,21 @@ def plot_for_vus(vus, data, edges_present, out_dir):
         sharey="row",
     )
     any_fallback = False
+    # With sharey the row's limits are not final until every panel is drawn, and the
+    # flat-box floor is computed in display space — so collect and finalize afterwards.
+    flat_per_panel = {}
 
     for row, phase in enumerate(PHASES):
         for col, kind in enumerate(KINDS):
             ax = axes[row][col]
-            any_fallback |= draw_panel(ax, data, edges_present, vus, kind, phase)
+            fallback, flat = draw_edge_boxes(
+                ax,
+                edges_present,
+                lambda name, k=kind, p=phase: samples_for(data[name], vus, k, p),
+                lambda name, k=kind, p=phase: stats_for(data[name], vus, k, p),
+            )
+            any_fallback |= fallback
+            flat_per_panel[(row, col)] = flat
 
             # Edge names on the x axis of the bottom row make identity readable without
             # colour; the top row shares the same fixed left-to-right order.
@@ -255,7 +86,12 @@ def plot_for_vus(vus, data, edges_present, out_dir):
             if row == 0:
                 ax.set_title(KIND_LABELS[kind], fontsize=9.5, color=INK, pad=10)
             if col == 0:
-                ax.set_ylabel(f"{PHASE_LABELS[phase]}\nlatency (µs, symlog)", fontsize=10, color=INK)
+                ax.set_ylabel(
+                    f"{PHASE_LABELS[phase]}\nlatency (µs, symlog)", fontsize=10, color=INK
+                )
+
+    for (row, col), flat in flat_per_panel.items():
+        finalize_flat_boxes(axes[row][col], flat)
 
     handles = [Patch(facecolor=COLORS[n], edgecolor="white", label=n) for n in edges_present]
     fig.legend(
@@ -290,37 +126,6 @@ def plot_for_vus(vus, data, edges_present, out_dir):
     fig.savefig(out, dpi=150, facecolor="white")
     plt.close(fig)
     print(f"  wrote {out}")
-
-
-def place_direct_labels(ax, endpoints):
-    """Write one label per line end, staggered so near-equal medians stay legible.
-
-    Positions are nudged in axes-fraction space (invariant under the later
-    tight_layout resize) rather than data space, which a symlog axis would distort.
-    """
-    if not endpoints:
-        return
-    inverse = ax.transAxes.inverted()
-    items = []
-    for name, x_data, y_data in endpoints:
-        _, frac_y = inverse.transform(ax.transData.transform((x_data, y_data)))
-        items.append([name, x_data, frac_y])
-
-    items.sort(key=lambda item: item[2], reverse=True)
-    min_gap = 0.075
-    for i in range(1, len(items)):
-        if items[i - 1][2] - items[i][2] < min_gap:
-            items[i][2] = items[i - 1][2] - min_gap
-
-    for name, x_data, frac_y in items:
-        ax.annotate(
-            name,
-            xy=(x_data + 0.12, min(max(frac_y, 0.02), 0.98)),
-            xycoords=("data", "axes fraction"),
-            fontsize=7.5,
-            color=INK_MUTED,
-            va="center",
-        )
 
 
 def plot_scaling(phase, data, edges_present, vus_list, out_dir):

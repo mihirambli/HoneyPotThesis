@@ -196,7 +196,7 @@ Each internal benchmark writes two artifacts per edge:
 
 | File | Contents |
 |------|----------|
-| `internal_<edge>_profile.json` | Per-VU **summary** stats (`count, min_us, avg_us, p90_us, max_us`) for each phase, plus a `tokens` section with the same stats per honeytoken kind. Small, human-readable. |
+| `internal_<edge>_profile.json` | Per-VU **summary** stats (`count, min_us, avg_us, p90_us, max_us`) for each phase, plus a `tokens` section with the same stats per honeytoken kind and a `throughput` section recording achieved vs. achievable iterations. Small, human-readable. |
 | `internal_<edge>_raw.json` | Per-VU **raw** per-request latency arrays: `runs[].detection_us[]`, `runs[].injection_us[]`, and the same samples split per kind under `runs[].tokens`. All in microseconds. |
 
 The raw file exists so that box plots can be drawn from the true latency distribution (real quartiles), which the summary stats alone cannot reconstruct. Shape:
@@ -236,13 +236,17 @@ for `kind` in `http_headers | cookies | decoy_paths | form_fields`. `html_commen
 
 The lowercase `detect` / `inject` words are deliberate: they share no substring with either html_comments scraper pattern, so OpenResty's **unprefixed** `Detection execution time \(us\):` regex cannot match a per-kind line and silently corrupt `detection_us`.
 
-What each timer wraps, and why the html_comments numbers are unaffected, is documented in [EDGE_LEVELING.md](../docs/EDGE_LEVELING.md#additional-honeytoken-kinds-get-their-own-timed-regions). In short: per-request setup (client IP, URI, parsed query, `Cookie`) is read once outside every timer; a `detect` timer wraps that kind's scan + alert + in-memory IP record and fires only on a hit; an `inject` timer wraps the header write or the anchor-locate-and-splice, with token selection and markup construction hoisted out.
+What each timer wraps, and why the html_comments numbers are unaffected, is documented in [EDGE_LEVELING.md](../docs/EDGE_LEVELING.md#additional-honeytoken-kinds-get-their-own-timed-regions). In short: per-request setup (client IP, URI, parsed query, `Cookie`) is read once outside every timer; a `detect` timer wraps that kind's scan + in-memory IP record and fires only on a hit, with alert rendering and the log write happening *after* it closes; an `inject` timer wraps the header write or the anchor-locate-and-splice, with token selection and markup construction hoisted out.
 
 Because an iteration now carries four requests rather than two, absolute html_comments numbers are **not** comparable with runs recorded before this change. All four edges are re-measured together, so the cross-edge comparison remains valid.
 
 ## Box-plot comparison across edges
 
-`plot_edge_comparison.py` renders one figure per VU level, placing all four edges side by side with a detection subplot and an injection subplot (log-scale y-axis).
+`plot_edge_comparison.py` renders one figure per VU level, placing all four edges side by side with a detection subplot and an injection subplot. Every honeytoken kind — `html_comments`, `http_headers`, `cookies`, `decoy_paths`, `form_fields` — is **pooled into one distribution per edge**, so the figure answers "which edge is cheapest at honeytoken work overall". For the per-kind breakdown behind those numbers, use `plot_token_comparison.py` below.
+
+Pooling is by concatenation of raw samples, so each kind contributes in proportion to how often it actually fires within an iteration (the `/*` kinds inject on all four benchmark requests, `form_fields` on one). A box therefore reads as "what a honeytoken operation costs on this edge", not as a mean of per-kind means.
+
+The `sql_injection` trap is excluded from both figures: it plants no token, is a single response policy rather than a honeytoken kind, and logs under its own non-colliding label.
 
 ```bash
 # defaults to benchmarks/results/, writes PNGs to benchmarks/results/plots/
@@ -252,14 +256,16 @@ python3 benchmarks/plot_edge_comparison.py
 python3 benchmarks/plot_edge_comparison.py path/to/results
 ```
 
-For each edge it prefers `internal_<edge>_raw.json` and draws a **true box plot** (box = Q1–Q3, line = median, whiskers = 1.5×IQR). If an edge's raw file is missing, it falls back to a **summary approximation** from the profile file (box = min→p90, line = mean, whisker = max) and marks that box with a hatched/faded style so it is not mistaken for real quartile data. Re-run that edge's benchmark to replace the fallback with a real box.
+For each edge it prefers `internal_<edge>_raw.json` and draws a **true box plot** (box = Q1–Q3, line = median, whiskers = 1.5×IQR). If an edge's raw file is missing, it falls back to a **count-weighted summary approximation** from the profile file (box = min→p90, line = mean, whisker = max) and marks that box with a hatched/faded style so it is not mistaken for real quartile data. Re-run that edge's benchmark to replace the fallback with a real box.
+
+Result files written before per-kind timing existed carry only the top-level html_comments arrays; those are mapped onto the `html_comments` kind, so an old file still renders (as that one kind) rather than vanishing from the figure.
 
 Output artifacts:
 - `benchmarks/results/plots/edge_comparison_vus_<N>.png` (one per VU level).
 
 ## Per-honeytoken-kind plots
 
-`plot_token_comparison.py` renders the `tokens` sections: every honeytoken kind, both phases, all four edges.
+`plot_token_comparison.py` breaks the same samples down per kind: every honeytoken kind, both phases, all four edges. Use `plot_edge_comparison.py` to rank edges, this one to see which kind drives the cost.
 
 ```bash
 # defaults to benchmarks/results/, writes PNGs to benchmarks/results/plots/
@@ -276,7 +282,11 @@ Output artifacts:
 | `token_comparison_vus_<N>.png` (one per VU level) | 2 rows (detection, injection) × 5 columns (one per kind); four edge box plots per panel, log-scale y shared across each row so kinds are comparable within a phase. |
 | `token_scaling_detect.png`, `token_scaling_inject.png` | Median latency vs. VU level, one panel per kind, one direct-labelled line per edge with a Q1–Q3 band — shows how each kind scales with load. |
 
-Both use the same raw-preferred / summary-fallback rule as `plot_edge_comparison.py` (hatched, faded boxes mark an approximation) and the same fixed edge colours, so an edge keeps one colour across every figure.
+Both scripts share [plot_common.py](plot_common.py) — the palette, the raw-preferred / summary-fallback rule (hatched, faded boxes mark an approximation), the symlog convention and the result-file loader all live there, so an edge keeps one colour and one visual language across every figure.
+
+### Why symlog rather than log
+
+The edges time in whole microseconds, and 8–13% of samples on OpenResty, WASM and Envoy+Lua land on exactly **0 µs** — the work finished inside one timer tick. A pure log axis cannot render 0 and would silently drop that mass. Every figure therefore uses a symlog y-axis: linear below 1 µs, logarithmic above.
 
 ## Cross-edge comparability
 
@@ -305,10 +315,30 @@ guarantees (all four edges obey them):
    rule holds per kind: a `WADM TOKEN <kind> detect (us)` line is emitted only when
    that kind fired, so each kind's distribution is a hit-only population on every
    edge.
-3. **Warm start.** Each orchestrator runs one throwaway warm-up burst
-   (`WARMUP_VUS=100`, `WARMUP_DURATION=20s`) before the recorded levels and
-   discards it, so JIT/caches are hot and VU=1 is not a cold-start outlier. The
-   edge stack persists across levels, so warming once suffices.
+3. **Warm start, quiet host, validated throughput.** Each orchestrator runs one
+   throwaway warm-up burst (`WARMUP_VUS=100`, `WARMUP_DURATION=20s`) before the
+   recorded levels and discards it, so JIT/caches are hot and VU=1 is not a
+   cold-start outlier. The edge stack persists across levels, so warming once suffices.
+
+   Two guards protect against host noise, both learned the hard way on this repo's
+   2-core machine:
+
+   - **Cool-down between edges** (`wait_for_quiet_host`). The 500-VU level saturates
+     the host and the load takes time to decay, so running edges back-to-back measured
+     whichever edge came later against a busy machine — in one run Envoy started at load
+     5.5 and its VU=1 detection averaged 1636 µs against 2 µs once idle. Each orchestrator
+     now waits for the 1-minute load average to fall below 2.0 before it starts.
+   - **Throughput validation** (`throughput_check`). `sleep(1)` in `test.js` caps a VU at
+     one iteration per second, so at VU ≤ 100 a healthy edge lands within a few percent of
+     `vus × seconds`. Each level records `throughput.throughput_ratio` and prints a
+     `WARNING: host was busy, treat this level as invalid` when a reachable level falls
+     below 90%. Without it, a contaminated run produced 47% of the achievable iterations
+     while its per-operation latencies still looked plausible. At VU=500 the edge itself
+     saturates, so `expected_reachable` is false there and the ratio is a capability
+     measure — compare edges to each other, not to 1.0.
+
+   A run is only valid if every edge reports ≥90% at VU 1/10/100. The committed results
+   are 94–100% across the board.
 4. **Equal work: query-string scan only.** POST request-body inspection is gated
    behind the `post_body_inspection` flag in `config.json` (default `false`), so
    OpenResty and Envoy+Lua do the same detection work as Apache and WASM. The
@@ -353,6 +383,15 @@ guarantees (all four edges obey them):
    `ngx.re.sub`, WASM `str::find`, Envoy+Lua/Apache Lua `gsub` with count 1) — all
    produce the same first-match splice, so the leftover time is the runtime's body-API
    cost, which is exactly what the injection subplot is meant to measure.
+
+   **Correction:** the splice primitive was *not* a fair intended difference. Envoy+Lua and
+   Apache used `string.gsub`, which runs Lua's backtracking pattern matcher for what is a
+   fixed-string insert — strictly more work than the job needs, and 2–3× slower than the
+   other two edges on body splices while being competitive on header writes. Both now use a
+   `splice_before` helper (plain `find` + two `sub`s) mirroring the WASM filter, which cut
+   Envoy+Lua's body splice from 5 µs to 1 µs and Apache's from 6 µs to 3 µs, with
+   byte-identical output. OpenResty still uses `ngx.re.sub` (PCRE-JIT). See
+   [EDGE_LEVELING.md](../docs/EDGE_LEVELING.md#the-splice-primitive-was-not-a-fair-intended-difference).
 7. **Per-kind contract: same setup hoisting, same fixed order.** The four additional
    honeytoken kinds follow the same rules as html_comments. Per-request setup (client
    IP, URI, parsed query args, `Cookie` header) is read **once** outside every timer
@@ -365,16 +404,20 @@ guarantees (all four edges obey them):
    because the extra payloads chain on an in-memory string that is written once at the
    end — so no edge charges its body-API write to a per-kind number.
 
-   **Caveat — the alert log is inside the detect timer.** This matches the
-   html_comments contract (whose timer has always enclosed its `WADM ALERT` write),
-   so the kinds stay comparable with the reference measurement and with each other
-   across edges. It does mean a detect number is *log-write cost + scan cost*, and
-   the write dominates: the first kind to fire on a request pays more of the flush
-   than the ones behind it. Because the kind order is pinned, that bias is identical
-   on all four edges — read a detect column as "cost of a firing detector including
-   its alert", and compare **across edges within a kind** rather than ranking kinds
-   against each other. Injection numbers carry no such term (nothing is logged inside
-   those timers).
+8. **No log I/O inside any timer.** Detectors record hits as small descriptors; both
+   the alert *rendering* and the `WADM ALERT` *write* happen after the timer closes.
+   Every edge does this, for the additional kinds and for html_comments alike.
+
+   This was not the original design, and the reason for the change is worth recording.
+   With the write inside the timer, a kind's measured cost tracked **whether it was the
+   first to log on that request**, not how much scanning it did: at 100 VUs the three
+   kinds that log first on their request (html_comments, http_headers, decoy_paths) came
+   out at 8–47 µs while the two that log behind another kind (cookies, form_fields) came
+   out at 1–8 µs — a 3–10× split, reproduced independently on all four edges, even though
+   `cookies` does *more* string work than `http_headers`. The injection timers, which
+   never contained a write, showed no such split. The detection figure was therefore
+   ranking each runtime's logging path rather than its detection logic. Moving the I/O
+   out makes detection measure detection; the alert wire format is unchanged.
 
 ## Files
 
@@ -386,7 +429,8 @@ guarantees (all four edges obey them):
 | [run_internal_apache_lua_benchmark.py](run_internal_apache_lua_benchmark.py) | Orchestrates internal Apache mod_lua microsecond profiling runs and writes summary + raw JSON results. |
 | [run_internal_wasm_benchmark.py](run_internal_wasm_benchmark.py) | Orchestrates internal Envoy WASM microsecond profiling runs and writes summary + raw JSON results. |
 | [wadm_timings.py](wadm_timings.py) | Shared summary-statistics helpers and the cross-edge `WADM TOKEN <kind> <phase> (us):` scraper used by all four orchestrators. |
-| [plot_edge_comparison.py](plot_edge_comparison.py) | Renders per-VU box-plot comparisons of all four edges from the raw sample files (falls back to summary stats). html_comments only. |
-| [plot_token_comparison.py](plot_token_comparison.py) | Renders the per-honeytoken-kind figures: box plots per (phase, kind) at each VU level, plus median-vs-load scaling panels. |
+| [plot_common.py](plot_common.py) | Shared by both plotters: edge palette, result-file loader, raw/summary fallback, pooled-sample helpers, symlog axis styling. |
+| [plot_edge_comparison.py](plot_edge_comparison.py) | Per-VU box-plot comparison of all four edges with **all honeytoken kinds pooled** — the edge-level ranking. |
+| [plot_token_comparison.py](plot_token_comparison.py) | Per-honeytoken-kind breakdown: box plots per (phase, kind) at each VU level, plus median-vs-load scaling panels. |
 | [EDGE_LEVELING.md](EDGE_LEVELING.md) | Record of the source changes that made the four edges comparable (detection state store, canonical injection contract, Envoy path capture). |
 | [README.md](README.md) | This document. |

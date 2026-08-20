@@ -54,7 +54,9 @@ and each kind carries **its own** `get_micro_time()` region logged as
   (path / `:authority` / query substring), cookie & form-field **tamper** (returned value ≠ planted),
   and decoy-path **URI match** (`exact` / `prefix`). Hits log `WADM ALERT` and record the IP. The
   `actx` table (IP, path, authority, parsed query, `cookie`) is built once outside every timer; each
-  kind's timer wraps its scan + alert + `record_attacker_ip` and only logs on a hit. Kinds run in
+  kind's timer wraps its scan + `record_attacker_ip` only — detectors record hit descriptors
+  and the alerts are rendered and written after the timer closes, so no log I/O is charged to
+  detection. Kinds run in
   the fixed `KIND_ORDER` so the timed regions sequence identically on every edge.
 - **Injection** (`envoy_on_response`): decoy response headers + `Set-Cookie` baits via
   `headers():add(...)` (any content type, before the content-type guard); hidden form inputs (before

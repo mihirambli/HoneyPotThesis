@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-08-09T15:33:17.301575+00:00",
+    "generated_at": "2026-08-17T13:55:56.162561+00:00",
     "script": "benchmarks/run_internal_openresty_benchmark.py",
     "target": "http://openresty:80",
     "trigger_keyword": "internal-admin.example.com",
@@ -17,99 +17,105 @@
     {
       "vus": 1,
       "compose_exit_code": 0,
+      "throughput": {
+        "iterations": 29,
+        "expected_iterations": 30,
+        "throughput_ratio": 0.967,
+        "expected_reachable": true
+      },
       "detection": {
-        "count": 30,
-        "min_us": 8,
-        "avg_us": 102.9,
-        "p90_us": 223.0,
-        "max_us": 538
+        "count": 29,
+        "min_us": 3,
+        "avg_us": 7.83,
+        "p90_us": 15.0,
+        "max_us": 19
       },
       "injection": {
-        "count": 120,
+        "count": 116,
         "min_us": 1,
-        "avg_us": 2.83,
-        "p90_us": 4.0,
-        "max_us": 12
+        "avg_us": 9.16,
+        "p90_us": 18.0,
+        "max_us": 161
       },
       "tokens": {
         "html_comments": {
           "detect": {
-            "count": 30,
-            "min_us": 8,
-            "avg_us": 102.9,
-            "p90_us": 223.0,
-            "max_us": 538
+            "count": 29,
+            "min_us": 3,
+            "avg_us": 7.83,
+            "p90_us": 15.0,
+            "max_us": 19
           },
           "inject": {
-            "count": 120,
+            "count": 116,
             "min_us": 1,
-            "avg_us": 2.83,
-            "p90_us": 4.0,
-            "max_us": 12
+            "avg_us": 9.16,
+            "p90_us": 18.0,
+            "max_us": 161
           }
         },
         "http_headers": {
           "detect": {
-            "count": 30,
-            "min_us": 7,
-            "avg_us": 92.1,
-            "p90_us": 176.0,
-            "max_us": 981
+            "count": 29,
+            "min_us": 2,
+            "avg_us": 6.31,
+            "p90_us": 14.0,
+            "max_us": 15
           },
           "inject": {
-            "count": 120,
+            "count": 116,
             "min_us": 0,
-            "avg_us": 0.77,
-            "p90_us": 1.0,
-            "max_us": 2
+            "avg_us": 2.51,
+            "p90_us": 3.0,
+            "max_us": 110
           }
         },
         "cookies": {
           "detect": {
-            "count": 30,
-            "min_us": 5,
-            "avg_us": 22.53,
-            "p90_us": 14.0,
-            "max_us": 442
+            "count": 29,
+            "min_us": 3,
+            "avg_us": 120.07,
+            "p90_us": 29.0,
+            "max_us": 3139
           },
           "inject": {
-            "count": 120,
+            "count": 116,
             "min_us": 0,
-            "avg_us": 1.46,
-            "p90_us": 2.0,
-            "max_us": 4
+            "avg_us": 10.17,
+            "p90_us": 9.0,
+            "max_us": 518
           }
         },
         "decoy_paths": {
           "detect": {
-            "count": 30,
-            "min_us": 5,
-            "avg_us": 61.57,
-            "p90_us": 164.0,
-            "max_us": 243
+            "count": 29,
+            "min_us": 1,
+            "avg_us": 4.34,
+            "p90_us": 11.0,
+            "max_us": 12
           },
           "inject": {
-            "count": 120,
+            "count": 116,
             "min_us": 2,
-            "avg_us": 7.22,
-            "p90_us": 7.0,
-            "max_us": 324
+            "avg_us": 9.94,
+            "p90_us": 21.0,
+            "max_us": 61
           }
         },
         "form_fields": {
           "detect": {
-            "count": 30,
-            "min_us": 1,
-            "avg_us": 5.83,
-            "p90_us": 10.0,
-            "max_us": 79
+            "count": 29,
+            "min_us": 0,
+            "avg_us": 1.79,
+            "p90_us": 4.0,
+            "max_us": 4
           },
           "inject": {
-            "count": 30,
+            "count": 29,
             "min_us": 2,
-            "avg_us": 2.8,
-            "p90_us": 4.0,
-            "max_us": 6
+            "avg_us": 7.9,
+            "p90_us": 21.0,
+            "max_us": 28
           }
         }
       },
@@ -121,99 +127,105 @@
     {
       "vus": 10,
       "compose_exit_code": 0,
+      "throughput": {
+        "iterations": 300,
+        "expected_iterations": 300,
+        "throughput_ratio": 1.0,
+        "expected_reachable": true
+      },
       "detection": {
         "count": 300,
-        "min_us": 4,
-        "avg_us": 86.74,
-        "p90_us": 189.0,
-        "max_us": 2471
+        "min_us": 1,
+        "avg_us": 5.7,
+        "p90_us": 5.0,
+        "max_us": 191
       },
       "injection": {
         "count": 1200,
         "min_us": 1,
-        "avg_us": 8.26,
+        "avg_us": 6.16,
         "p90_us": 4.0,
-        "max_us": 2083
+        "max_us": 1347
       },
       "tokens": {
         "html_comments": {
           "detect": {
             "count": 300,
-            "min_us": 4,
-            "avg_us": 86.74,
-            "p90_us": 189.0,
-            "max_us": 2471
+            "min_us": 1,
+            "avg_us": 5.7,
+            "p90_us": 5.0,
+            "max_us": 191
           },
           "inject": {
             "count": 1200,
             "min_us": 1,
-            "avg_us": 8.26,
+            "avg_us": 6.16,
             "p90_us": 4.0,
-            "max_us": 2083
+            "max_us": 1347
           }
         },
         "http_headers": {
           "detect": {
             "count": 300,
-            "min_us": 3,
-            "avg_us": 65.1,
-            "p90_us": 169.0,
-            "max_us": 964
+            "min_us": 0,
+            "avg_us": 2.44,
+            "p90_us": 3.0,
+            "max_us": 168
           },
           "inject": {
             "count": 1200,
             "min_us": 0,
-            "avg_us": 1.0,
+            "avg_us": 1.13,
             "p90_us": 1.0,
-            "max_us": 149
+            "max_us": 398
           }
         },
         "cookies": {
           "detect": {
             "count": 300,
-            "min_us": 3,
-            "avg_us": 24.61,
-            "p90_us": 16.0,
-            "max_us": 1966
+            "min_us": 1,
+            "avg_us": 4.7,
+            "p90_us": 5.0,
+            "max_us": 133
           },
           "inject": {
             "count": 1200,
             "min_us": 0,
-            "avg_us": 3.24,
-            "p90_us": 2.0,
-            "max_us": 715
+            "avg_us": 1.88,
+            "p90_us": 1.0,
+            "max_us": 626
           }
         },
         "decoy_paths": {
           "detect": {
             "count": 300,
-            "min_us": 2,
-            "avg_us": 63.34,
-            "p90_us": 193.0,
-            "max_us": 928
+            "min_us": 0,
+            "avg_us": 1.58,
+            "p90_us": 2.0,
+            "max_us": 92
           },
           "inject": {
             "count": 1200,
             "min_us": 1,
-            "avg_us": 7.16,
-            "p90_us": 5.0,
-            "max_us": 982
+            "avg_us": 6.06,
+            "p90_us": 6.0,
+            "max_us": 808
           }
         },
         "form_fields": {
           "detect": {
             "count": 300,
-            "min_us": 1,
-            "avg_us": 6.63,
-            "p90_us": 7.0,
-            "max_us": 385
+            "min_us": 0,
+            "avg_us": 0.96,
+            "p90_us": 1.0,
+            "max_us": 100
           },
           "inject": {
             "count": 300,
             "min_us": 1,
-            "avg_us": 4.38,
+            "avg_us": 3.62,
             "p90_us": 4.0,
-            "max_us": 135
+            "max_us": 67
           }
         }
       },
@@ -225,99 +237,105 @@
     {
       "vus": 100,
       "compose_exit_code": 0,
+      "throughput": {
+        "iterations": 2930,
+        "expected_iterations": 3000,
+        "throughput_ratio": 0.977,
+        "expected_reachable": true
+      },
       "detection": {
-        "count": 2911,
-        "min_us": 3,
-        "avg_us": 82.7,
-        "p90_us": 202.0,
-        "max_us": 10038
+        "count": 2930,
+        "min_us": 0,
+        "avg_us": 8.51,
+        "p90_us": 5.0,
+        "max_us": 4253
       },
       "injection": {
-        "count": 11644,
+        "count": 11720,
         "min_us": 0,
-        "avg_us": 5.9,
+        "avg_us": 5.26,
         "p90_us": 4.0,
-        "max_us": 4022
+        "max_us": 2541
       },
       "tokens": {
         "html_comments": {
           "detect": {
-            "count": 2911,
-            "min_us": 3,
-            "avg_us": 82.7,
-            "p90_us": 202.0,
-            "max_us": 10038
+            "count": 2930,
+            "min_us": 0,
+            "avg_us": 8.51,
+            "p90_us": 5.0,
+            "max_us": 4253
           },
           "inject": {
-            "count": 11644,
+            "count": 11720,
             "min_us": 0,
-            "avg_us": 5.9,
+            "avg_us": 5.26,
             "p90_us": 4.0,
-            "max_us": 4022
+            "max_us": 2541
           }
         },
         "http_headers": {
           "detect": {
-            "count": 2911,
-            "min_us": 2,
-            "avg_us": 58.03,
-            "p90_us": 148.0,
-            "max_us": 5334
+            "count": 2930,
+            "min_us": 0,
+            "avg_us": 5.14,
+            "p90_us": 3.0,
+            "max_us": 2687
           },
           "inject": {
-            "count": 11644,
+            "count": 11720,
             "min_us": 0,
-            "avg_us": 1.6,
+            "avg_us": 1.38,
             "p90_us": 1.0,
-            "max_us": 1105
+            "max_us": 1941
           }
         },
         "cookies": {
           "detect": {
-            "count": 2911,
-            "min_us": 2,
-            "avg_us": 19.22,
-            "p90_us": 14.0,
-            "max_us": 10559
+            "count": 2930,
+            "min_us": 1,
+            "avg_us": 7.64,
+            "p90_us": 5.0,
+            "max_us": 1405
           },
           "inject": {
-            "count": 11644,
+            "count": 11720,
             "min_us": 0,
-            "avg_us": 2.31,
-            "p90_us": 2.0,
-            "max_us": 1333
+            "avg_us": 1.34,
+            "p90_us": 1.0,
+            "max_us": 788
           }
         },
         "decoy_paths": {
           "detect": {
-            "count": 2911,
-            "min_us": 2,
-            "avg_us": 60.27,
-            "p90_us": 152.0,
-            "max_us": 4688
+            "count": 2930,
+            "min_us": 0,
+            "avg_us": 3.17,
+            "p90_us": 2.0,
+            "max_us": 2261
           },
           "inject": {
-            "count": 11644,
+            "count": 11720,
             "min_us": 1,
-            "avg_us": 6.7,
-            "p90_us": 4.0,
-            "max_us": 3501
+            "avg_us": 13.4,
+            "p90_us": 5.0,
+            "max_us": 71505
           }
         },
         "form_fields": {
           "detect": {
-            "count": 2911,
-            "min_us": 1,
-            "avg_us": 9.02,
-            "p90_us": 7.0,
-            "max_us": 2332
+            "count": 2930,
+            "min_us": 0,
+            "avg_us": 1.23,
+            "p90_us": 1.0,
+            "max_us": 282
           },
           "inject": {
-            "count": 2911,
+            "count": 2930,
             "min_us": 1,
-            "avg_us": 4.67,
+            "avg_us": 6.63,
             "p90_us": 4.0,
-            "max_us": 671
+            "max_us": 3088
           }
         }
       },
@@ -329,99 +347,105 @@
     {
       "vus": 500,
       "compose_exit_code": 0,
+      "throughput": {
+        "iterations": 9137,
+        "expected_iterations": 15000,
+        "throughput_ratio": 0.609,
+        "expected_reachable": false
+      },
       "detection": {
-        "count": 9985,
-        "min_us": 3,
-        "avg_us": 86.84,
-        "p90_us": 180.0,
-        "max_us": 14101
+        "count": 9137,
+        "min_us": 0,
+        "avg_us": 8.44,
+        "p90_us": 4.0,
+        "max_us": 9011
       },
       "injection": {
-        "count": 39940,
+        "count": 36548,
         "min_us": 0,
-        "avg_us": 6.39,
+        "avg_us": 7.19,
         "p90_us": 4.0,
-        "max_us": 5978
+        "max_us": 8724
       },
       "tokens": {
         "html_comments": {
           "detect": {
-            "count": 9985,
-            "min_us": 3,
-            "avg_us": 86.84,
-            "p90_us": 180.0,
-            "max_us": 14101
+            "count": 9137,
+            "min_us": 0,
+            "avg_us": 8.44,
+            "p90_us": 4.0,
+            "max_us": 9011
           },
           "inject": {
-            "count": 39940,
+            "count": 36548,
             "min_us": 0,
-            "avg_us": 6.39,
+            "avg_us": 7.19,
             "p90_us": 4.0,
-            "max_us": 5978
+            "max_us": 8724
           }
         },
         "http_headers": {
           "detect": {
-            "count": 9985,
-            "min_us": 2,
-            "avg_us": 65.95,
-            "p90_us": 128.0,
-            "max_us": 10959
+            "count": 9137,
+            "min_us": 0,
+            "avg_us": 4.63,
+            "p90_us": 2.0,
+            "max_us": 9138
           },
           "inject": {
-            "count": 39940,
+            "count": 36548,
             "min_us": 0,
-            "avg_us": 2.55,
+            "avg_us": 1.23,
             "p90_us": 1.0,
-            "max_us": 18991
+            "max_us": 2732
           }
         },
         "cookies": {
           "detect": {
-            "count": 9985,
-            "min_us": 2,
-            "avg_us": 26.81,
-            "p90_us": 16.0,
-            "max_us": 38450
+            "count": 9137,
+            "min_us": 1,
+            "avg_us": 11.68,
+            "p90_us": 5.0,
+            "max_us": 30084
           },
           "inject": {
-            "count": 39940,
+            "count": 36548,
             "min_us": 0,
-            "avg_us": 2.88,
+            "avg_us": 1.74,
             "p90_us": 1.0,
-            "max_us": 13080
+            "max_us": 2377
           }
         },
         "decoy_paths": {
           "detect": {
-            "count": 9985,
-            "min_us": 2,
-            "avg_us": 59.9,
-            "p90_us": 128.0,
-            "max_us": 8189
+            "count": 9137,
+            "min_us": 0,
+            "avg_us": 4.22,
+            "p90_us": 2.0,
+            "max_us": 9609
           },
           "inject": {
-            "count": 39940,
+            "count": 36548,
             "min_us": 1,
-            "avg_us": 7.24,
+            "avg_us": 8.99,
             "p90_us": 4.0,
-            "max_us": 5034
+            "max_us": 8987
           }
         },
         "form_fields": {
           "detect": {
-            "count": 9985,
-            "min_us": 1,
-            "avg_us": 14.76,
-            "p90_us": 8.0,
-            "max_us": 9827
+            "count": 9137,
+            "min_us": 0,
+            "avg_us": 2.76,
+            "p90_us": 1.0,
+            "max_us": 5286
           },
           "inject": {
-            "count": 9985,
+            "count": 9137,
             "min_us": 1,
-            "avg_us": 5.55,
+            "avg_us": 9.91,
             "p90_us": 4.0,
-            "max_us": 1956
+            "max_us": 16014
           }
         }
       },

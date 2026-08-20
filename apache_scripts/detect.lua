@@ -69,43 +69,32 @@ local detected_ips = {}
 -- form-field tamper is a query-string check only here (Apache has no POST-body inspection),
 -- which matches every edge's default behaviour while post_body_inspection is off.
 local detect_kind = {
-    http_headers = function(r, ip, ctx)
-        local detected = false
+    http_headers = function(ctx, hits)
         for _, t in ipairs(ctx.ht.http_headers or {}) do
             if token_enabled(t) and keyword_in_request(t.trigger_keyword, ctx.uri, ctx.host, ctx.args) then
-                r:warn("WADM ALERT: honeytoken triggered by " .. ip
-                    .. " — http_header value '" .. tostring(t.trigger_keyword) .. "' replayed in request")
-                detected = true
+                hits[#hits + 1] = { tpl = "header_replay", a = tostring(t.trigger_keyword) }
             end
         end
-        return detected
     end,
 
-    cookies = function(r, ip, ctx)
-        local detected = false
+    cookies = function(ctx, hits)
         for _, t in ipairs(ctx.ht.cookies or {}) do
             if token_enabled(t) then
                 if t.cookie_name and t.cookie_name ~= "" then
                     local v = cookie_value(ctx.cookie, t.cookie_name)
                     if v ~= nil and v ~= (t.cookie_value or "") then
-                        r:warn("WADM ALERT: honeytoken triggered by " .. ip
-                            .. " — cookie '" .. t.cookie_name .. "' tampered (got '" .. v
-                            .. "', expected '" .. (t.cookie_value or "") .. "')")
-                        detected = true
+                        hits[#hits + 1] = { tpl = "cookie_tamper", a = t.cookie_name, b = v,
+                            c = t.cookie_value or "" }
                     end
                 end
                 if keyword_in_request(t.trigger_keyword, ctx.uri, ctx.host, ctx.args) then
-                    r:warn("WADM ALERT: honeytoken triggered by " .. ip
-                        .. " — cookie value '" .. tostring(t.trigger_keyword) .. "' replayed in request")
-                    detected = true
+                    hits[#hits + 1] = { tpl = "cookie_replay", a = tostring(t.trigger_keyword) }
                 end
             end
         end
-        return detected
     end,
 
-    decoy_paths = function(r, ip, ctx)
-        local detected = false
+    decoy_paths = function(ctx, hits)
         for _, t in ipairs(ctx.ht.decoy_paths or {}) do
             if token_enabled(t) and t.trap_path and t.trap_path ~= "" then
                 local trap = t.trap_path
@@ -116,37 +105,53 @@ local detect_kind = {
                     hit = (ctx.uri == trap) or (ctx.uri:sub(1, #trap + 1) == trap .. "/")
                 end
                 if hit then
-                    r:warn("WADM ALERT: honeytoken triggered by " .. ip
-                        .. " — decoy path '" .. trap .. "' requested (" .. ctx.uri .. ")")
-                    detected = true
+                    hits[#hits + 1] = { tpl = "decoy_hit", a = trap, b = ctx.uri }
                 end
             end
         end
-        return detected
     end,
 
-    form_fields = function(r, ip, ctx)
-        local detected = false
+    form_fields = function(ctx, hits)
         for _, t in ipairs(ctx.ht.form_fields or {}) do
             if token_enabled(t) and t.field_name and t.field_name ~= "" then
                 local expected = t.field_value or ""
                 local qv = ctx.args[t.field_name]
                 if qv ~= nil and tostring(qv) ~= expected then
-                    r:warn("WADM ALERT: honeytoken triggered by " .. ip
-                        .. " — form field '" .. t.field_name .. "' tampered (got '" .. tostring(qv)
-                        .. "', expected '" .. expected .. "')")
-                    detected = true
+                    hits[#hits + 1] = { tpl = "form_tamper", a = t.field_name,
+                        b = tostring(qv), c = expected }
                 end
                 if keyword_in_request(t.trigger_keyword, ctx.uri, ctx.host, ctx.args) then
-                    r:warn("WADM ALERT: honeytoken triggered by " .. ip
-                        .. " — form field keyword '" .. tostring(t.trigger_keyword) .. "' seen in request")
-                    detected = true
+                    hits[#hits + 1] = { tpl = "form_keyword", a = tostring(t.trigger_keyword) }
                 end
             end
         end
-        return detected
     end,
 }
+
+-- Detectors record hits as small descriptors and this renders them afterwards, so that
+-- alert *formatting and writing* both sit outside the detection timer. Log I/O otherwise
+-- dominated the measurement: it made a kind's cost depend on whether it was the first to
+-- log on that request rather than on its scan (see docs/EDGE_LEVELING.md). The wire format
+-- is unchanged and identical on all edges.
+local function format_alert(ip, hit)
+    local prefix = "WADM ALERT: honeytoken triggered by " .. ip .. " — "
+    local t = hit.tpl
+    if t == "header_replay" then
+        return prefix .. "http_header value '" .. hit.a .. "' replayed in request"
+    elseif t == "cookie_tamper" then
+        return prefix .. "cookie '" .. hit.a .. "' tampered (got '" .. hit.b
+            .. "', expected '" .. hit.c .. "')"
+    elseif t == "cookie_replay" then
+        return prefix .. "cookie value '" .. hit.a .. "' replayed in request"
+    elseif t == "decoy_hit" then
+        return prefix .. "decoy path '" .. hit.a .. "' requested (" .. hit.b .. ")"
+    elseif t == "form_tamper" then
+        return prefix .. "form field '" .. hit.a .. "' tampered (got '" .. hit.b
+            .. "', expected '" .. hit.c .. "')"
+    else
+        return prefix .. "form field keyword '" .. hit.a .. "' seen in request"
+    end
+end
 
 -- Fixed order so the per-kind timing regions run in the same sequence on every edge.
 local KIND_ORDER = { "http_headers", "cookies", "decoy_paths", "form_fields" }
@@ -165,14 +170,19 @@ local function detect_additional(r, ip)
     }
 
     for _, kind in ipairs(KIND_ORDER) do
+        local hits = {}
         local kind_start = r:clock()
-        local hit = detect_kind[kind](r, ip, ctx)
-        if hit then
+        detect_kind[kind](ctx, hits)
+        if #hits > 0 then
             detected_ips[ip] = os.time()
         end
         local kind_end = r:clock()
+
+        for _, hit in ipairs(hits) do
+            r:warn(format_alert(ip, hit))
+        end
         -- Timed only on a hit, so every edge samples the same population.
-        if hit then
+        if #hits > 0 then
             r:warn("WADM TOKEN " .. kind .. " detect (us): " .. tostring(kind_end - kind_start))
         end
     end
@@ -204,13 +214,15 @@ function handle_detect(r)
     end
 
     local matched = false
+    -- Hits are collected here and rendered after the timer closes, keeping alert formatting
+    -- and log I/O out of the measured region (see docs/EDGE_LEVELING.md).
+    local matched_keywords = {}
     local start_time = r:clock()
 
     for _, keyword in ipairs(trigger_keywords) do
         if r.args:find(keyword, 1, true) then
             matched = true
-            r:warn("WADM ALERT: honeytoken triggered by " .. ip
-                   .. " — keyword '" .. keyword .. "' found in query string")
+            matched_keywords[#matched_keywords + 1] = keyword
 
             -- Remove every key=value segment containing the keyword plus its adjacent & separator.
             r.args = r.args:gsub("[^&]*" .. keyword .. "[^&]*&?", "")
@@ -224,10 +236,15 @@ function handle_detect(r)
         detected_ips[ip] = os.time()
     end
 
+    local end_time = r:clock()
+
+    for _, keyword in ipairs(matched_keywords) do
+        r:warn("WADM ALERT: honeytoken triggered by " .. ip
+               .. " — keyword '" .. keyword .. "' found in query string")
+    end
     -- DECLINED: not the authoritative access handler; continue to ProxyPass.
     -- Only record detection timing for trigger-bearing requests so all edges
     -- sample the same population (the keyword-matching request).
-    local end_time = r:clock()
     if matched then
         r:warn("Apache Detection execution time (us): " .. tostring(end_time - start_time))
     end

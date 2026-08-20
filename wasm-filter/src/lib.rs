@@ -291,6 +291,9 @@ impl HttpContext for HoneypotHttp {
         });
 
         // html_comments detection (benchmarked): timer wraps path scan + strip + record.
+        // Matched keywords are collected and logged after the timer closes, keeping alert
+        // formatting and log I/O out of the measured region.
+        let mut matched_keywords: Vec<&str> = Vec::new();
         let start = self.get_current_time();
         let path = self.get_http_request_header(":path").unwrap_or_default();
 
@@ -300,33 +303,36 @@ impl HttpContext for HoneypotHttp {
         };
 
         let mut cleaned = path.clone();
-        let mut matched = false;
         for token in tokens {
             if !is_on(&token.enabled) {
                 continue;
             }
             if let Some(ref kw) = token.trigger_keyword {
                 if !kw.is_empty() && cleaned.contains(kw.as_str()) {
-                    matched = true;
-                    warn!(
-                        "WADM ALERT: attacker detected -- trigger_keyword '{}' found in path '{}'",
-                        kw, path
-                    );
+                    matched_keywords.push(kw.as_str());
                     cleaned = cleaned.replace(kw.as_str(), "");
                 }
             }
         }
 
+        let matched = !matched_keywords.is_empty();
         if cleaned != path {
             self.set_http_request_header(":path", Some(&cleaned));
         }
 
         if matched {
             self.detected_ips.borrow_mut().insert(ip);
+        }
+        let elapsed = self.elapsed_us(start);
+
+        for kw in &matched_keywords {
             warn!(
-                "WASM Detection execution time (us): {}",
-                self.elapsed_us(start)
+                "WADM ALERT: attacker detected -- trigger_keyword '{}' found in path '{}'",
+                kw, path
             );
+        }
+        if matched {
+            warn!("WASM Detection execution time (us): {}", elapsed);
         }
         Action::Continue
     }
@@ -552,43 +558,47 @@ impl HoneypotHttp {
     // construction (headers, path, cookie) stays outside as setup.
     fn detect_additional(&self, ctx: &DetectCtx) {
         for kind in KIND_ORDER {
+            // Detectors only push hit descriptors; rendering and writing the alerts happens
+            // after the timer closes, so the measured region is scan + in-memory record and
+            // never log I/O.
+            let mut hits: Vec<Alert> = Vec::new();
             let start = self.get_current_time();
-            let hit = match kind {
-                "http_headers" => self.detect_http_headers(ctx),
-                "cookies" => self.detect_cookies(ctx),
-                "decoy_paths" => self.detect_decoy_paths(ctx),
-                _ => self.detect_form_fields(ctx),
-            };
-            if hit {
+            match kind {
+                "http_headers" => self.detect_http_headers(ctx, &mut hits),
+                "cookies" => self.detect_cookies(ctx, &mut hits),
+                "decoy_paths" => self.detect_decoy_paths(ctx, &mut hits),
+                _ => self.detect_form_fields(ctx, &mut hits),
+            }
+            if !hits.is_empty() {
                 self.detected_ips.borrow_mut().insert(ctx.ip.clone());
             }
             let elapsed = self.elapsed_us(start);
+
+            for hit in &hits {
+                warn!("{}", format_alert(&ctx.ip, hit));
+            }
             // Timed only on a hit, so every edge samples the same population.
-            if hit {
+            if !hits.is_empty() {
                 warn!("WADM TOKEN {} detect (us): {}", kind, elapsed);
             }
         }
     }
 
-    fn detect_http_headers(&self, ctx: &DetectCtx) -> bool {
-        let mut detected = false;
+    fn detect_http_headers(&self, ctx: &DetectCtx, hits: &mut Vec<Alert>) {
         if let Some(tokens) = self.honeytokens().and_then(|h| h.http_headers.as_ref()) {
             for t in tokens {
                 if is_on(&t.enabled) {
                     if let Some(ref kw) = t.trigger_keyword {
                         if keyword_in_request(kw, &ctx.full_path, &ctx.host) {
-                            warn!("WADM ALERT: honeytoken triggered by {} — http_header value '{}' replayed in request", ctx.ip, kw);
-                            detected = true;
+                            hits.push(Alert::HeaderReplay(kw.clone()));
                         }
                     }
                 }
             }
         }
-        detected
     }
 
-    fn detect_cookies(&self, ctx: &DetectCtx) -> bool {
-        let mut detected = false;
+    fn detect_cookies(&self, ctx: &DetectCtx, hits: &mut Vec<Alert>) {
         if let Some(tokens) = self.honeytokens().and_then(|h| h.cookies.as_ref()) {
             for t in tokens {
                 if !is_on(&t.enabled) {
@@ -597,24 +607,24 @@ impl HoneypotHttp {
                 if !t.cookie_name.is_empty() {
                     if let Some(v) = cookie_value(&ctx.cookie, &t.cookie_name) {
                         if v != t.cookie_value {
-                            warn!("WADM ALERT: honeytoken triggered by {} — cookie '{}' tampered (got '{}', expected '{}')", ctx.ip, t.cookie_name, v, t.cookie_value);
-                            detected = true;
+                            hits.push(Alert::CookieTamper(
+                                t.cookie_name.clone(),
+                                v,
+                                t.cookie_value.clone(),
+                            ));
                         }
                     }
                 }
                 if let Some(ref kw) = t.trigger_keyword {
                     if keyword_in_request(kw, &ctx.full_path, &ctx.host) {
-                        warn!("WADM ALERT: honeytoken triggered by {} — cookie value '{}' replayed in request", ctx.ip, kw);
-                        detected = true;
+                        hits.push(Alert::CookieReplay(kw.clone()));
                     }
                 }
             }
         }
-        detected
     }
 
-    fn detect_decoy_paths(&self, ctx: &DetectCtx) -> bool {
-        let mut detected = false;
+    fn detect_decoy_paths(&self, ctx: &DetectCtx, hits: &mut Vec<Alert>) {
         if let Some(tokens) = self.honeytokens().and_then(|h| h.decoy_paths.as_ref()) {
             for t in tokens {
                 if !is_on(&t.enabled) || t.trap_path.is_empty() {
@@ -627,16 +637,13 @@ impl HoneypotHttp {
                     &ctx.uri == trap || ctx.uri.starts_with(&format!("{}/", trap))
                 };
                 if hit {
-                    warn!("WADM ALERT: honeytoken triggered by {} — decoy path '{}' requested ({})", ctx.ip, trap, ctx.uri);
-                    detected = true;
+                    hits.push(Alert::DecoyHit(trap.clone(), ctx.uri.clone()));
                 }
             }
         }
-        detected
     }
 
-    fn detect_form_fields(&self, ctx: &DetectCtx) -> bool {
-        let mut detected = false;
+    fn detect_form_fields(&self, ctx: &DetectCtx, hits: &mut Vec<Alert>) {
         if let Some(tokens) = self.honeytokens().and_then(|h| h.form_fields.as_ref()) {
             let pairs = query_pairs(&ctx.full_path);
             for t in tokens {
@@ -646,20 +653,21 @@ impl HoneypotHttp {
                 if !t.field_name.is_empty() {
                     for (k, v) in &pairs {
                         if k == &t.field_name && v != &t.field_value {
-                            warn!("WADM ALERT: honeytoken triggered by {} — form field '{}' tampered (got '{}', expected '{}')", ctx.ip, t.field_name, v, t.field_value);
-                            detected = true;
+                            hits.push(Alert::FormTamper(
+                                t.field_name.clone(),
+                                v.clone(),
+                                t.field_value.clone(),
+                            ));
                         }
                     }
                 }
                 if let Some(ref kw) = t.trigger_keyword {
                     if keyword_in_request(kw, &ctx.full_path, &ctx.host) {
-                        warn!("WADM ALERT: honeytoken triggered by {} — form field keyword '{}' seen in request", ctx.ip, kw);
-                        detected = true;
+                        hits.push(Alert::FormKeyword(kw.clone()));
                     }
                 }
             }
         }
-        detected
     }
 
     // Response-header injection: decoy response headers + Set-Cookie baits on matching paths.
@@ -748,6 +756,37 @@ impl HoneypotHttp {
 
 // Fixed order so the per-kind timing regions run in the same sequence on every edge.
 const KIND_ORDER: [&str; 4] = ["http_headers", "cookies", "decoy_paths", "form_fields"];
+
+// A recorded hit, kept as data so that alert *formatting and writing* both sit outside the
+// detection timer. Log I/O otherwise dominated the measurement: it made a kind's cost depend
+// on whether it was the first to log on that request rather than on its scan (see
+// docs/EDGE_LEVELING.md). The wire format is unchanged and identical on all edges.
+enum Alert {
+    HeaderReplay(String),
+    CookieTamper(String, String, String),
+    CookieReplay(String),
+    DecoyHit(String, String),
+    FormTamper(String, String, String),
+    FormKeyword(String),
+}
+
+fn format_alert(ip: &str, hit: &Alert) -> String {
+    let body = match hit {
+        Alert::HeaderReplay(kw) => format!("http_header value '{}' replayed in request", kw),
+        Alert::CookieTamper(name, got, expected) => format!(
+            "cookie '{}' tampered (got '{}', expected '{}')",
+            name, got, expected
+        ),
+        Alert::CookieReplay(kw) => format!("cookie value '{}' replayed in request", kw),
+        Alert::DecoyHit(trap, uri) => format!("decoy path '{}' requested ({})", trap, uri),
+        Alert::FormTamper(name, got, expected) => format!(
+            "form field '{}' tampered (got '{}', expected '{}')",
+            name, got, expected
+        ),
+        Alert::FormKeyword(kw) => format!("form field keyword '{}' seen in request", kw),
+    };
+    format!("WADM ALERT: honeytoken triggered by {} — {}", ip, body)
+}
 
 // Per-request surfaces the additional-kind detectors read, gathered once outside every
 // timed region so the timers measure matching work only (mirrors the Lua edges' ctx tables).
