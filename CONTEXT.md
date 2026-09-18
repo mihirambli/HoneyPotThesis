@@ -2,9 +2,9 @@
 # Project context (for AI assistants and contributors)
 
 <!-- Intro: why this doc exists — one paragraph to align readers on WADM/honeytokens before diving into files. -->
-This repository is a small **web-application-defense / honeypot-style demonstration** (“WADM” in logs). A trivial static “backend” is served through one of several **edge proxies**. Each proxy loads `config.json`, **injects HTML comment honeytokens** into HTML responses (based on path patterns), and **watches incoming traffic** for configured `trigger_keyword` strings. When a keyword appears in query parameters, form bodies, or raw bodies, the proxy logs a warning, may **strip or rewrite** the offending data so the origin never sees the secret, and may **record the client IP** for follow-up alerting logic.
+This repository is a small **web-application-defense / honeypot-style demonstration** (“WADM” in logs). A trivial static “backend” is served through one of several **edge proxies**. Each proxy loads `config.json`, **injects HTML comment honeytokens** into HTML responses (based on path patterns), and **watches incoming traffic** for configured `trigger_keyword` strings. When a keyword appears in a query parameter (or, with `post_body_inspection` on, a POST form body on OpenResty and Envoy+Lua), the proxy logs a `WADM ALERT`, **strips** that parameter so the origin never sees the secret, and **records the client IP** (the socket peer) in an in-memory store.
 
-The same `config.json` schema is consumed by the Lua, OpenResty, and Rust (WASM) implementations so you can compare behavior across stacks.
+The same `config.json` schema is consumed by all four edges (OpenResty, Envoy+Lua, Apache+mod_lua, Envoy+WASM), and every edge implements the **same** detection and injection mechanism — same parsing, same strip, same alert text — so their costs can be compared. The mechanism is specified in `docs/EDGE_LEVELING.md` ("Behavioural equivalence and latency pass") and checked by `benchmarks/parity_check.py`.
 
 ---
 
@@ -17,20 +17,20 @@ The same `config.json` schema is consumed by the Lua, OpenResty, and Rust (WASM)
 | `enabled` | Per-token on/off switch (all kinds). `1`/`on`/`true` → the token is planted **and** watched; `0`/`off`/`false` → fully dormant (not injected, not detected). Absent defaults to **on**. |
 | `paths` | Which page(s) to inject into: `/*` for every page, or an **exact** request path like `/admin.html` (match is against the URI without query). The homepage is `/`, not `/index.html`. List several to target multiple pages, e.g. `["/login.html", "/admin.html"]`. Available pages live in `backend/www/`. |
 | `comment_value` | HTML comment string embedded before `</body>` (or appended). Treat as **secret** you want leaked only if someone scrapes HTML. |
-| `trigger_keyword` | If present, edge checks **requests** for this substring (query/body/path depending on stack). Hit → log + often strip + sometimes IP tracking. Empty/absent → inject-only for that row. |
+| `trigger_keyword` | If present, every edge checks the **decoded query parameters** for this substring. A matching parameter is logged, stripped before proxying, and the client IP is recorded. Empty/absent → inject-only for that row. |
 
-### Additional honeytoken kinds (OpenResty only for now)
+### Additional honeytoken kinds
 
 Four further kinds live as sibling arrays under `honeytokens`, **implemented on all four edges** (OpenResty, Envoy+Lua, Envoy+WASM, Apache) with matching semantics and identical `WADM ALERT` log formats so the edges stay comparable for benchmarking. Each row's fields are admin-settable, just like `html_comments`, and every token honours the same `enabled` switch described above.
 
-Two intentional parity notes: (1) form-field **POST-body** tamper detection is OpenResty-only for now — every edge detects the query-string case, which is the only case active while `post_body_inspection` is `false` (the default); (2) each kind is timed in **its own** microsecond region, logged as `WADM TOKEN <kind> detect|inject (us): N`, added *around* the existing code rather than inside the html_comments timers — so the html_comments measurement is unchanged and every kind is separately benchmarkable. See `benchmarks/README.md` and `docs/EDGE_LEVELING.md`.
+Two intentional parity notes: (1) **POST-body** inspection (keywords and form-field tamper) exists on OpenResty and Envoy+Lua only — every edge detects the query-string case, which is the only case active while `post_body_inspection` is `false` (the default); (2) each kind is timed in **its own** microsecond region, logged as `WADM TOKEN <kind> detect|inject (us): N`, added *around* the existing code rather than inside the html_comments timers — so the html_comments measurement is unchanged and every kind is separately benchmarkable. See `benchmarks/README.md` and `docs/EDGE_LEVELING.md`.
 
 | Kind (`honeytokens.<key>[]`) | Injection | Detection | Admin properties |
 |--------|-----------|-----------|------------------|
 | `http_headers` | Decoy **response header** on matching `paths`. | Keyword replay of the value in a later request (path/Host/query). | `paths`, `header_name`, `header_value`, `trigger_keyword` |
 | `cookies` | **Set-Cookie** bait on matching `paths`. | **Tamper**: returned cookie value ≠ planted `cookie_value`. A browser replays it unchanged, so only an attacker fires it. | `paths`, `cookie_name`, `cookie_value`, `attributes` (extra cookie attributes appended verbatim), `trigger_keyword` (optional value-replay) |
 | `decoy_paths` | Advertises a fake path as a hidden HTML link on `advertise_on_paths`. | **Path match**: any request whose URI matches `trap_path` (no keyword). | `trap_path`, `match_type` (`exact`\|`prefix`), `advertise_via` (`link`\|`robots`\|`none`), `advertise_on_paths`, `link_text` |
-| `form_fields` | Hidden `<input>` injected before `</form>` on matching `paths`. | **Tamper**: submitted value ≠ planted `field_value` (query always; POST only when `post_body_inspection` is on). | `paths`, `field_name`, `field_value`, `trigger_keyword` (optional) |
+| `form_fields` | Hidden `<input>` injected before `</form>` on matching `paths`. | **Tamper**: submitted value ≠ planted `field_value` (query always; POST only when `post_body_inspection` is on, OpenResty and Envoy+Lua). | `paths`, `field_name`, `field_value`, `trigger_keyword` (optional) |
 
 ### Fake SQL-injection trap (`sql_injection`)
 
@@ -72,7 +72,7 @@ Edit `config.json` on the host; Compose mounts it read-only into each edge conta
 ```mermaid
 flowchart LR
   Client[Client / attacker]
-  Edge[Edge proxy\nOpenResty, Envoy+Lua,\nor Envoy+WASM]
+  Edge[Edge proxy\nOpenResty, Envoy+Lua,\nApache+mod_lua or Envoy+WASM]
   Backend[nginx:alpine\nstatic HTML]
 
   Client --> Edge
@@ -102,7 +102,9 @@ Docker Compose wires services on a shared `honeypot` bridge network. Only the ed
 | WASM build | Rust official image | `rust:latest`, target `wasm32-unknown-unknown` |
 | Shell glue | POSIX `sh`, `sed` | `envoy-wasm/entrypoint.sh` embeds JSON into YAML |
 
-**Host ports (defaults in `docker-compose.yml`):** OpenResty `8080`, Envoy+Lua `8081`, Envoy+WASM `8082`.
+**Host ports (defaults in `docker-compose.yml`):** OpenResty `8080`, Envoy+Lua `8081`, Envoy+WASM `8082`, Apache `8083`.
+
+**Where requests are recorded.** The edges write **no access log** (Envoy never did; OpenResty's and Apache's were removed so no edge pays a per-request write the others don't). The per-request record is the origin's access log, whose `xff=` field carries the real client IP from every edge (Envoy runs with `use_remote_address: true` so it forwards it, as OpenResty and Apache already did). Requests the edge answers itself — the SQLi trap — never reach the origin and are recorded by the edge as `WADM ALERT` (signature hit) or `WADM TRAP` (no hit).
 
 ---
 
@@ -111,15 +113,17 @@ Docker Compose wires services on a shared `honeypot` bridge network. Only the ed
 <!-- Map: why each top-level path exists — quick navigation for changes. -->
 | Path | Role |
 |------|------|
-| `backend/` | Origin container: `nginx.conf` (logging-focused) plus `www/` — the document root, mounted whole, holding the dummy app's pages. Drop any `.html` into `backend/www/` and it is served automatically. |
-| `nginx/` | OpenResty **primary** implementation: `init_by_lua` loads config; `access_by_lua` inspects args/body; `header_filter_by_lua` / `body_filter_by_lua` inject comments into HTML. Uses `lua_shared_dict` for IP marking. |
+| `backend/` | Origin container: `nginx.conf` (its access log, with the client IP in `xff=`, is the per-request record for every edge) plus `www/` — the document root, mounted whole, holding the dummy app's pages. Drop any `.html` into `backend/www/` and it is served automatically. |
+| `nginx/` | OpenResty — the **reference** edge: `init_by_lua` loads and precompiles the config into one `wadm` table; `access_by_lua` detects and strips; `header_filter_by_lua` / `body_filter_by_lua` inject. Uses `lua_shared_dict` for IP marking. |
 | `envoy/` | Envoy static config: HTTP connection manager → **Lua** HTTP filter (`injection.lua`) → router → `backend` cluster. Mounts `config.json` and `envoy_scripts/`. |
 | `envoy_scripts/` | Envoy Lua filter source (`injection.lua`), JSON helper (`json.lua`), and `download_json_lua.sh` to refresh the vendored JSON library. |
 | `envoy-wasm/` | Envoy YAML template with `{{WASM_CONFIG_JSON}}` placeholder, plus `entrypoint.sh` that merges `config.json` into the WASM filter plugin configuration at container start. |
 | `wasm-filter/` | Rust **proxy-wasm** HTTP filter compiled to `.wasm`; Dockerfile copies artifact to shared volume for Envoy. |
 | `docs/` | Auxiliary documentation (e.g. `tree.txt` snapshot of layout). |
-| `docker-compose.yml` | Service definitions, profiles (`openresty`, `envoy`, `wasm`), shared volume `wasm_output` between `rust-builder` and `envoy-wasm`. |
+| `apache_scripts/` | Apache mod_lua edge: shared core `wadm.lua` plus the three hook files (`detect.lua`, `inject.lua`, `login.lua`). |
+| `docker-compose.yml` | Service definitions, profiles (`openresty`, `envoy`, `wasm`, `apache`, `loadtest`), shared volume `wasm_output` between `rust-builder` and `envoy-wasm`. |
 | `config.json` | Shared honeytoken definitions consumed by all edge variants. |
+| `*-baseline.{conf,yaml}` | One per edge (`nginx/nginx-baseline.conf`, `envoy/envoy-baseline.yaml`, `envoy-wasm/envoy-wasm-baseline.yaml`, `httpd-baseline.conf`): the same edge with the WADM filter deleted, mounted into the **same** service via the `${OPENRESTY_CONF}` / `${ENVOY_CONF}` / `${ENVOY_WASM_CONF}` / `${HTTPD_CONF}` overrides. Supplies the no-WADM baseline the benchmark's end-to-end overhead is measured against. |
 
 ---
 
@@ -129,7 +133,8 @@ Docker Compose wires services on a shared `honeypot` bridge network. Only the ed
 - **Default:** only `backend` runs (no published edge port).
 - **`--profile openresty`:** OpenResty edge on port 8080.
 - **`--profile envoy`:** Envoy + Lua on 8081.
-- **`--profile wasm`:** Builds WASM via `rust-builder`, then Envoy + WASM on 8082 (entrypoint injects JSON into filter config).
+- **`--profile wasm`:** Envoy + WASM on 8082 (entrypoint injects JSON into filter config). `rust-builder` copies `filter.wasm` from its image; add `--build` after editing `wasm-filter/`, or Compose reuses the previously built image.
+- **`--profile apache`:** Apache + mod_lua on 8083. Scripts are cached for the container's lifetime (`LuaCodeCache forever`), so restart it after editing them.
 
 ---
 
@@ -139,7 +144,8 @@ Docker Compose wires services on a shared `honeypot` bridge network. Only the ed
 For internal data flow and phase-by-phase behavior, read the short READMEs in:
 
 1. `wasm-filter/README.md` — Rust proxy-wasm filter (headers/body buffering, injection, path cleaning).
-2. `envoy_scripts/README.md` — Envoy Lua filter (`injection.lua`): query/body parsing, optional IP JSON file, HTML rewrite.
+2. `envoy_scripts/README.md` — Envoy Lua filter (`injection.lua`): request and response phases, dynamic-metadata path hand-off.
 3. `nginx/README.md` — OpenResty multi-phase Lua pipeline and chunked body assembly.
+4. `apache_scripts/README.md` — Apache mod_lua hooks, the shared `wadm.lua` core, and the parity reference table.
 
-These three contain the bulk of domain logic; `envoy/` and `envoy-wasm/` are mostly declarative Envoy YAML plus the WASM bootstrap script.
+These four contain the bulk of domain logic; `envoy/` and `envoy-wasm/` are mostly declarative Envoy YAML plus the WASM bootstrap script.

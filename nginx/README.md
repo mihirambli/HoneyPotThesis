@@ -2,55 +2,63 @@
 # nginx (OpenResty edge)
 
 <!-- Clarify image: why stress OpenResty — users often assume this is vanilla nginx.conf. -->
-This directory is **not** stock nginx: the Compose service uses **`openresty/openresty`** with `nginx.conf` as the main config. Lua runs in several nginx phases to load config once, inspect each request, and stream-transform HTML responses.
+This directory is **not** stock nginx: the Compose service uses **`openresty/openresty`** with `nginx.conf` as the main config. Lua runs in several nginx phases to load config once, inspect each request, and transform HTML responses.
+
+`nginx-baseline.conf` is the same edge with every WADM block deleted, used by the no-WADM baseline suite (see `docs/EDGE_LEVELING.md`).
+
+The detection and injection behaviour is the cross-edge canonical mechanism shared with Envoy+Lua, Apache and Envoy+WASM; `docs/EDGE_LEVELING.md` ("Behavioural equivalence and latency pass") defines it.
 
 ## Internal data flow
 
-### `init_by_lua_block` (worker init)
+### `init_by_lua_block` (once, in the master before fork)
 
-<!-- init: why once per worker — shared global wadm_config avoids re-reading JSON on every request. -->
-1. Opens `/etc/openresty/config.json` (mounted from repo root).  
-2. Decodes JSON with `cjson` into global `wadm_config`.  
-3. Logs success or parse errors.  
-4. Defines the `wadm_handlers` registry (global) — one handler per additional honeytoken kind (`http_headers`, `cookies`, `decoy_paths`, `form_fields`), each exposing only the hooks it needs (`detect`, `header_inject`, `body_payload`) — plus the shared `wadm_path_matches` predicate and `wadm_token_enabled` switch. `html_comments` keeps its own inline, benchmarked code paths; the registry drives everything else and runs **outside** the injection/detection timers.
+<!-- init: why everything is precompiled here — every worker inherits it, so per-request work is lookups only. -->
+1. Decodes `/etc/openresty/config.json` (mounted from the repo root) with `cjson`.
+2. Precompiles the config:
+   - **Per-path plans.** Paths are only `/*` or exact, so each exact path gets one plan and there is a default plan for wildcard tokens. A plan holds the joined `html_comments` string, the decoy header list, the prebuilt `Set-Cookie` strings, and the extra body payloads (`decoy_paths` link before `</body>`, `form_fields` input before `</form>`), all in config order.
+   - **Detector inputs.** Enabled trigger keywords, and per-kind token lists with the `enabled` switch already applied. A kind with nothing to detect is dropped, timer included.
+   - **SQLi trap sets.** Method and path lookup tables.
+3. Publishes everything through a single global table, `wadm`, whose `access`, `header_filter` and `body_filter` functions the phase blocks call. Everything else stays a local of the init chunk.
 
-Every token (all kinds) carries an optional `enabled` field checked by `wadm_token_enabled` before it is injected or watched: `1`/`on`/`true` = active, anything else = dormant, absent = on. The check is setup that stays outside both timers.
+The timer, `now_us`, reads `gettimeofday` into a preallocated `struct timeval` rather than allocating a new one on every call.
 
-### `access_by_lua_block` (per request, before upstream)
+### `access_by_lua_block` → `wadm.access()` (per request, before upstream)
 
-<!-- access: why before proxy_pass — must scrub secrets from args/body before they reach backend; also records IP in shm. -->
-Runs only inside `location /` before `proxy_pass`:
+<!-- access: why before proxy_pass — must scrub secrets from the query before it reaches the backend; also records IP in shm. -->
+1. **Setup (untimed).**
+   - Reads `$remote_addr`, `$request_uri`, `$http_host` and, only if a cookie token exists, `$http_cookie`.
+   - Splits the raw request target into `path` (up to `?`) and the query string.
+   - Parses the query **once** into ordered segments `{raw, key, value}`, decoding only segments that contain `%` or `+`.
+   - Stores `{plan}` in `ngx.ctx.wadm`.
+2. **SQLi trap (first, and terminal).**
+   - If the method and path match the `sql_injection` policy, this edge answers the request itself. It reads the body, matches the watched fields against the signatures, and then logs either `WADM ALERT` (plus an entry in `wadm_state`) or `WADM TRAP` for a request that matched nothing.
+   - It marks `ngx.ctx.wadm.local_response` and replies with `ngx.print` + `ngx.exit(ngx.HTTP_OK)`. `ngx.exit(500)` would discard the body and render nginx's own error page instead.
+3. **Additional kinds, one timed region each**, in the fixed order `http_headers → cookies → decoy_paths → form_fields`. Each timed region is that kind's scan plus `wadm_state:set` on a hit. The `WADM ALERT` lines and `WADM TOKEN <kind> detect (us): N` are written after the timer closes.
+4. **html_comments (the benchmarked reference).** Timed region: scan the segments against the triggers → drop every segment that hit → `ngx.req.set_uri_args(kept raw segments joined by "&")` → `wadm_state:set`. `Detection execution time (us): N` is logged only on a hit.
+5. **POST body**, only when `post_body_inspection` is `true` (default `false`).
+   - Form-urlencoded bodies use the same segment parser and are rebuilt with `ngx.req.set_body_data`.
+   - Other bodies get a raw substring scan.
+   - `form_fields` also checks the body for tamper.
 
-1. Bails if config or `html_comments` missing.  
-2. Builds `triggers` from non-empty `trigger_keyword` fields.  
-3. **URI args:** `ngx.req.get_uri_args()` — for each key/value, substring search for triggers; on hit, logs `WADM ALERT`, sets `detected`, removes arg, may `ngx.req.set_uri_args`.  
-4. **POST:** `ngx.req.read_body()` then `ngx.req.get_post_args()` for `application/x-www-form-urlencoded`-style parsing; same trigger logic; may rebuild body with `ngx.req.set_body_data`. If post args fail, falls back to scanning raw `ngx.req.get_body_data()`.  
-5. If `detected`, stores `ip -> true` in `lua_shared_dict wadm_state` (24h TTL) and logs.
-
-**SQLi trap (first, and terminal).** Ahead of everything else, `wadm_sqli_owns(method, uri)` checks the top-level `sql_injection` policy. On a match this edge stops being a proxy: it reads the body, matches the watched fields against the signature list, logs `WADM ALERT` + `wadm_state` on a hit, sets `ngx.ctx.wadm_local_response`, and answers with `ngx.print` + `ngx.exit(ngx.HTTP_OK)`. `ngx.exit(ngx.HTTP_OK)` rather than `ngx.exit(500)` — the latter discards the body and renders nginx's own error page. The suppression flag is required because `ngx.print` still traverses the output-filter chain; both filters below check it on their first line.
-
-**Additional-kind detection (timed per kind).** Before the `html_comments` scan, a registry pass walks `wadm_kind_order` and runs each handler's `detect`: `cookies`/`form_fields` flag **tampering** (returned value ≠ planted value), `decoy_paths` flags a **request whose URI matches `trap_path`**, and `http_headers`/`cookies` flag **replay** of a planted value (path/Host/query). Hits reuse the same sink (`WADM ALERT` + `wadm_state`). It runs first so the `html_comments` early-returns can't skip it, and outside the `html_comments` detection timer so that measurement is unchanged. Each kind gets **its own** timer — the shared `dctx` (IP, URI, parsed args) is built once outside; the timed region is that kind's scan + `wadm:set`; detectors only record hit descriptors, and the `WADM ALERT` lines plus `WADM TOKEN <kind> detect (us): N` are written after the timer closes (log I/O inside it made the number track flush cost rather than scan cost). The order is a fixed list rather than `pairs()`, whose unspecified order would let the timed regions run in a different sequence on every request.
-
-### `header_filter_by_lua_block` (response headers from upstream)
+### `header_filter_by_lua_block` → `wadm.header_filter()`
 
 <!-- header_filter: why clear content_length — body_filter will change byte length; nginx must not trust upstream length. -->
-Returns immediately when `ngx.ctx.wadm_local_response` is set, so the SQLi trap page keeps the explicit `Content-Length` the access phase gave it. Otherwise: if `Content-Type` looks like HTML, clears `content_length` so nginx can change the body length during filtering. Then a registry pass runs each handler's `header_inject` on matching `paths`: `http_headers` sets the decoy response header, `cookies` **appends** a `Set-Cookie` bait (without clobbering upstream cookies). Header-only, so it is content-type agnostic and needs no length handling. Token selection (`enabled` + path match) is setup outside the timer; the timed region is the header write itself, logged as `WADM TOKEN <kind> inject (us): N`.
+- Returns immediately for the SQLi trap page.
+- If the plan has body work and `Content-Type` contains `text/html`, clears `Content-Length` and marks the request for injection.
+- Writes the plan's decoy headers (set) and `Set-Cookie` baits (appended, so upstream cookies survive), each under its own timer logged as `WADM TOKEN <kind> inject (us): N`.
 
-### `body_filter_by_lua_block` (streaming response body)
+### `body_filter_by_lua_block` → `wadm.body_filter()`
 
-<!-- body_filter: why chunk table — upstream may stream HTML; accumulate until eof flag then inject once. -->
-0. Returns immediately when `ngx.ctx.wadm_local_response` is set — the SQLi trap page must ship exactly as built, with no honeytokens spliced into it.  
-1. Ignores non-HTML responses.  
-2. Computes `to_inject` from `ngx.var.uri` and path patterns (same rules as other stacks).  
-3. **Chunk accumulation:** pushes each upstream chunk into `ngx.ctx.body_chunks`, zeroes the current chunk (`ngx.arg[1] = ""`) until `ngx.arg[2]` signals EOF.  
-4. On last chunk, concatenates all pieces, runs regex replace to insert honeytokens before `</body>` (or appends), outputs final `ngx.arg[1]`.
+<!-- body_filter: why accumulate — upstream may stream HTML; the splice needs the whole body. -->
+- Does nothing unless the header filter marked the request.
+- Otherwise buffers every chunk (`ngx.arg[1] = ""`) and, at end-of-stream, assembles the body untimed.
+- Then:
+  - each extra payload is spliced under its own timer (locate anchor → splice)
+  - `html_comments` is spliced before the first `</body>` (appended if there is none) under the benchmarked timer, which also covers the `ngx.arg[1]` write-back.
+- The splice is a plain, case-sensitive `string.find` plus two `sub`s. It is the same primitive on all four edges, replacing the case-insensitive PCRE `ngx.re.sub` this edge used to use.
 
-**Additional-kind body payloads (timed per kind).** The registry also collects `body_payload`s — `form_fields` hidden `<input>`s (spliced before the first `</form>`) and `decoy_paths` hidden links (before `</body>`). When any exist, each is spliced under its own timer (`WADM TOKEN <kind> inject (us): N`, region = locate anchor → splice; markup construction and the single `ngx.arg[1]` write-back sit outside), and the `html_comments` splice still runs under its own unchanged timer afterwards. When none exist, the last-chunk path is byte-for-byte the original benchmarked code, so the `Injection execution time` measurement is unchanged either way.
+### Upstream and logging
 
-### Upstream
-
-<!-- upstream: why standard headers — backend logs and apps may rely on X-Forwarded-For for client IP. -->
-`proxy_pass http://backend` with standard `Host`, `X-Real-IP`, and `X-Forwarded-For` headers.
-
-<!-- Summary: why — ties phases together for operators comparing to Envoy. -->
-**Summary:** configuration loads once; each request is scrubbed in `access_by_lua`; HTML responses are buffered in Lua across body chunks then rewritten with injected comments—OpenResty’s answer to the same WADM pipeline implemented in Envoy Lua and Rust WASM.
+<!-- upstream: why standard headers — the origin's access log is the per-request record and needs the client IP. -->
+- `proxy_pass http://backend` over a keep-alive pool (`keepalive 32`, HTTP/1.1, cleared `Connection`), with `Host`, `X-Real-IP` and `X-Forwarded-For` set.
+- `access_log off`, because Envoy writes no access log. The per-request record is the origin's access log, which shows the client IP from `X-Forwarded-For`, together with the edge's `WADM ALERT` / `WADM TRAP` lines.

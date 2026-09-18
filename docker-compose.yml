@@ -17,7 +17,9 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./nginx/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
+      # Overridable so the baseline suite can mount a WADM-free config into the SAME service —
+      # same name, same port, same network path, so only the filter chain differs.
+      - ${OPENRESTY_CONF:-./nginx/nginx.conf}:/usr/local/openresty/nginx/conf/nginx.conf:ro
       - ./config.json:/etc/openresty/config.json:ro
     depends_on:
       - backend
@@ -32,7 +34,7 @@ services:
     ports:
       - "8081:8080"
     volumes:
-      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+      - ${ENVOY_CONF:-./envoy/envoy.yaml}:/etc/envoy/envoy.yaml:ro
       - ./config.json:/etc/envoy/config.json:ro
       - ./envoy_scripts:/etc/envoy/scripts:ro
     depends_on:
@@ -58,7 +60,7 @@ services:
     ports:
       - "8082:8080"
     volumes:
-      - ./envoy-wasm/envoy-wasm.yaml:/etc/envoy/envoy-wasm.yaml:ro
+      - ${ENVOY_WASM_CONF:-./envoy-wasm/envoy-wasm.yaml}:/etc/envoy/envoy-wasm.yaml:ro
       - ./config.json:/etc/envoy/config.json:ro
       - ./envoy-wasm/entrypoint.sh:/entrypoint.sh:ro
       - wasm_output:/etc/envoy/wasm:ro
@@ -81,7 +83,7 @@ services:
     volumes:
       - ./apache_scripts:/usr/local/apache2/scripts/:ro
       - ./config.json:/usr/local/apache2/conf/config.json:ro
-      - ./httpd.conf:/usr/local/apache2/conf/httpd.conf:ro
+      - ${HTTPD_CONF:-./httpd.conf}:/usr/local/apache2/conf/httpd.conf:ro
     depends_on:
       - backend
     networks:

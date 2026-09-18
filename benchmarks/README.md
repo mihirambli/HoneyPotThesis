@@ -10,13 +10,18 @@ External request-latency probe for the WADM edge proxies. A `grafana/k6` contain
 | `GET ${TARGET}${FORM_PAGE}?${FORM_FIELD}=1&probe=${HEADER_KEYWORD}` with a tampered `Cookie` | `token_tamper_duration` | form_fields, http_headers, cookies | all five kinds |
 | `GET ${TARGET}${DECOY_PATH}` | `token_decoy_duration` | decoy_paths | html_comments, http_headers, cookies, decoy_paths |
 
-The custom `Trend`s are reported separately in k6's end-of-run summary; the built-in `http_req_duration` mixes all four calls and is less useful for per-phase analysis. Note these Trends measure *end-to-end request latency*; the per-phase, per-kind microsecond numbers that the thesis plots use come from the edges' own internal timers (see below).
+The custom `Trend`s keep the four calls distinguishable; the built-in `http_req_duration` pools them into one distribution.
+
+These two things are measured on **different planes** and must not be confused:
+
+- The `Trend`s measure **end-to-end request latency** (milliseconds). They are published by `handleSummary` and recorded in the `e2e_*.json` files — this is the plane on which a WADM run can be compared against a no-WADM [baseline](#baseline-no-wadm-benchmarking).
+- The per-phase, per-kind numbers behind the honeytoken figures are **microseconds** measured by the edges' own internal timers and scraped from their logs (see below). They exist only where WADM runs.
 
 The third request deliberately bundles three kinds: each edge times each kind in its own region, so bundling costs nothing in attribution while keeping the iteration short.
 
 ## Why the keyword is in the query string
 
-All four edges already inspect the request **query string** (OpenResty `get_uri_args`, Envoy+Lua `parse_query_string`, Apache `r.args`, WASM `:path` substring). Putting `TRIGGER_KEYWORD` in `?password=...` therefore exercises the detection path on every edge, so `detect_query_duration` is comparable across all four. The same reasoning drives the `form_fields` and `http_headers` surfaces in request 3 — both are query-string checks on every edge.
+All four edges inspect the request **query string**, and they parse and strip it the same way (see invariant 9 under [Cross-edge comparability](#cross-edge-comparability)). Putting `TRIGGER_KEYWORD` in `?password=...` therefore exercises the same detection path on every edge, so `detect_query_duration` is comparable across all four. The same reasoning drives the `form_fields` and `http_headers` surfaces in request 3 — both are query-string checks on every edge.
 
 POST-body inspection still exists in OpenResty (`nginx/nginx.conf`) and Envoy+Lua (`envoy_scripts/injection.lua`); it is intentionally left in place for a follow-up iteration that raises Apache and Envoy+WASM to the same level (by implementing body inspection in `apache_scripts/detect.lua` and `wasm-filter/src/lib.rs`) and re-introduces a `detect_body_duration` scenario alongside this one.
 
@@ -188,7 +193,7 @@ Result artifacts:
 - `benchmarks/results/internal_wasm_profile.json` — per-VU summary stats.
 - `benchmarks/results/internal_wasm_raw.json` — raw per-request latencies (see [Raw sample files](#raw-sample-files)).
 
-Compose profile `wasm` rebuilds the filter via `rust-builder` before starting `envoy-wasm`, so each run picks up the latest `wasm-filter` sources.
+The runner starts the stack with `docker compose --profile wasm up -d --build`, so each run recompiles the filter from the current `wasm-filter` sources. Without `--build`, Compose silently reuses the previously built `rust-builder` image and its old `filter.wasm`.
 
 ## Raw sample files
 
@@ -239,6 +244,161 @@ The lowercase `detect` / `inject` words are deliberate: they share no substring 
 What each timer wraps, and why the html_comments numbers are unaffected, is documented in [EDGE_LEVELING.md](../docs/EDGE_LEVELING.md#additional-honeytoken-kinds-get-their-own-timed-regions). In short: per-request setup (client IP, URI, parsed query, `Cookie`) is read once outside every timer; a `detect` timer wraps that kind's scan + in-memory IP record and fires only on a hit, with alert rendering and the log write happening *after* it closes; an `inject` timer wraps the header write or the anchor-locate-and-splice, with token selection and markup construction hoisted out.
 
 Because an iteration now carries four requests rather than two, absolute html_comments numbers are **not** comparable with runs recorded before this change. All four edges are re-measured together, so the cross-edge comparison remains valid.
+
+## Baseline (no-WADM) benchmarking
+
+Everything above measures the **internal microsecond cost** of a detect/inject region. That says
+what a honeytoken operation costs in isolation; it cannot say what deploying WADM costs a
+*request*, because there is nothing to compare it against. The baseline suite supplies that
+comparison.
+
+### The three tiers
+
+| Tier | Stack | Isolates | Written by |
+|------|-------|----------|------------|
+| `origin` | k6 → `backend` | the floor: network + origin only | `run_baseline_benchmark.py --edge origin` |
+| `bare` | k6 → edge (no WADM) → `backend` | proxy cost (`bare − origin`) | `run_baseline_benchmark.py --edge <edge>` |
+| `wadm` | k6 → edge (WADM) → `backend` | full cost (`wadm − bare`) | `run_internal_<edge>_benchmark.py` |
+
+A bare edge runs no detection or injection code, so it has **no internal timers**. End-to-end
+request latency — which k6 reports for every tier — is therefore the only plane on which baseline
+and WADM are comparable, and it is the plane the comparison figures use. `test.js` computed those
+numbers all along; they are now captured instead of discarded.
+
+**Units.** End-to-end results are in **milliseconds** (k6's native unit); internal timers are in
+**microseconds**. Both stay in their native unit on disk and are converted only at plot time.
+
+### How the tiers stay comparable
+
+- **Same k6 script, byte for byte.** All three tiers run the four-GET iteration unchanged. In the
+  bare and origin tiers the keyword requests simply match nothing, and `/api/login` and
+  `/api/v1/debug` still 404 (already covered by `ALLOW_404`). Same paths, same headers, same
+  arrival rate — only the WADM layer differs.
+- **Same VU ladder** (`1, 10, 100, 500`), duration, start delay, warm-up burst and
+  `wait_for_quiet_host` cool-down, all shared through `wadm_timings.py`. `sleep(1)` makes VU
+  1/10/100 fixed-arrival-rate levels, which is the regime a latency comparison needs; VU=500 is
+  where this repo's 2-core host saturates.
+- **Same Compose service.** The bare tier swaps only the mounted edge config, via the
+  `${OPENRESTY_CONF}` / `${ENVOY_CONF}` / `${ENVOY_WASM_CONF}` / `${HTTPD_CONF}` overrides whose
+  defaults are the WADM configs. Service name, port, image and network path are unchanged.
+  What each baseline config may and may not contain is recorded in
+  [EDGE_LEVELING.md](../docs/EDGE_LEVELING.md#baseline-config-parity-the-no-wadm-tier).
+
+### How k6's numbers get out
+
+`handleSummary` in `test.js` prints **one line** per run:
+
+```
+WADM K6 SUMMARY {"iterations":…,"http_reqs":…,"trends":{…}}
+```
+
+which the runners scrape from `docker compose logs load-tester --since <ts>` — the same transport
+the edges already use for their internal timings, so no writable mount is needed. It must stay on
+one line because `docker compose logs` prefixes every line with `load-tester-1  | `; anchoring on
+the sentinel and taking the rest of the line makes that prefix harmless.
+
+`options.summaryTrendStats` asks k6 for `p(5)`, `p(25)`, `p(75)` and `p(95)` on top of its
+defaults. Those quartiles are what let the figures draw a **true** box without dumping raw
+samples — a `--out json` at 500 VUs would be hundreds of megabytes.
+
+### Running
+
+```bash
+# every bare tier plus the origin floor (~25 min on a 2-core host)
+python3 benchmarks/run_baseline_benchmark.py --all
+
+# or one at a time
+python3 benchmarks/run_baseline_benchmark.py --edge openresty
+python3 benchmarks/run_baseline_benchmark.py --edge origin
+```
+
+`--edge` accepts `openresty | envoy_lua | wasm | apache_lua | origin`. Optional overrides:
+`--vus 1,10,100,500`, `--duration 30s`, `--start-delay 5s`, `--trigger <keyword>` (each also
+readable from the corresponding `K6_*` / `TRIGGER_KEYWORD` env var).
+
+The four WADM orchestrators must be re-run to produce their `e2e_*_wadm.json` counterparts —
+runs recorded before end-to-end capture existed have no `e2e` file and are skipped by the
+comparison plotter.
+
+### Result artifacts
+
+One file per (edge, tier), all in **milliseconds**:
+
+```
+benchmarks/results/e2e_<edge>_bare.json    edge ∈ openresty | envoy_lua | apache_lua | wasm
+benchmarks/results/e2e_<edge>_wadm.json
+benchmarks/results/e2e_origin_bare.json
+```
+
+```jsonc
+{
+  "metadata": { "generated_at", "note", "script", "edge", "tier", "target",
+                "edge_config", "duration", "start_delay", "vus_list" },
+  "runs": [
+    {
+      "vus": 1,
+      "throughput": { "iterations", "expected_iterations", "throughput_ratio", "expected_reachable" },
+      "k6": {
+        "iterations": 30, "http_reqs": 120, "http_req_failed_rate": 0.0,
+        "trends": {
+          "http_req_duration":     { "count", "min", "p5", "p25", "med", "p75", "p90", "p95", "max", "avg" },
+          "inject_get_duration":   { "…": "…" },
+          "detect_query_duration": { "…": "…" },
+          "token_tamper_duration": { "…": "…" },
+          "token_decoy_duration":  { "…": "…" }
+        }
+      },
+      "errors": { "compose_stderr", "logs_stderr" }
+    }
+  ]
+}
+```
+
+The `throughput` section keeps the shape it has in the profile files, but its iteration count now
+comes from k6 rather than from counting scraped detection lines — the direct measure, and the only
+one a bare tier can produce. In the WADM files `detection.count` remains as the cross-check.
+
+## Baseline-vs-WADM plots
+
+```bash
+# defaults to benchmarks/results/, writes PNGs to benchmarks/results/plots/
+python3 benchmarks/plot_baseline_comparison.py
+```
+
+| File | Layout |
+|------|--------|
+| `e2e_comparison_vus_<N>.png` (one per VU level) | The three tiers side by side: a no-proxy box, then per edge a bare box and a WADM box, all pooled over the iteration's four requests (`http_req_duration`). The no-proxy median is extended across the panel as a rule so every box reads as a height above the floor. |
+| `e2e_phase_overhead_vus_<N>.png` (one per VU level) | Latency WADM adds (`median WADM − median bare`) per request type, grouped by edge. The leftmost group is injection-only; the other three add a detection hit on top of the same injection. |
+| `e2e_overhead_scaling.png` | Median and p95 `http_req_duration` vs. VU level. Solid line = WADM, dashed = bare, dotted grey = origin. The gap between an edge's two lines is the overhead. |
+| `wadm_overhead_breakdown.png` | Per edge, per VU: measured end-to-end overhead per iteration, with the portion the internal timers account for overlaid and written out as a percentage. |
+
+Boxes here are **real** percentiles (box = Q1–Q3, whiskers = p5–p95), so they are drawn solid —
+the hatched style stays reserved for the summary approximations in the internal-timer figures.
+Tier is encoded by **fill** (hollow = WADM absent, filled = WADM active), never by hue, because
+hue follows the edge across every figure in this repo.
+
+### Reading the breakdown figure
+
+```
+measured_ms  = 4 × (median http_req_duration with WADM − without)     # 4 requests per iteration
+accounted_ms = Σ over kinds and phases of (median op cost × ops fired) ÷ iterations ÷ 1000
+```
+
+The gap between them is **not** measurement error. It is real WADM cost the internal timers
+exclude by design (invariants 5–8 above): config parse, per-request setup, response-body
+buffering, the content-type guard, and the `WADM ALERT` log writes that were deliberately moved
+outside the timers. Expect it to dominate, especially on the buffering edges. Splitting it further
+would need a third tier — WADM loaded with every honeytoken `enabled: 0` — which is not currently
+measured.
+
+A **negative** bar means the bare tier measured slower than the WADM tier. That is host noise, not
+a speed-up; re-run that level.
+
+### Validity
+
+A run is only reportable if, in **every** tier, `throughput.throughput_ratio ≥ 0.90` at VU 1/10/100
+and `median(origin) ≤ median(bare) ≤ median(wadm)` holds for every edge at every level. A violation
+means the host was contaminated.
 
 ## Box-plot comparison across edges
 
@@ -342,8 +502,10 @@ guarantees (all four edges obey them):
 4. **Equal work: query-string scan only.** POST request-body inspection is gated
    behind the `post_body_inspection` flag in `config.json` (default `false`), so
    OpenResty and Envoy+Lua do the same detection work as Apache and WASM. The
-   body-scan code is kept in place for a future iteration that enables it on all
-   four edges at once (set the flag `true` and implement it in Apache + WASM).
+   body-scan code is kept in place — rebuilt on the same segment parser on both edges,
+   and aligned so both also check `form_fields` tamper in the body — for a future
+   iteration that enables it on all four edges at once (set the flag `true` and
+   implement it in Apache + WASM).
    The `sql_injection` trap does read POST bodies, but only on `POST /api/login`,
    and `test.js` is `http.get`-only — so it never touches the measured population.
    It logs under `WADM SQLI trap build (us):`, which deliberately shares no substring
@@ -357,7 +519,9 @@ guarantees (all four edges obey them):
    module-scope Lua table, WASM uses an `Rc<RefCell<HashSet<String>>>` shared from the
    root context. No edge does filesystem I/O or JSON (de)serialisation inside the
    detection timer, and per-request setup (trigger-table build, client-IP read,
-   known-attacker lookup) is hoisted *out* of the timer on all four. Envoy+Lua
+   query parse) is hoisted *out* of the timer on all four. The store is write-only
+   everywhere: Envoy+Lua's per-request "known attacker" lookup and log line, which no
+   other edge had, was removed. Envoy+Lua
    previously read and rewrote `/tmp/detected_ips.json` on the hot path (plus a
    per-request trigger-table rebuild) inside its timer, which inflated its detection
    numbers by 3–6× and was **not** comparable.
@@ -370,9 +534,11 @@ guarantees (all four edges obey them):
      chunk until `end_of_stream`; Envoy+Lua forces `:body()` buffering *before* the
      timer so the upstream body-arrival wait is excluded; Apache buffers every brigade
      chunk before transforming.
-   - **Timed region (identical on all four):** assemble the full body → locate the
-     first `</body>` → splice the joined comment(s) before it (append if absent) →
-     write the body back. Content-Length is adjusted *outside* the timer.
+   - **Timed region (identical on all four):** locate the first `</body>` → splice the
+     joined comment(s) before it (append if absent) → write the body back (Apache's
+     final `coroutine.yield` cannot be timed). Assembling the buffered chunks into one
+     body is untimed buffering work on every edge. Content-Length is adjusted *outside*
+     the timer.
 
    Two edges were previously non-comparable on injection: Envoy+Lua started its timer
    *before* `:body()`, charging the body-arrival/buffering wait to injection (≈5–10×
@@ -390,7 +556,8 @@ guarantees (all four edges obey them):
    other two edges on body splices while being competitive on header writes. Both now use a
    `splice_before` helper (plain `find` + two `sub`s) mirroring the WASM filter, which cut
    Envoy+Lua's body splice from 5 µs to 1 µs and Apache's from 6 µs to 3 µs, with
-   byte-identical output. OpenResty still uses `ngx.re.sub` (PCRE-JIT). See
+   byte-identical output. OpenResty's `ngx.re.sub` (case-insensitive PCRE) has since been
+   replaced by the same plain find, so all four edges now share one splice primitive. See
    [EDGE_LEVELING.md](../docs/EDGE_LEVELING.md#the-splice-primitive-was-not-a-fair-intended-difference).
 7. **Per-kind contract: same setup hoisting, same fixed order.** The four additional
    honeytoken kinds follow the same rules as html_comments. Per-request setup (client
@@ -419,18 +586,60 @@ guarantees (all four edges obey them):
    ranking each runtime's logging path rather than its detection logic. Moving the I/O
    out makes detection measure detection; the alert wire format is unchanged.
 
+9. **One detection mechanism, not four.** Every edge parses the query string the same
+   way (ordered `&`-separated segments, `+`/`%XX` decoding only where present), matches
+   decoded keys and values, strips by rebuilding the query from the *raw* text of the
+   segments it keeps, uses the raw request path for every path check, records the
+   socket peer as the client IP, and emits byte-identical `WADM ALERT` lines. Before
+   this, OpenResty and Envoy+Lua re-encoded the query in hash order, Apache's strip
+   silently failed for the benchmark keyword (its `-` and `.` were Lua pattern
+   characters), WASM stripped only the keyword substring from the whole path, and both
+   Envoy edges recorded every attacker as `unknown`. `parity_check.py` (below) verifies
+   it. See [EDGE_LEVELING.md](../docs/EDGE_LEVELING.md#behavioural-equivalence-and-latency-pass).
+10. **Equal logging configuration.** No edge writes a per-request access log (Envoy never
+    did; OpenResty's implicit default and Apache's `CustomLog` were removed, in both
+    tiers). The per-request record is the origin's access log, which carries the client
+    IP in `xff=` for every edge.
+
+## Behavioural parity check
+
+The latency comparison assumes every edge does the same work. `parity_check.py` verifies it
+functionally: it brings all four edges up at once (their host ports differ), sends each the same
+fixed set of requests (the four benchmark GETs, exact-path pages, order-preserving strip,
+`%XX`- and `+`-encoded keywords, a duplicated form field, a decoy sub-path, and a SQLi hit and miss),
+and diffs three things against OpenResty:
+
+- what the attacker sees — status, `X-Backend-Server`, `Set-Cookie`, body hash;
+- what the edge alerts on — every `WADM ALERT` / `WADM TRAP` line, IPs normalised;
+- what reached the origin — the request lines in the origin's access log, attributed to an edge by
+  its container IP, which shows whether a trigger keyword was stripped.
+
+```bash
+python3 benchmarks/parity_check.py          # exit 0 = identical, 1 = mismatch (printed)
+python3 benchmarks/parity_check.py --keep   # leave the stack up for inspection
+```
+
+It excludes only the documented residuals: response framing (chunked vs `Content-Length`), the
+Envoy+WASM SQLi trap contacting the origin, and Apache forwarding `path?` when every parameter is
+stripped. Run it after any change to an edge, before benchmarking. It shares the Compose project
+with the runners, so never run it (or anything else that calls `docker compose down`) while a
+benchmark is in progress.
+
 ## Files
 
 | File | Role |
 |------|------|
-| [test.js](test.js) | The k6 default-function script: four `GET`s per iteration covering every honeytoken kind's injection and detection paths, plus the `Trend` definitions. |
+| [test.js](test.js) | The k6 default-function script: four `GET`s per iteration covering every honeytoken kind's injection and detection paths, the `Trend` definitions, and the `handleSummary` sentinel line that publishes end-to-end latency to the runners. |
+| [run_baseline_benchmark.py](run_baseline_benchmark.py) | Orchestrates the no-WADM tiers (four bare edges + the origin floor) from one parameterised table and writes `e2e_<edge>_bare.json`. |
 | [run_internal_openresty_benchmark.py](run_internal_openresty_benchmark.py) | Orchestrates internal OpenResty microsecond profiling runs and writes summary + raw JSON results. |
 | [run_internal_envoy_lua_benchmark.py](run_internal_envoy_lua_benchmark.py) | Orchestrates internal Envoy Lua microsecond profiling runs and writes summary + raw JSON results. |
 | [run_internal_apache_lua_benchmark.py](run_internal_apache_lua_benchmark.py) | Orchestrates internal Apache mod_lua microsecond profiling runs and writes summary + raw JSON results. |
 | [run_internal_wasm_benchmark.py](run_internal_wasm_benchmark.py) | Orchestrates internal Envoy WASM microsecond profiling runs and writes summary + raw JSON results. |
-| [wadm_timings.py](wadm_timings.py) | Shared summary-statistics helpers and the cross-edge `WADM TOKEN <kind> <phase> (us):` scraper used by all four orchestrators. |
+| [parity_check.py](parity_check.py) | Functional check that all four edges produce identical responses, alert lines and origin requests for a fixed probe set; run before benchmarking after any edge change. |
+| [wadm_timings.py](wadm_timings.py) | Shared by every runner: Compose driving (cleanup, stack start, load-tester cycling), summary statistics, the cross-edge `WADM TOKEN <kind> <phase> (us):` scraper, the k6 end-to-end summary scraper, and the end-to-end result-document builders. |
 | [plot_common.py](plot_common.py) | Shared by both plotters: edge palette, result-file loader, raw/summary fallback, pooled-sample helpers, symlog axis styling. |
 | [plot_edge_comparison.py](plot_edge_comparison.py) | Per-VU box-plot comparison of all four edges with **all honeytoken kinds pooled** — the edge-level ranking. |
 | [plot_token_comparison.py](plot_token_comparison.py) | Per-honeytoken-kind breakdown: box plots per (phase, kind) at each VU level, plus median-vs-load scaling panels. |
+| [plot_baseline_comparison.py](plot_baseline_comparison.py) | End-to-end latency with vs. without WADM: per-request-type boxes, latency-vs-load scaling, and the overhead breakdown against the internal timers. |
 | [EDGE_LEVELING.md](EDGE_LEVELING.md) | Record of the source changes that made the four edges comparable (detection state store, canonical injection contract, Envoy path capture). |
 | [README.md](README.md) | This document. |

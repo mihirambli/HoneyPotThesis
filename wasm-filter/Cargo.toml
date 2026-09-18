@@ -11,3 +11,12 @@ proxy-wasm = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 log = "0.4"
+
+# Cross-crate inlining and a single codegen unit let the hot request/response paths be optimised
+# as one unit; abort-on-panic drops the unwinding machinery, which wasm32 cannot use anyway.
+# Symbols are kept so a V8 trap still names the failing function.
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

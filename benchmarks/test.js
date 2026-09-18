@@ -22,9 +22,17 @@ const detectQueryDuration = new Trend('detect_query_duration', true);
 const tokenTamperDuration = new Trend('token_tamper_duration', true);
 const tokenDecoyDuration = new Trend('token_decoy_duration', true);
 
+// k6's default summary carries only min/avg/med/max/p(90)/p(95). The quartiles are what let the
+// baseline-vs-WADM plots draw a *true* box (Q1/median/Q3) from the summary alone; the alternative,
+// `--out json`, would emit hundreds of megabytes at 500 VUs.
+const TREND_STATS = [
+  'count', 'min', 'p(5)', 'p(25)', 'med', 'p(75)', 'p(90)', 'p(95)', 'max', 'avg',
+];
+
 // startTime gives slower-starting edges (Envoy, WASM) time to finish initialising
 // before the first request fires, preventing connection-refused errors that skew min/avg.
 export const options = {
+  summaryTrendStats: TREND_STATS,
   scenarios: {
     default: {
       executor: 'constant-vus',
@@ -46,10 +54,10 @@ export default function () {
   injectGetDuration.add(getRes.timings.duration);
 
   // 2. html_comments detection. Keyword in the query string is the one surface ALL four edges
-  //    already inspect (OpenResty get_uri_args, Envoy+Lua parse_query_string, Apache r.args,
-  //    WASM :path substring), so this measurement is cross-edge comparable. POST-body inspection
-  //    in OpenResty/Envoy+Lua is gated behind the config.json `post_body_inspection` flag
-  //    (default off) so all four edges do equal detection work.
+  //    inspect, and they parse it identically (ordered segments, %XX/+ decoding, raw-segment
+  //    strip — see docs/EDGE_LEVELING.md), so this measurement is cross-edge comparable.
+  //    POST-body inspection in OpenResty/Envoy+Lua is gated behind the config.json
+  //    `post_body_inspection` flag (default off) so all four edges do equal detection work.
   const detectRes = http.get(
     `${TARGET}/api/login?password=${encodeURIComponent(TRIGGER_KEYWORD)}`,
     ALLOW_404,
@@ -72,4 +80,83 @@ export default function () {
   tokenDecoyDuration.add(decoyRes.timings.duration);
 
   sleep(1);
+}
+
+// http_req_duration is the pooled headline (all four requests); the custom Trends keep the
+// per-request-type breakdown. Both are needed: the pooled figure is what the overhead
+// decomposition divides by four, the per-type ones show which request WADM actually taxes.
+const REPORTED_TRENDS = [
+  'http_req_duration',
+  'inject_get_duration',
+  'detect_query_duration',
+  'token_tamper_duration',
+  'token_decoy_duration',
+];
+
+// k6 stat key -> JSON key. Parentheses are stripped so the result files stay easy to index.
+const STAT_KEYS = {
+  count: 'count',
+  min: 'min',
+  'p(5)': 'p5',
+  'p(25)': 'p25',
+  med: 'med',
+  'p(75)': 'p75',
+  'p(90)': 'p90',
+  'p(95)': 'p95',
+  max: 'max',
+  avg: 'avg',
+};
+
+function metricValue(metric, key) {
+  if (!metric || !metric.values || metric.values[key] === undefined) return null;
+  return metric.values[key];
+}
+
+function trendStats(metric) {
+  if (!metric) return null;
+  const out = {};
+  for (const k6Key of Object.keys(STAT_KEYS)) {
+    out[STAT_KEYS[k6Key]] = metricValue(metric, k6Key);
+  }
+  return out;
+}
+
+// The edges already publish their internal microsecond timings through `docker compose logs`;
+// this reuses that transport for k6's end-to-end numbers rather than adding a writable mount
+// (which would also mean the container writing into the repo as a different uid).
+//
+// The sentinel and its JSON must stay on ONE line: `docker compose logs` prefixes every line
+// with `load-tester-1  | `, so anchoring the scraper on the sentinel and taking the rest of the
+// line is what makes that prefix harmless. The payload is ~1 KB, well under the log driver's
+// 16 KB line-split threshold.
+export function handleSummary(data) {
+  const trends = {};
+  for (const name of REPORTED_TRENDS) {
+    trends[name] = trendStats(data.metrics[name]);
+  }
+
+  const payload = {
+    vus: parseInt(__ENV.K6_VUS || '5', 10),
+    duration: __ENV.K6_DURATION || '30s',
+    iterations: metricValue(data.metrics.iterations, 'count'),
+    http_reqs: metricValue(data.metrics.http_reqs, 'count'),
+    http_req_failed_rate: metricValue(data.metrics.http_req_failed, 'rate'),
+    trends: trends,
+  };
+
+  // Defining handleSummary replaces k6's built-in end-of-test table, so a short human digest is
+  // reprinted here to keep a manual `docker compose up --abort-on-container-exit` readable.
+  const digest = REPORTED_TRENDS.map(function (name) {
+    const med = trends[name] && trends[name].med !== null ? trends[name].med.toFixed(2) : 'n/a';
+    return `  ${name}: med=${med}ms`;
+  }).join('\n');
+
+  const failedPct = ((payload.http_req_failed_rate || 0) * 100).toFixed(2);
+
+  return {
+    stdout:
+      `\nk6 done: ${payload.iterations} iterations, ${payload.http_reqs} requests, `
+      + `${failedPct}% failed\n${digest}\n`
+      + `WADM K6 SUMMARY ${JSON.stringify(payload)}\n`,
+  };
 }

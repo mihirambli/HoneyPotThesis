@@ -2,43 +2,49 @@
 # wasm-filter (Envoy HTTP WASM)
 
 <!-- Opening: why this crate exists — Envoy loads the .wasm binary and passes JSON plugin config. -->
-Rust `cdylib` implementing an **Envoy HTTP filter** with the **proxy-wasm** ABI. Envoy loads `filter.wasm` (built as `wasm_filter.wasm`, copied to `/etc/envoy/wasm/filter.wasm` in Compose) and passes plugin configuration as JSON (injected from `config.json` via `envoy-wasm/entrypoint.sh`).
+This is a Rust `cdylib` implementing an **Envoy HTTP filter** on the **proxy-wasm** ABI.
+- Envoy loads `filter.wasm`. It is built as `wasm_filter.wasm` and copied to `/etc/envoy/wasm/filter.wasm` in Compose.
+- The plugin configuration arrives as JSON, injected from `config.json` by `envoy-wasm/entrypoint.sh`.
+
+The detection and injection behaviour is the cross-edge canonical mechanism shared with OpenResty, Envoy+Lua and Apache; `docs/EDGE_LEVELING.md` ("Behavioural equivalence and latency pass") defines it.
+
+## Build
+
+`Dockerfile` runs `cargo build --locked --release`:
+- `Cargo.lock` pins the crate versions the benchmark results were produced with.
+- `[profile.release]` in `Cargo.toml` turns on LTO, a single codegen unit and abort-on-panic. Symbols are kept so a V8 trap still names the failing function.
+
+Compose reuses an existing `rust-builder` image unless it is told to rebuild. So after editing this crate, use `docker compose --profile wasm up -d --build` (the WASM runner and `parity_check.py` both do this).
 
 ## Internal data flow
 
-<!-- Step 1: RootContext — why parse config once here — avoids per-request JSON parse and shares Rc across streams. -->
-1. **Bootstrap (`HoneypotRoot`)**  
-   `on_configure` reads `get_plugin_configuration()` bytes, deserializes into `Config` (same shape as root `config.json`: `honeytokens.html_comments`), stores `Rc<Config>`, and returns success only if parsing succeeds.
-
-<!-- Step 2: factory — why create_http_context — Envoy needs a new HttpContext per HTTP stream with cloned config. -->
-2. **Per-request context (`HoneypotHttp`)**  
-   `create_http_context` clones the shared `Rc<Config>` and initializes `request_path` empty.
-
-<!-- Step 3: request path — why on_http_request_headers — strip trigger substrings from :path before upstream sees them; stash path for response injection matching. -->
-3. **Request headers (`on_http_request_headers`)**  
-   - Reads `:path`, strips query for `request_path` (used later for injection path matching).  
-   - For each honeytoken with a non-empty `trigger_keyword`, if the **full** `:path` (including query) contains that keyword, logs `WADM ALERT` and removes the keyword substring from `:path` via `set_http_request_header`.  
-   - Returns `Action::Continue` so the request proceeds to the router/upstream.
-
-<!-- Step 3b: request body — why this exists at all — the SQLi trap needs the POST body, and this is the only callback that receives it. -->
-3b. **Request body (`on_http_request_body`) — SQLi trap only**  
-   Skipped unless request headers matched the `sql_injection` policy. Treats the body as complete on `end_of_stream` **or** once `body_size` reaches the declared `Content-Length`, then matches, logs, and stashes the rendered page in `sqli_page` for the response phase. Always returns `Action::Continue`.
-
-<!-- Step 4: response headers — why continue not pause — content-length is dropped here; body rewriting happens in the body callback. -->
-4. **Response headers (`on_http_response_headers`)**  
-   For a trap request (`sqli_page` set), overwrites `:status`, sets `content-type`, drops `content-length`, and skips honeytoken injection. Otherwise: if `content-type` contains `text/html`, clears `content-length` and flags the stream for body rewriting. Returns `Action::Continue` either way.
-
-<!-- Step 5: response body — why buffer to end_of_stream — proxy-wasm needs full body to inject before </body> in this implementation. -->
-5. **Response body (`on_http_response_body`)**  
-   - For a trap request, discards whatever the origin returned and writes `sqli_page` instead.  
-   - Buffers: returns `Action::Pause` until `end_of_stream` is true, then reads the full body with `get_http_response_body`.  
-   - If UTF-8 fails, forwards unchanged.  
-   - Collects `comment_value` strings whose `paths` match `/*` or the stored `request_path`.  
-   - Injects the joined comments immediately before the first `</body>`, or appends if no `</body>`.  
-   - `set_http_response_body` replaces the buffered chunk and returns `Action::Continue`.
-
-<!-- Summary: why one paragraph — quick mental model for readers comparing to Lua/OpenResty. -->
-**Summary:** configuration is parsed once at the root; each stream matches paths and optionally scrubs keywords from `:path` on the way in, then for HTML responses buffers the entire body on the way out to inject HTML comment honeytokens.
+<!-- Step 1: RootContext — why compile here — per-request work becomes lookups only. -->
+1. **Bootstrap (`HoneypotRoot::on_configure`)**
+   - Deserialises the plugin JSON into `Config`. Every token field defaults when absent, as on the Lua edges.
+   - `compile()` turns the config into an `Rc<Compiled>`:
+     - **per-path plans** — joined comments as bytes, decoy headers, prebuilt `Set-Cookie` strings, extra body payloads
+     - the trigger list
+     - the per-kind detector vectors, with the `enabled` switch already applied
+     - the SQLi policy
+2. **Per-request context (`create_http_context`)**: clones the two `Rc`s: the compiled config and the attacker-IP set.
+3. **Request headers (`on_http_request_headers`)**
+   - **Setup, untimed.**
+     - Reads `:path` **once** and splits it into the raw path and the query.
+     - Takes the client IP from the `source.address` property (port stripped). This is the socket peer, as on the other edges; the IP used to be read from `X-Forwarded-For`, which k6 never sends.
+     - Parses the query once into ordered segments. A segment is decoded only if it contains `%` or `+`.
+     - Reads `:method` only when the path is a trap path, and `cookie` only if a cookie token exists, because every header read is a host call into Envoy.
+   - **SQLi trap:** see below.
+   - **Additional kinds**, one timed region each, in the fixed order. `WADM ALERT` lines are rendered from `Alert` values after the timer closes.
+   - **html_comments.** Timed region: scan the segments → drop every segment that hit → `set_http_request_header(":path", path?kept)` → insert the IP. `WASM Detection execution time (us): N` is logged only on a hit.
+4. **Request body (`on_http_request_body`), SQLi trap only.** Treats the body as complete on `end_of_stream` **or** once `body_size` reaches the declared `Content-Length`. It then matches the body and logs either `WADM ALERT` or `WADM TRAP`, and stashes the rendered page for the response phase.
+5. **Response headers (`on_http_response_headers`)**
+   - For a trap request, rewrites `:status`, `content-type` and framing, and skips injection.
+   - Otherwise, if the plan has body work and the response is `text/html`, drops `content-length` and marks the stream for injection.
+   - The decoy headers (set) and the `Set-Cookie` baits (added) are each written under their own timer.
+6. **Response body (`on_http_response_body`)**
+   - Pauses until `end_of_stream`, then reads the body as **bytes**.
+   - Each extra payload is spliced under its own timer, then the html_comments splice plus `set_http_response_body` runs under the benchmarked timer.
+   - It used to decode the body as UTF-8 first. That cost a validation pass and skipped injection entirely for non-UTF-8 pages, which the Lua edges inject into.
 
 ## SQLi trap: why this edge is the odd one out
 
@@ -55,41 +61,9 @@ This one cannot, and both alternatives were tried and observed to fail against
 `send_http_response` **is** legal from `on_http_request_headers`, which is how a body-less `POST` is
 answered inline. Everything else detects on the request body and swaps the upstream reply for the
 trap page on the response side. The attacker-visible bytes are identical to the other three edges
-(verified by `md5sum`); the cost is one round-trip to a same-network static nginx that would have
-404'd anyway. See `docs/EDGE_LEVELING.md` for the full parity table.
+(verified by `benchmarks/parity_check.py`); the cost is one round-trip to a same-network static
+nginx that would have 404'd anyway.
 
-Two Rust-specific parity details: `sqli_normalize` uses `to_ascii_lowercase()` (not the
-full-Unicode `to_lowercase()`) and an explicit whitespace set that includes `\x0b`, so the fold
-matches Lua's byte-wise `string.lower` and `%s` exactly. Request bodies go through
-`from_utf8_lossy`, so invalid UTF-8 is replaced rather than passed through as the Lua edges do —
-identical for all ASCII payloads, i.e. every canonical SQLi string.
-
-## Additional honeytoken kinds
-
-`lib.rs` also implements `http_headers`, `cookies`, `decoy_paths`, and `form_fields` (serde structs
-`HeaderToken` / `CookieToken` / `DecoyPathToken` / `FormFieldToken`), plus the per-token `enabled`
-switch (the `Enabled` untagged enum + `is_on`, accepting JSON number / bool / string). All of it runs
-**outside** the timed html_comments regions, so that measurement is unaffected — and each kind
-carries **its own** `get_current_time()` region logged as
-`WADM TOKEN <kind> detect|inject (us): N` (see `benchmarks/README.md`).
-
-- **Detection** (`detect_additional`, in `on_http_request_headers`): header/cookie value
-  **replay** (`:path` / `:authority` substring), cookie & form-field **tamper** (returned value ≠
-  planted), and decoy-path **URI match** (`exact` / `prefix`). Form-field tamper is query-only (WASM
-  has no POST-body inspection). Hits log `WADM ALERT` and insert the IP. The `DetectCtx` struct (IP,
-  `:path`, authority, path-only URI, `cookie`) is built once outside every timer; each kind's timer
-  wraps its scan + `detected_ips` insert only — detectors push `Alert` descriptors and the
-  alerts are rendered and written after the timer closes, so no log I/O is charged to detection. Kinds run in the fixed
-  `KIND_ORDER` so the timed regions sequence identically on every edge.
-- **Header injection** (`inject_response_headers`, in `on_http_response_headers`): decoy headers via
-  `set_http_response_header`, `Set-Cookie` via `add_http_response_header` (any content type). Token
-  selection is setup outside the timer; the timed region is the header write.
-- **Body injection** (`on_http_response_body`): hidden form inputs before `</form>`, decoy links
-  before `</body>`. Each splice is timed on its own (region = `splice_before_if_present`; markup
-  construction and the single `set_http_response_body` write-back sit outside); the html_comments
-  splice keeps its own unchanged timer.
-
-All new-kind `WADM ALERT` messages use the shared `honeytoken triggered by <ip> — …` format for
-cross-edge comparability (the pre-existing html_comments message is left unchanged). Because
-`config.json` is shared across every edge, the serde structs use `#[serde(default)]` and unknown
-fields are ignored, so a config with or without these keys parses on all edges.
+Two Rust-specific parity details:
+- `sqli_normalize` uses `to_ascii_lowercase()` rather than the full-Unicode `to_lowercase()`, and an explicit whitespace set that includes `\x0b`, so the fold matches Lua's byte-wise `string.lower` and `%s` exactly.
+- Decoded query values and request bodies go through `from_utf8_lossy`, so invalid UTF-8 is replaced rather than passed through as the Lua edges do. The result is identical for all ASCII input.

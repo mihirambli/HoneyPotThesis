@@ -119,11 +119,13 @@ Result (VU=100 body-splice medians): **Envoy+Lua 5 → 1 µs**, **Apache 6 → 3
 ties WASM. Output is byte-identical — verified by fetching `/` and `/login.html` through all four
 edges in-network and comparing md5sums (`e79c8b9d…` for `/login.html` on every edge).
 
-The genuinely intended difference that remains is narrower: **OpenResty still uses `ngx.re.sub`**
-(PCRE with JIT and a cached compile via the `o` flag) while the other three now do a plain
-find-and-splice. That leaves OpenResty with the highest body-to-header ratio (3.0×, 3 µs vs 1 µs)
-— worth either aligning it too, or stating plainly in the write-up that its body-splice column
-reflects PCRE rather than the runtime.
+For a while one difference remained: **OpenResty still used `ngx.re.sub`** (PCRE with JIT
+and a cached compile via the `o` flag) while the other three did a plain find-and-splice. That
+left OpenResty with the highest body-to-header ratio (3.0×, 3 µs vs 1 µs). It was not only a
+cost difference: the `i` flag made OpenResty's anchor match case-insensitive, so `</BODY>` was
+found there and missed everywhere else. **This is now closed** — OpenResty uses the same plain,
+case-sensitive `string.find` splice as the Lua edges and WASM's byte search (see
+[Behavioural equivalence and latency pass](#behavioural-equivalence-and-latency-pass)).
 
 ### Result
 A warm request through Envoy+Lua now logs injection at **≈ 4–6 µs**, in line with
@@ -366,3 +368,352 @@ generated reply, so each needed an explicit opt-out or the trap page would arriv
 `ngx.ctx.wadm_local_response` (OpenResty), a `local_response` key in the existing
 `wadm.honeypot` dynamic-metadata namespace (Envoy+Lua), `self.sqli_page.is_some()` (WASM), and the
 two `sqli.owns(...)` guards in `inject.lua` (Apache).
+
+## Baseline-config parity (the no-WADM tier)
+
+The internal microsecond timers exist only where WADM runs. A bare edge has no detection or
+injection region, so it has no timer to compare — which means the baseline suite
+(`benchmarks/run_baseline_benchmark.py`) measures the *other* plane, end-to-end request latency,
+and the levelling problem reappears in a new form: four bare configs that differ from each other
+in anything but the WADM layer would make `wadm − bare` non-comparable across edges.
+
+The four baseline configs are therefore derived from the WADM ones by deletion only:
+
+| Baseline config | Deleted from its WADM counterpart |
+|---|---|
+| `nginx/nginx-baseline.conf` | `lua_shared_dict wadm_state`, `init_by_lua_block`, `access_by_lua_block`, `header_filter_by_lua_block`, `body_filter_by_lua_block` |
+| `envoy/envoy-baseline.yaml` | the `envoy.filters.http.lua` entry |
+| `envoy-wasm/envoy-wasm-baseline.yaml` | the `envoy.filters.http.wasm` entry and its `{{WASM_CONFIG_JSON}}` placeholder |
+| `httpd-baseline.conf` | `mod_lua`, `mod_filter`, `mod_headers`, every `Lua*` directive, `SetOutputFilter`, `Header always unset Content-Length` |
+
+Everything else is kept byte-identical: listener port, upstream/cluster definition, worker and
+event tuning, `Host` / `X-Forwarded-For` handling, and the logging destinations. Nothing is added
+that the WADM config does not also have.
+
+### Same service, not a parallel one
+
+The bare tier is mounted into the **same** Compose service through the `${OPENRESTY_CONF}`,
+`${ENVOY_CONF}`, `${ENVOY_WASM_CONF}` and `${HTTPD_CONF}` overrides, whose defaults are the WADM
+configs. Service name, container port, image tag, `depends_on` graph and network path are
+therefore identical between the two tiers by construction rather than by review. Adding a second
+set of services would have reintroduced exactly the class of drift this document exists to record.
+
+### Two differences that are kept on purpose
+
+Both are genuine costs of running WADM and belong inside the measured overhead, so the baseline
+configs must *not* reproduce them:
+
+- **Apache framing.** `Header always unset Content-Length` is required with WADM because
+  injection changes the body size, so WADM responses are close-delimited while bare ones carry
+  their upstream `Content-Length`.
+- **Body size.** An injected page is a few hundred bytes larger on every edge.
+
+### The two Envoy baselines are deliberately redundant
+
+`envoy-baseline.yaml` and `envoy-wasm-baseline.yaml` reduce to the same thing — Envoy with only
+the router filter. They are kept separate so each edge owns its baseline series, and their overlap
+is used as a check: two independent runs of an identical stack that do not land within noise of
+each other mean the host was contaminated, not that the edges differ.
+
+### Verifying a bare edge is bare
+
+Per edge, with its baseline config mounted:
+
+```
+docker compose logs <service> | grep -c 'execution time (us)'   # 0
+docker compose logs <service> | grep -c 'WADM TOKEN'            # 0
+docker compose logs <service> | grep -c 'WADM ALERT'            # 0
+curl -s  localhost:<port>/ | grep -c 'DEV-PORTAL'               # 0
+curl -s  localhost:<port>/ | grep -c 'api/v1/debug'             # 0
+curl -sI localhost:<port>/ | grep -ci 'X-Backend-Server\|admin_ui'  # 0
+```
+
+and the four benchmark paths must return the same statuses as the WADM tier: `/` 200,
+`/login.html` 200, `/api/login?password=…` 404, `/api/v1/debug` 404.
+
+## Upstream connection reuse — tuning parity, not just code parity
+
+Everything above levels the *code* inside the timed regions. This section records the first case
+where an edge had to be levelled at the level of **configuration defaults**, and establishes the
+rule for future ones.
+
+### The problem
+
+nginx does not reuse upstream connections unless told to. Envoy pools connections per cluster by
+default, and Apache's `mod_proxy` reuses backend connections by default. OpenResty was therefore
+opening a new TCP connection to the origin for **every** proxied request, and closing it
+afterwards, while the edges it is compared against were not.
+
+Measured directly, by sending 100 requests through each *baseline* proxy over a single client
+keep-alive connection and counting sockets on port 80 in the proxy's and backend's network
+namespaces (`/proc/net/tcp`, state `06` = TIME_WAIT, `01` = ESTABLISHED):
+
+| Bare proxy | Connections closed per 100 requests | Held open afterwards |
+|---|---|---|
+| OpenResty (before) | **100** | 0 |
+| Envoy | 0 | 1 |
+| Apache | 0 | 2 |
+
+### The fix
+
+Three directives, all required together, applied to **both** `nginx/nginx.conf` and
+`nginx/nginx-baseline.conf` so the WADM and baseline tiers stay identical outside the filter chain:
+
+- `keepalive 32;` in the `upstream` block — creates the idle-connection cache. Per worker
+  process, so the real ceiling is `32 × worker_processes`.
+- `proxy_http_version 1.1;` — nginx proxies with HTTP/1.0 by default, which has no persistent
+  connections, so `keepalive` alone does nothing.
+- `proxy_set_header Connection "";` — otherwise the client's `Connection` header is forwarded
+  upstream and closes the pooled connection.
+
+### Result
+
+Re-measured with the same method after the change:
+
+| Bare proxy | Connections closed per 100 requests | Held open afterwards |
+|---|---|---|
+| OpenResty (after) | **0** | 2 (one per worker process) |
+
+Both tiers pool identically, and injection was confirmed still working on the WADM tier. Both
+OpenResty tiers were re-run afterwards, as any levelling change requires.
+
+### The rule this establishes
+
+**Edges are compared only when tuned to equivalent behaviour.** A default that differs between
+products silently charges one edge for work the others never do, and the resulting number reads
+as a property of the product when it is a property of the configuration. Before attributing any
+cross-edge difference to design, check whether it comes from a default; if it does, level it and
+re-run both tiers of that edge.
+
+### Note on magnitude
+
+The latency cost of this difference was at first believed to be small — a TCP handshake to a
+container on the same Docker bridge sounds cheap, and the +3.20 ms penalty originally attributed
+to it was traced to a contaminated run. **Re-running after the fix refuted that.** Comparing runs
+made on the same day, enabling connection reuse cut the bare-tier median by roughly 0.5-0.8 ms
+per request at 1-100 VUs, and at 500 VUs the WADM tier went from 64.75 ms to 5.11 ms while the
+share of offered load it sustained rose from 76% to 95%. Connection churn was what made OpenResty
+collapse under overload.
+
+The levelling would have been justified regardless of magnitude — the comparison must be sound
+whether or not the difference happens to be large — but in this case the magnitude was decisive.
+
+---
+
+## Behavioural equivalence and latency pass
+
+### Why this pass was needed
+
+Two problems, found together while reviewing all four edges for latency at 500 VUs.
+
+**The edges collapsed very differently at 500 VUs.** Median end-to-end latency, WADM versus bare,
+from the runs before this pass:
+
+| Edge | bare → WADM median | WADM p90 | throughput ratio |
+|---|---|---|---|
+| OpenResty | 1.86 → 5.11 ms | 43 ms | 0.95 |
+| Envoy+Lua | 4.96 → 12.29 ms | 61 ms | 0.92 |
+| Envoy+WASM | 3.26 → 24.47 ms | 382 ms | 0.63 |
+| Apache | 4.47 → 85.95 ms | 258 ms | 0.66 |
+
+On a 2-core host running the edge, the origin, k6 and Docker's log pipeline together, CPU per
+request decides which edge saturates first, and queueing near saturation grows faster than
+linearly. Most of that CPU sat **outside** the µs timers: token loops, enabled checks and string
+building repeated on every request, the query parsed twice, per-chunk recomputation, an extra Lua
+hook per request, and log lines. None of it shows in the internal figures, all of it shows in the
+end-to-end ones.
+
+**The edges did not actually do the same thing.** Every earlier section levelled *what the timers
+wrap*; none of them checked that the four implementations produce the same *behaviour*. They did
+not:
+
+| Finding | Edge | Why it mattered |
+|---|---|---|
+| The strip used `gsub("[^&]*"..keyword.."[^&]*&?")`, treating the keyword as a Lua pattern. `-` and `.` in `internal-admin.example.com` are pattern characters, so the benchmark keyword was **detected but never stripped** | Apache | The secret reached the origin; Apache's detection timer measured a failed pattern match rather than a strip |
+| Four different html_comments detectors: decoded args + drop + re-encode in hash order (OpenResty, Envoy+Lua); raw `find` on `r.args` (Apache); raw substring on the **whole path** and removal of only the keyword text (WASM) | all | The "same" detection was four different amounts of work with four different results |
+| Client IP read from `X-Forwarded-For` / `X-Real-IP`; k6 sends neither | Envoy+Lua, WASM | Every attacker was recorded and reported as `unknown` |
+| After the first hit, a "known attacker" warning was logged on **every** later request | Envoy+Lua | An extra log write per request on one edge only — a pure latency tax |
+| An extra "attacker IP recorded" line per hit | OpenResty | Different alert volume per hit |
+| Case-insensitive PCRE splice (`ngx.re.sub(..., "io")`) | OpenResty | Different match semantics and cost from the plain find everywhere else |
+| Cookie and form-field detectors `return`ed after a tamper hit, skipping the keyword check | OpenResty | Different hits on the same request |
+| One form-field hit per mismatching duplicate parameter | WASM | Different alert count |
+| Decoy header written with `add` (duplicates an upstream header) instead of set | Envoy+Lua | Different response headers |
+| Body decoded as UTF-8 before splicing; non-UTF-8 pages were skipped | WASM | Different injection coverage, plus a validation pass per response |
+
+### The canonical mechanism
+
+All four edges now implement exactly this, and `benchmarks/parity_check.py` verifies it:
+
+- **Per-request setup (untimed, once).** Client IP = the socket peer (`$remote_addr`,
+  `r.useragent_ip`, Envoy stream info / `source.address`, port stripped). Path = the raw request
+  target up to `?`, used for every path decision (plan lookup, decoy match, keyword surface, SQLi
+  ownership) — raw because it is identical by construction on all four and needs no decoding;
+  OpenResty's `$uri` and Apache's `r.uri` are decoded and normalised, which the Envoy edges cannot
+  reproduce. Query = ordered `&`-separated segments `{raw, key, value}`, `+`/`%XX`-decoded only
+  when the segment contains `%` or `+`.
+- **Precompiled per-path plans** built once from the config: paths are only `/*` or exact, so each
+  request resolves to one plan (joined comments, decoy headers, prebuilt `Set-Cookie` strings,
+  extra body payloads, in config order). Kinds with nothing to detect are skipped, timer included.
+- **Detection.** Additional kinds in fixed order, one timer each (unchanged contract). A kind's
+  tamper and replay checks are both evaluated; `form_fields` raises one hit for the first
+  mismatching submission. **html_comments**: a segment whose decoded key or value contains a
+  trigger is dropped, and the query is rebuilt from the **raw** text of the kept segments — so
+  order and original encoding survive — and written back. Timed region: scan → strip → write
+  back → record IP, on every edge; the query parse moved *out* of the timer on OpenResty and
+  Envoy+Lua, where it used to sit inside.
+- **One alert format:** `WADM ALERT: honeytoken triggered by <ip> — keyword '<kw>' found in query
+  param '<k>=<v>'`, with CR/LF in attacker-controlled fields replaced so they cannot forge log lines.
+- **Injection.** Header kinds: set the decoy header, append `Set-Cookie`. Body (HTML only, plan has
+  body work): buffer and assemble untimed; each extra payload spliced under its own timer; the
+  html_comments splice + write-back under the benchmarked timer. One code path on every edge (the
+  duplicated "no extra payloads" branch is gone), one primitive (plain case-sensitive find + splice).
+- **SQLi trap:** unchanged, plus a `WADM TRAP` line for an owned request that matches no signature
+  (see logging below).
+
+### Latency changes per edge
+
+| Edge | Change | Why |
+|---|---|---|
+| all | Precompiled per-path plans, trigger list and detector token lists | The per-request token loops, `enabled` checks and markup/cookie concatenation were CPU spent on every request and every response |
+| all | Query parsed once into segments, decoding only where needed | OpenResty and Envoy+Lua parsed it twice (once inside the html_comments timer); a segment with no `%`/`+` needs no decode |
+| OpenResty | All Lua moved into one `wadm` table built in `init_by_lua`; phase blocks are one-line calls | Locals/upvalues instead of a dozen globals; one place for the logic |
+| OpenResty | Body filter does one `ngx.ctx` lookup and an append per chunk | Token loops, the `Content-Type` read and `ngx.re.find` used to run on **every** chunk |
+| OpenResty, Envoy+Lua | Preallocated `struct timeval` | `ffi.new` allocated a cdata on every timer read |
+| Envoy+Lua | Per-request "known attacker" lookup and log line removed | One extra log write per request, on this edge only |
+| Envoy+Lua | `content-length` replace after `setBytes` dropped | `setBytes` already rewrites it (verified: header equals body length) |
+| Apache | Shared `wadm.lua` core; `sqli.lua` folded in | Each script file has its own Lua state, and each parsed `config.json` (twice, via `sqli.lua`) and redefined the same helpers |
+| Apache | Response-header staging moved from a `LuaHookFixups` hook into the access-checker hook | `err_headers_out` survives `ProxyPass` from either phase; every Lua hook costs a VM lookup and request-object setup per request |
+| Apache | `LuaCodeCache forever` | The default (`stat`) stats every script on every hook call; the other edges load their code once (tuning parity) |
+| Apache | Own segment parser over raw `r.args` instead of `r:parseargs()`; `r.*` fields read once | Identical parsing to the other edges, fewer C-boundary crossings |
+| WASM | `Rc<Compiled>` built in `on_configure` | Replaces per-request `is_on`, `format!` and string clones |
+| WASM | Fewer host calls: `:path` read once (was twice), IP from one property read (was two missing header reads), `:method` only on trap paths, `cookie` only if a cookie token exists | Every header read crosses the V8 ↔ Envoy boundary |
+| WASM | Byte-level splice | No UTF-8 validation pass; non-UTF-8 pages are injected like on the Lua edges |
+| WASM | `[profile.release]` LTO, one codegen unit, `panic = "abort"` | Whole-program optimisation of the hot paths; no unwinding machinery |
+
+### Logging and forwarding parity
+
+This applies the tuning-parity rule from
+[Upstream connection reuse](#upstream-connection-reuse--tuning-parity-not-just-code-parity) to
+logging:
+
+- **Edge access logs removed** (OpenResty's implicit `access_log`, Apache's `CustomLog`), in both
+  the WADM and the baseline configs. Envoy never wrote one, so OpenResty and Apache paid a
+  per-request write the Envoy edges did not.
+- **What they recorded is kept elsewhere.** They held the client IP, request line and status per
+  request. For proxied requests the origin's access log now carries the client IP
+  (`xff="$http_x_forwarded_for"`), and all four edges forward it: OpenResty sets
+  `X-Forwarded-For`, Apache's mod_proxy adds it, and both Envoy configs (WADM and baseline) now set
+  `use_remote_address: true` — which also pins Envoy's downstream address to the socket peer, so a
+  client-supplied XFF cannot spoof the WADM IP. Requests the edge answers itself (the SQLi trap)
+  never reach the origin; a signature hit logs `WADM ALERT` as before, and every other owned
+  request now logs `WADM TRAP: <ip> <METHOD> <path> answered locally with <status> (no signature
+  matched)` on all four edges. The label shares no substring with any scraper regex.
+- **Timing lines unchanged.** The per-region timing lines are benchmark instrumentation that the
+  end-to-end WADM tier also pays; they were deliberately left as they are, so every scraper,
+  result schema and plot keeps working.
+
+### Integration fixes
+
+- `run_internal_wasm_benchmark.py` now starts the stack with `up -d --build`. Without it Compose
+  reuses any existing `rust-builder` image, so an edit to `wasm-filter/` would have been benchmarked
+  against the previously compiled `filter.wasm`.
+- `wasm-filter/Cargo.lock` (extracted from the image that produced the earlier results) is copied in
+  and built with `--locked`, so a rebuild cannot silently pull newer crate versions.
+
+### What this means for the measurements
+
+- The html_comments **detection** region now excludes the query parse on every edge (it was inside
+  on OpenResty and Envoy+Lua), and on Apache and WASM it now does the segment scan and strip the
+  others do. The html_comments **injection** region is the single consolidated path (the one the
+  benchmark already exercised, since the decoy link on `/*` sent every page down the "extra" branch);
+  OpenResty's splice changed from PCRE to a plain find. Header-kind inject timers no longer contain
+  cookie-string building on any edge.
+- Sample counts are unchanged: `detect` = iterations per kind, `inject` = 4 × iterations for the `/*`
+  kinds and 1 × for `form_fields`.
+- **Results from before this pass are not comparable** with results after it. Every WADM and bare
+  tier was re-run together.
+
+### Residual differences, left as they are
+
+| Residual | Why it is left |
+|---|---|
+| Response framing: Envoy+Lua sends an exact `Content-Length`; the others go chunked | `setBytes` runs before Envoy sends headers; the other three cannot know the final length at header time. Not part of the detection/injection mechanism |
+| Apache forwards `path?` when every parameter is stripped | mod_lua can only assign `r.args` a string, and mod_proxy appends `?` whenever args is non-NULL. The origin serves the same resource |
+| Apache sets `Set-Cookie` with `apr_table_set`, so several cookie tokens on one path would overwrite each other | mod_lua exposes no `add` for `err_headers_out`; the shipped config plants one cookie |
+| The Envoy+WASM SQLi trap contacts the origin | proxy-wasm host constraints — see [The SQLi trap is outside the timed regions too](#the-sqli-trap-is-outside-the-timed-regions-too) |
+| POST-body inspection exists on OpenResty and Envoy+Lua only | Off by default (`post_body_inspection: false`); aligned between those two edges and kept for a future iteration that adds it to all four |
+| Rust decodes query values with `from_utf8_lossy` | Only differs for invalid UTF-8 after decoding; identical for all ASCII input |
+
+### Results
+
+All four WADM tiers, all four bare tiers and the origin floor were re-run in **one session**
+(2026-09-18). Every tier sustained ≥ 97% of offered load at VU ≤ 100, and origin ≤ bare ≤ WADM
+held for every edge at every level. The "before" figures come from the previous session, whose
+origin floor was slower (500 VUs: 2.86 → 1.34 ms), so raw medians are not compared across
+sessions. The comparison below is **WADM − bare**, the latency WADM itself adds, in ms (median
+`http_req_duration`):
+
+| Edge | VU 1 | VU 10 | VU 100 | VU 500 | 500-VU WADM p90 | 500-VU throughput |
+|---|---|---|---|---|---|---|
+| OpenResty | 0.42 → 0.22 | 0.52 → 0.07 | 0.72 → 1.30 (re-check **0.56**) | 3.25 → 3.53 (re-check **1.76**) | 43 → 59 (re-check 30) | 0.95 → 0.93 (re-check 0.95) |
+| Envoy+Lua | 0.29 → 0.34 | 1.58 → **0.28** | 3.75 → **1.49** | 7.33 → 8.65 | 61 → 58 | 0.92 → 0.92 |
+| Envoy+WASM | 0.24 → 0.61 | 1.64 → **0.16** | 1.32 → 1.58 | 21.21 → **8.26** | 382 → **65** | 0.63 → **0.91** |
+| Apache | 0.43 → 0.56 | 0.76 → 0.38 | 1.04 → 1.10 | 81.48 → **50.59** | 258 → 244 | 0.66 → 0.66 |
+
+How to read it:
+
+- **Clear effects.** Envoy+WASM's 500-VU collapse is gone: p90 fell from 382 to 65 ms and
+  sustained load rose from 63% to 91%, level with Envoy+Lua on the same Envoy. Apache's 500-VU
+  overhead fell by ~31 ms. Envoy+Lua's overhead at 10 and 100 VUs fell by 1.3 and 2.3 ms; the
+  per-request "known attacker" log line and the in-timer re-encode were the obvious costs removed.
+- **OpenResty's first run was host noise.** It ran first, straight after other heavy Docker
+  activity on the host, and its 100-VU level reached only 97% throughput. An immediate
+  back-to-back re-run of its WADM and bare tiers gave 0.56 ms at 100 VUs and 1.76 ms at 500 VUs,
+  both better than before. Its internal timings were equal or lower at every level in both runs.
+- **Sub-millisecond differences are within noise.** This host's run-to-run spread at ≤ 100 VUs is
+  already known to exceed some between-edge differences (see `docs/THESIS_NOTES.md`, 2026-09-17),
+  and every figure here is one run.
+
+Internal medians (µs, VU 100), before → after, for the regions whose content changed:
+
+| Region | OpenResty | Envoy+Lua | Envoy+WASM | Apache |
+|---|---|---|---|---|
+| html_comments detect | 2 → 2 | 5 → 2 | 3 → 2 | 10 → 4 |
+| http_headers detect | 1 → 1 | 1 → 0 | 1 → 1 | 6 → 3 |
+| decoy_paths inject (body splice) | 2 → 1 | 1 → 1 | 1 → 1 | 3 → 4 |
+| cookies inject (header write) | 1 → 0 | 1 → 1 | 2 → 1 | 2 → 1 |
+
+The html_comments detection figures now measure the same region on all four edges: the query
+parse sits outside the timer, and the scan, strip, write-back and IP record sit inside.
+
+### Apache still saturates at 500 VUs — why
+
+Sampled during a 30-second, 500-VU run against the WADM Apache tier:
+
+| | Idle | Under load |
+|---|---|---|
+| httpd processes | 4 | up to 17 |
+| httpd threads | 82 | up to 408 |
+| distinct PIDs that logged WADM lines | — | **34** |
+
+34 distinct PIDs against a peak of 17 concurrent processes means the event MPM's default spare-
+thread management (`MaxSpareThreads 250`) is **killing and re-spawning** processes mid-run. Every
+new thread creates fresh Lua states and re-parses `config.json` in PUC Lua 5.1 on first use. The
+other three edges create all their workers once at startup. This is a configuration-default
+difference rather than WADM logic, so it is not changed here. The proposed fix is to pre-spawn the
+full pool in **both** `httpd.conf` and `httpd-baseline.conf` (for example `StartServers` =
+`ServerLimit`, and `MaxSpareThreads` ≥ `MaxRequestWorkers`), then re-run both Apache tiers.
+
+### Verification
+
+- `benchmarks/parity_check.py`: **identical on all four edges**, compared against OpenResty. That
+  covers 13 probes, 12 alert/trap lines and 11 origin requests, including the percent- and
+  plus-encoded keywords, the order-preserving strip, and both SQLi paths.
+- Every alert line shows the real peer IP, never `unknown`. No edge writes an access-log line. The
+  origin log shows `xff=<client>` for all four edges. Envoy+Lua's `Content-Length` equals the body
+  length after `setBytes`.
+- Integration smoke test (VU 1/10, 10 s) through all four WADM runners, all five baseline tiers
+  and all three plotters: every runner scraped non-empty samples with the unchanged ratios
+  (`detect` = iterations, `inject` = 4× / 1×), and every plot rendered.
+- Builds: `cargo build --locked --release` with no warnings; `openresty -t`, `httpd -t` and
+  `envoy --mode validate` pass for every WADM and baseline config; every Lua file parses.

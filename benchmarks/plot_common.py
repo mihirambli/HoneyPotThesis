@@ -19,7 +19,7 @@ Data sources (per edge, written by run_internal_<edge>_benchmark.py):
 import json
 
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter, SymmetricalLogLocator
+from matplotlib.ticker import FuncFormatter, LogLocator, SymmetricalLogLocator
 
 # Display name -> file stem. Order here is the left-to-right box order and the
 # categorical slot assignment order below.
@@ -56,6 +56,54 @@ KIND_LABELS = {
 }
 PHASES = ["detect", "inject"]
 PHASE_LABELS = {"detect": "Detection", "inject": "Injection"}
+
+# ── End-to-end (millisecond) plane ───────────────────────────────────────────────────────────
+#
+# The internal microsecond timers above exist only where WADM runs. A bare edge has no
+# detect/inject region to time, so the two tiers meet only on end-to-end request latency, which
+# k6 reports for all of them. These constants describe that second plane.
+
+# `origin` is not an edge and never gets a box: it is the floor every edge is measured above,
+# drawn as a reference line.
+TIERS = ["bare", "wadm"]
+TIER_LABELS = {
+    "origin": "Origin only (no proxy)",
+    "bare": "Bare proxy (no WADM)",
+    "wadm": "WADM active",
+}
+ORIGIN_KEY = "origin"
+
+# Display name -> the key the result files use (`e2e_<key>_<tier>.json`). Derived from EDGES so
+# the two result families can never drift apart.
+EDGE_KEYS = {name: stem.removeprefix("internal_") for name, stem in EDGES.items()}
+
+# http_req_duration pools all four requests of an iteration, so it is what "the latency of a
+# request through this edge" means, and it is what the tier-comparison figures plot.
+POOLED_METRIC = "http_req_duration"
+
+# The four requests of an iteration, and the WADM work each one triggers (see test.js).
+#
+# Injection fires on ALL FOUR: every response is text/html and the `/*` tokens are planted on
+# every page. Detection differs — only the last three carry a trigger, so only they take the hit
+# path (record the attacker IP, render an alert). The *scan* still runs on the first request and
+# finds nothing, which is why it is labelled "no detection hit" rather than "no detection".
+#
+# That makes the first request the closest available injection-only measurement, and the
+# difference between it and the other three the marginal cost of a detection hit. The comparison
+# is only meaningful against the bare tier, which cancels out the fact that these are different
+# backend paths returning different-sized bodies.
+E2E_METRICS = [
+    "inject_get_duration",
+    "detect_query_duration",
+    "token_tamper_duration",
+    "token_decoy_duration",
+]
+E2E_METRIC_LABELS = {
+    "inject_get_duration": "GET /\ninjection only\n(no detection hit)",
+    "detect_query_duration": "GET /api/login?password=…\ninjection\n+ html_comments detection",
+    "token_tamper_duration": "GET /login.html?is_admin=1&probe=…\ninjection\n+ headers, cookies, form_fields",
+    "token_decoy_duration": "GET /api/v1/debug\ninjection\n+ decoy_paths detection",
+}
 
 
 def load_edge(results_dir, stem):
@@ -177,6 +225,101 @@ def summary_bxp_stats(stats, label):
     }
 
 
+def load_e2e(results_dir, edge_key, tier):
+    """Return {vus: run} from e2e_<edge_key>_<tier>.json, or None if that tier was never run."""
+    path = results_dir / f"e2e_{edge_key}_{tier}.json"
+    if not path.exists():
+        return None
+    doc = json.loads(path.read_text())
+    return {run["vus"]: run for run in doc["runs"]}
+
+
+def collect_e2e(results_dir):
+    """Load every edge's end-to-end tiers plus the origin floor.
+
+    Returns (data, origin, vus_list) where data is {display name: {tier: {vus: run}}}. An edge
+    appears only if at least one of its tiers exists, so a partially-run results directory still
+    plots what it has.
+    """
+    data = {}
+    vus_seen = set()
+    for name, key in EDGE_KEYS.items():
+        tiers = {tier: load_e2e(results_dir, key, tier) for tier in TIERS}
+        tiers = {tier: runs for tier, runs in tiers.items() if runs}
+        if not tiers:
+            print(f"  ! skipping {name}: no end-to-end result files for '{key}'")
+            continue
+        data[name] = tiers
+        for runs in tiers.values():
+            vus_seen.update(runs.keys())
+
+    origin = load_e2e(results_dir, ORIGIN_KEY, "bare")
+    if origin:
+        vus_seen.update(origin.keys())
+    else:
+        print("  ! no origin floor found (e2e_origin_bare.json)")
+    return data, origin, sorted(vus_seen)
+
+
+def e2e_stats(runs_by_vus, vus, metric):
+    """One metric's k6 summary stats at one VU level, or None if it was not measured."""
+    run = (runs_by_vus or {}).get(vus)
+    if not run:
+        return None
+    stats = ((run.get("k6") or {}).get("trends") or {}).get(metric)
+    if not stats or not stats.get("count"):
+        return None
+    return stats
+
+
+def k6_bxp_stats(stats, label):
+    """Box-plot stats from k6's summary quantiles.
+
+    Unlike `summary_bxp_stats`, these are *real* percentiles — test.js asks k6 for p(5)/p(25)/
+    p(75)/p(95) explicitly — so the box is drawn solid rather than hatched. The whisker runs
+    p5→p95 rather than 1.5×IQR, which is why the end-to-end figures carry a different caption
+    from the internal-timer ones. `min` is deliberately not the lower whisker: one unusually fast
+    sample out of tens of thousands would stretch it to the floor and swamp the difference these
+    figures exist to show.
+    """
+    return {
+        "label": label,
+        "whislo": stats.get("p5", stats["min"]),
+        "q1": stats["p25"],
+        "med": stats["med"],
+        "q3": stats["p75"],
+        "whishi": stats["p95"],
+        "fliers": [],
+    }
+
+
+def draw_tier_box(ax, stats, position, color, tier, width=0.34):
+    """One end-to-end box. Tier is encoded by fill, never by hue.
+
+    Hue stays with the edge across every figure in this repo, so bare and WADM are separated by
+    a hollow vs. solid face. Hatching is deliberately not used: in the internal-timer figures it
+    already means "this box is a summary approximation".
+
+    The `origin` tier is drawn solid like `wadm` but is passed a neutral grey rather than an edge
+    hue, because it is the no-proxy floor and belongs to no edge.
+    """
+    solid = tier in ("wadm", "origin")
+    bp = ax.bxp(
+        [k6_bxp_stats(stats, "")],
+        positions=[position],
+        widths=width,
+        showfliers=False,
+        patch_artist=True,
+        medianprops={"color": INK if solid else color, "linewidth": 2},
+        whiskerprops={"color": INK_MUTED, "linewidth": 1},
+        capprops={"color": INK_MUTED, "linewidth": 1},
+        boxprops={"edgecolor": "white" if solid else color, "linewidth": 2},
+    )
+    for patch in bp["boxes"]:
+        patch.set_facecolor(color if solid else "white")
+        patch.set_alpha(0.9 if solid else 1.0)
+
+
 def quartiles(values):
     """(q1, median, q3) by the nearest-rank convention used across this repo."""
     ordered = sorted(values)
@@ -187,6 +330,16 @@ def quartiles(values):
         return float(ordered[idx])
 
     return at(25), at(50), at(75)
+
+
+def _style_frame(ax):
+    """Recessive chrome shared by every figure: hairline grid, muted ticks, no top/right spine."""
+    ax.grid(True, which="major", axis="y", alpha=0.25, linewidth=0.8)
+    ax.tick_params(colors=INK_MUTED, labelsize=9)
+    for spine in ("top", "right"):
+        ax.spines[spine].set_visible(False)
+    for spine in ("left", "bottom"):
+        ax.spines[spine].set_color("#d5d4cf")
 
 
 def style_axis(ax):
@@ -200,19 +353,42 @@ def style_axis(ax):
     # nearly unlabelled; label the 2/3/5 sub-steps too.
     ax.yaxis.set_minor_locator(SymmetricalLogLocator(base=10, linthresh=1, subs=[2, 3, 5]))
     ax.yaxis.set_minor_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
-    ax.grid(True, which="major", axis="y", alpha=0.25, linewidth=0.8)
-    ax.tick_params(colors=INK_MUTED, labelsize=9)
+    _style_frame(ax)
     ax.tick_params(axis="y", which="minor", labelsize=7, colors=INK_MUTED)
-    for spine in ("top", "right"):
-        ax.spines[spine].set_visible(False)
-    for spine in ("left", "bottom"):
-        ax.spines[spine].set_color("#d5d4cf")
+
+
+def style_axis_ms(ax, scale="log", from_zero=True):
+    """Millisecond axis for the end-to-end figures.
+
+    Log, not the symlog used for the microsecond timers: symlog exists there only because those
+    timers bottom out at exactly 0 µs, which end-to-end latency never does. Plain log is
+    therefore available here, and it is needed — a saturated 500-VU level runs three decades
+    above an idle one, and on a linear axis it flattens every other level into an unreadable
+    band along the x-axis. Sub-decade steps are labelled because the per-level panels span
+    barely one decade, where decade-only ticks leave the axis almost bare.
+
+    `scale="linear"` is for the overhead figure, whose values are differences rather than
+    latencies: they can legitimately come out negative under host noise, which log cannot show.
+    `from_zero=False` keeps those negative bars visible instead of clipping them away.
+    """
+    if scale == "log":
+        ax.set_yscale("log")
+        ax.yaxis.set_minor_locator(LogLocator(base=10, subs=(2, 3, 5)))
+        ax.yaxis.set_minor_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+        ax.tick_params(axis="y", which="minor", labelsize=7, colors=INK_MUTED)
+    elif from_zero:
+        ax.set_ylim(bottom=0)
+    _style_frame(ax)
 
 
 def add_headroom(ax, factor=1.35):
-    """Keep the topmost mark and its label clear of the axis frame."""
-    top = ax.get_ylim()[1]
-    ax.set_ylim(0, top * factor)
+    """Keep the topmost mark and its label clear of the axis frame.
+
+    A log axis keeps whatever bottom it autoscaled to — pinning it at 0 the way the symlog and
+    linear axes do is undefined there, and would silently drop the axis entirely.
+    """
+    bottom, top = ax.get_ylim()
+    ax.set_ylim(bottom if ax.get_yscale() == "log" else 0, top * factor)
 
 
 def draw_edge_boxes(ax, edges_present, get_samples, get_stats):

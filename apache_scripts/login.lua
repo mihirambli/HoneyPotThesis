@@ -8,7 +8,7 @@
 
 package.path = "/usr/local/apache2/scripts/?.lua;" .. package.path
 require "apache2"
-local sqli = require("sqli")
+local wadm = require("wadm")
 
 -- Bound on how much of the body is read; the trap only ever inspects small login forms.
 local MAX_BODY = 65536
@@ -19,18 +19,21 @@ local MAX_BODY = 65536
 local detected_ips = {}
 
 function handle_login(r)
-    if not sqli.owns(r.method, r.uri) then
+    local path = wadm.request_path(r.unparsed_uri)
+    if not wadm.sqli_owns(r, path) then
         return apache2.DECLINED
     end
 
-    local cfg = sqli.config
+    local cfg = wadm.sqli
+    local ip = r.useragent_ip or "unknown"
+    local method = r.method
     local raw = r:requestbody(nil, MAX_BODY) or ""
 
     local start_time = r:clock()
-    local hit = sqli.match(sqli.parse_pairs(raw))
+    local hit = wadm.sqli_match(raw)
     local body, status
     if hit then
-        body   = sqli.render(cfg.error_template, hit.value)
+        body   = wadm.sqli_render(cfg.error_template, hit.value)
         status = cfg.status_code or 500
     else
         body   = cfg.deny_template
@@ -39,14 +42,19 @@ function handle_login(r)
     local delta = r:clock() - start_time
 
     if hit then
-        detected_ips[r.useragent_ip or "unknown"] = os.time()
-        r:warn("WADM ALERT: honeytoken triggered by " .. (r.useragent_ip or "unknown")
+        detected_ips[ip] = true
+        r:warn("WADM ALERT: honeytoken triggered by " .. ip
             .. " — sql_injection signature '" .. hit.signature .. "' in field '" .. hit.field
-            .. "' on " .. r.method .. " " .. r.uri
-            .. " (payload '" .. sqli.log_safe(hit.value) .. "')")
+            .. "' on " .. method .. " " .. path
+            .. " (payload '" .. wadm.log_safe(hit.value) .. "')")
         -- Label deliberately shares no substring with the benchmark scrapers'
         -- "Detection/Injection execution time (us):" patterns.
         r:warn("Apache WADM SQLI trap build (us): " .. tostring(delta))
+    else
+        -- These requests never reach the origin, so without an edge access log this is the
+        -- only record that the trap endpoint was hit.
+        r:warn("WADM TRAP: " .. ip .. " " .. method .. " " .. path
+            .. " answered locally with " .. status .. " (no signature matched)")
     end
 
     -- r.status must be assigned before the first r:puts, and the handler must return OK rather

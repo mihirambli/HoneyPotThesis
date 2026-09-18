@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Shared log-scraping and summary-statistics helpers for the four edge orchestrators.
+"""Shared Compose driving, log-scraping and summary-statistics helpers for the benchmark runners.
+
+Used by the four WADM orchestrators (`run_internal_<edge>_benchmark.py`) and by the baseline
+suite (`run_baseline_benchmark.py`). Two measurement planes are scraped here:
+
+  * **Internal microseconds**, from the *edge's* logs — what a detect/inject region costs.
+    Only the WADM tier produces these; a bare edge has no such regions.
+  * **End-to-end milliseconds**, from the *load-tester's* logs — what a request costs. Produced
+    by every tier, and therefore the only plane on which baseline and WADM are comparable.
 
 Every edge emits two families of microsecond timing lines:
 
@@ -22,20 +30,39 @@ with html_comments carried over from family 1 so every kind is queried the same 
 
 from __future__ import annotations
 
+import json
 import math
 import re
 import statistics
+import subprocess
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 TOKEN_LINE_RE = re.compile(r"WADM TOKEN (\w+) (detect|inject) \(us\):\s*(\d+)")
 
+# k6's handleSummary prints one sentinel line per run (see test.js). Anchoring on the sentinel and
+# taking the rest of the line is what makes `docker compose logs`' `load-tester-1  | ` prefix
+# harmless, so the JSON never has to be un-prefixed.
+K6_SUMMARY_RE = re.compile(r"WADM K6 SUMMARY (\{.*\})\s*$", re.M)
+
 # Plot/report order. html_comments leads because it is the reference measurement the
 # other kinds are compared against.
 KINDS = ["html_comments", "http_headers", "cookies", "decoy_paths", "form_fields"]
 PHASES = ["detect", "inject"]
+
+# Shared by every runner so the WADM and baseline tiers land on the same x-axis. VU 1/10/100 are
+# fixed-arrival-rate levels (test.js's sleep(1) caps a VU at one iteration/sec), which is the
+# regime a latency comparison needs; 500 is where this repo's 2-core host saturates.
+DEFAULT_VUS = [1, 10, 100, 500]
+DEFAULT_DURATION = "30s"
+DEFAULT_START_DELAY = "5s"
+# One throwaway warm-up burst is run (and discarded) before the recorded VU levels so JIT/caches
+# are hot; the edge stack persists across levels, so warming once is enough.
+WARMUP_VUS = 100
+WARMUP_DURATION = "20s"
 
 
 @dataclass
@@ -107,6 +134,48 @@ def build_token_sections(
     return summary, raw
 
 
+def parse_k6_summary(logs: str) -> dict[str, Any] | None:
+    """Lift the end-to-end summary k6 printed for the most recent run, or None if absent.
+
+    The last match wins: a `--since` window is only second-accurate, so it can occasionally catch
+    the tail of the previous cycle alongside the one being measured.
+    """
+    matches = K6_SUMMARY_RE.findall(logs)
+    if not matches:
+        return None
+    try:
+        return json.loads(matches[-1])
+    except json.JSONDecodeError:
+        return None
+
+
+def fetch_k6_summary(
+    env: dict[str, str], since_str: str
+) -> tuple[dict[str, Any] | None, subprocess.CompletedProcess[str]]:
+    """Read the load-tester's logs for this run window and parse k6's summary line out of them.
+
+    `--profile loadtest` is required: Compose refuses to address a service whose profile is not
+    enabled, the same reason the rm/up/wait calls carry it.
+    """
+    result = run_cmd(
+        ["docker", "compose", "--profile", "loadtest", "logs", "--no-color",
+         "--since", since_str, "load-tester"],
+        env=env,
+    )
+    return parse_k6_summary(result.stdout), result
+
+
+def k6_iterations(summary: dict[str, Any] | None) -> int:
+    """Iteration count k6 itself recorded; 0 when the summary could not be read.
+
+    Preferred over counting scraped log lines for the throughput guard, and the only source
+    available at all in the baseline tiers, which emit no timing lines.
+    """
+    if not summary:
+        return 0
+    return int(summary.get("iterations") or 0)
+
+
 def wait_for_quiet_host(max_load: float = 2.0, timeout_s: int = 420, poll_s: int = 10) -> None:
     """Block until the 1-minute load average falls below `max_load`.
 
@@ -176,3 +245,144 @@ def format_token_line(kind: str, summary: dict[str, Any]) -> str:
         s = summary[kind][phase]
         parts.append(f"{phase}: count={s['count']} avg_us={s['avg_us']} p90_us={s['p90_us']}")
     return f"  {kind:<14} " + " | ".join(parts)
+
+
+def format_e2e_line(summary: dict[str, Any] | None) -> str:
+    """One-line console digest of the end-to-end trends, for the runners' stdout."""
+    if not summary:
+        return "  end-to-end:    (k6 summary unavailable)"
+    trends = summary.get("trends") or {}
+    parts = []
+    for name in ("http_req_duration", "detect_query_duration", "inject_get_duration"):
+        stats = trends.get(name) or {}
+        med, p90 = stats.get("med"), stats.get("p90")
+        med_s = f"{med:.2f}" if med is not None else "n/a"
+        p90_s = f"{p90:.2f}" if p90 is not None else "n/a"
+        parts.append(f"{name.replace('_duration', '')}: med={med_s}ms p90={p90_s}ms")
+    return "  end-to-end:    " + " | ".join(parts)
+
+
+# ── End-to-end result documents ──────────────────────────────────────────────────────────────
+
+# Order matters only for readability of the result files. http_req_duration leads because it is
+# the pooled headline the overhead decomposition is built on.
+E2E_TRENDS = [
+    "http_req_duration",
+    "inject_get_duration",
+    "detect_query_duration",
+    "token_tamper_duration",
+    "token_decoy_duration",
+]
+
+
+def new_e2e_document(**metadata: Any) -> dict[str, Any]:
+    """Container for the end-to-end (millisecond) result file every tier writes.
+
+    Baseline and WADM runs must land on one schema because a single plotter reads them side by
+    side; constructing the document in one place is what keeps that true as either suite changes.
+    """
+    return {
+        "metadata": {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "note": (
+                "End-to-end request latency measured by k6, in MILLISECONDS. The edges' internal "
+                "detect/inject timings are microseconds and live in internal_<edge>_*.json."
+            ),
+            **metadata,
+        },
+        "runs": [],
+    }
+
+
+def append_e2e_run(
+    doc: dict[str, Any],
+    vus: int,
+    throughput: dict[str, Any],
+    summary: dict[str, Any] | None,
+    errors: dict[str, str],
+) -> None:
+    trends = (summary or {}).get("trends") or {}
+    doc["runs"].append(
+        {
+            "vus": vus,
+            "throughput": throughput,
+            "k6": {
+                "iterations": (summary or {}).get("iterations"),
+                "http_reqs": (summary or {}).get("http_reqs"),
+                "http_req_failed_rate": (summary or {}).get("http_req_failed_rate"),
+                "trends": {name: trends.get(name) for name in E2E_TRENDS},
+            },
+            "errors": errors,
+        }
+    )
+
+
+# ── Compose driving ──────────────────────────────────────────────────────────────────────────
+
+def run_cmd(command: list[str], env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(command, env=env, text=True, capture_output=True, check=False)
+
+
+def parse_vus(raw: str | None) -> list[int]:
+    if not raw:
+        return DEFAULT_VUS
+    parsed: list[int] = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            vus = int(part)
+            if vus <= 0:
+                raise ValueError
+            parsed.append(vus)
+        except ValueError:
+            raise ValueError(f"Invalid VU value '{part}'. Expected positive integers.") from None
+    if not parsed:
+        raise ValueError("No valid VU values were provided.")
+    return parsed
+
+
+# Every Compose profile that can leave a container behind. `docker compose down`
+# only removes containers for *enabled* profiles, so cleaning up with no profile
+# leaves stopped edge containers from previous runs in place. When the shared
+# network is later recreated with a new ID, those stale containers still point at
+# the old (deleted) network, and the next `docker compose up` reuses them and
+# fails with "network <id> not found" (exit 128). Enabling all profiles here
+# forces every edge container to be removed, so `up` always creates fresh ones.
+CLEANUP_PROFILES = ["openresty", "envoy", "wasm", "apache", "loadtest"]
+
+
+def ensure_compose_cleanup(base_env: dict[str, str]) -> None:
+    down_cmd = ["docker", "compose"]
+    for profile in CLEANUP_PROFILES:
+        down_cmd += ["--profile", profile]
+    down_cmd += ["down", "--remove-orphans"]
+    run_cmd(down_cmd, env=base_env)
+    # Prune networks left behind by interrupted or partially-cleaned runs; otherwise
+    # the next `docker compose up` fails with "network <id> not found".
+    run_cmd(["docker", "network", "prune", "-f"], env=base_env)
+
+
+def cycle_loadtester(env: dict[str, str]) -> tuple[subprocess.CompletedProcess[str], datetime]:
+    """Remove any leftover load-tester container, start a fresh one, and wait for k6 to finish.
+
+    The edge and backend containers are left running so the edge's runtime state (LuaJIT traces,
+    connection pools, V8 compilation) is preserved between VU levels. Returns the wait result and
+    a timestamp captured just before the container started, used with --since to isolate this
+    run's log lines — on both the edge and the load-tester — from previous runs.
+    """
+    run_cmd(
+        ["docker", "compose", "--profile", "loadtest", "rm", "-f", "-s", "load-tester"],
+        env=env,
+    )
+    run_start = datetime.now(timezone.utc)
+    run_cmd(
+        ["docker", "compose", "--profile", "loadtest", "up", "-d", "load-tester"],
+        env=env,
+    )
+    wait_result = run_cmd(
+        ["docker", "compose", "--profile", "loadtest", "wait", "load-tester"],
+        env=env,
+    )
+    return wait_result, run_start

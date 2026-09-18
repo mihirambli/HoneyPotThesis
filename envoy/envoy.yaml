@@ -13,6 +13,10 @@ static_resources:
               typed_config:
                 "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
                 stat_prefix: ingress_http
+                # Forward the client IP in X-Forwarded-For, as OpenResty and Apache already do, so the
+                # origin's access log records the real client for every edge. It also pins Envoy's
+                # downstream address to the socket peer, which a client-sent XFF cannot spoof.
+                use_remote_address: true
                 route_config:
                   name: local_route
                   virtual_hosts:
