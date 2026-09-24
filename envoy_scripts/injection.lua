@@ -452,8 +452,14 @@ local function sqli_respond(request_handle, ip, method, path)
     raw = body_handle:getBytes(0, body_handle:length())
   end
 
+  -- Closed before the hit/miss branch so every arm measures the same unit: the scan alone, with
+  -- page rendering and the IP record outside it. The scan covers decoding each body pair,
+  -- normalising the watched values and walking the signature list, and the benchmark drives all
+  -- four combinations of outcome and encoding to attribute the cost between them.
   local sqli_start = now_us()
   local hit = sqli_match(raw)
+  local sqli_delta = now_us() - sqli_start
+
   local page, status
   if hit then
     page = sqli_render(sqli.error_template, hit.value)
@@ -462,22 +468,30 @@ local function sqli_respond(request_handle, ip, method, path)
     page = sqli.deny_template
     status = sqli.deny_status_code or 401
   end
-  local sqli_delta = now_us() - sqli_start
+
+  -- The IP record stays outside the timed region, unlike the honeytoken kinds':
+  -- only the hit arms perform it, so including it would surface as a hit-vs-miss
+  -- difference that has nothing to do with the scan.
+  -- Percent-encoding in a form body is an evasion technique worth recording on its own, and it is
+  -- also the dominant cost in the scan: url_decode's substitution path runs over every body pair and
+  -- again during normalisation, while the signature walk is mostly rejected on length. Splitting the
+  -- two is what lets detection cost be attributed to normalisation rather than to scan depth.
+  -- Classified outside the timed region so it never enters the measurement.
+  local kind = hit and "sql_injection" or "sql_injection_miss"
+  if find(raw, "%", 1, true) then kind = kind .. "_encoded" end
 
   if hit then
     request_handle:logWarn("WADM ALERT: honeytoken triggered by " .. ip
       .. " — sql_injection signature '" .. hit.signature .. "' in field '" .. hit.field
       .. "' on " .. method .. " " .. path .. " (payload '" .. log_safe(hit.value) .. "')")
     detected_ips[ip] = true
-    -- Label deliberately shares no substring with the benchmark scrapers'
-    -- "Detection/Injection execution time (us):" patterns.
-    request_handle:logWarn("Envoy Lua WADM SQLI trap build (us): " .. sqli_delta)
   else
     -- These requests never reach the origin, so this is the only record that the trap
     -- endpoint was hit.
     request_handle:logWarn("WADM TRAP: " .. ip .. " " .. method .. " " .. path
       .. " answered locally with " .. status .. " (no signature matched)")
   end
+  request_handle:logWarn("WADM TOKEN " .. kind .. " detect (us): " .. sqli_delta)
 
   -- sendLocalReply re-enters the whole encoder chain, this filter included, so
   -- envoy_on_response would otherwise stamp the trap page with honeytokens.

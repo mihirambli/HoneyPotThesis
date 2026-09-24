@@ -109,6 +109,15 @@ services:
       FORM_PAGE: ${FORM_PAGE:-/login.html}
       FORM_FIELD: ${FORM_FIELD:-is_admin}
       FORM_TAMPER_VALUE: ${FORM_TAMPER_VALUE:-1}
+      # SQLi probe bodies. Passed through empty rather than repeated here: the payloads contain
+      # characters YAML and Compose interpolation both treat specially, and test.js's own defaults
+      # are the single place the 2x2 is defined. An unset variable arrives empty and test.js falls
+      # back, so overriding still works without duplicating the payloads.
+      SQLI_PATH: ${SQLI_PATH:-}
+      SQLI_HIT_BODY: ${SQLI_HIT_BODY:-}
+      SQLI_HIT_ENC_BODY: ${SQLI_HIT_ENC_BODY:-}
+      SQLI_MISS_BODY: ${SQLI_MISS_BODY:-}
+      SQLI_MISS_ENC_BODY: ${SQLI_MISS_ENC_BODY:-}
       K6_VUS: ${K6_VUS:-5}
       K6_DURATION: ${K6_DURATION:-30s}
       K6_START_DELAY: ${K6_START_DELAY:-5s}

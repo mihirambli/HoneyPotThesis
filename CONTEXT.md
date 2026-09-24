@@ -44,10 +44,19 @@ against `signatures`. A hit logs a `WADM ALERT`, records the client IP, and retu
 `deny_template`. `{PAYLOAD}` in either template is replaced by the attacker's own (HTML-escaped,
 `reflect_max_len`-capped) input.
 
+It **is** benchmarked, but as a detection-only feature: planting nothing means there is no
+injection region to time, so it appears in the detection figures and not the injection ones. The
+benchmark drives a 2×2 — outcome (signature hit / no signature match) crossed with whether the body needs
+percent-decoding — because measuring only hit-vs-miss confounds two factors that pull in opposite
+directions. Scan depth turns out to cost nothing measurable (most signatures are longer than a
+real field value and are rejected on length), while decoding costs several microseconds, since
+`url_decode` runs over every body pair and again inside `sqli_normalize`. See
+[benchmarks/README.md](benchmarks/README.md#the-sqli-trap-a-detection-only-feature-measured-as-a-22).
+
 | Field | Meaning for you |
 |--------|------------------|
 | `enabled` | Same on/off semantics as every other kind. Off → the endpoint proxies normally again. |
-| `paths` / `methods` | What the trap owns. Kept narrow (`POST` `/api/login`) so the benchmarked `GET` population is untouched. |
+| `paths` / `methods` | What the trap owns. Kept narrow (`POST` `/api/login`) so the benchmarked `GET` population is untouched — the trap short-circuits before any honeytoken detector, so its own requests contribute samples to it alone. |
 | `watch_fields` | Which form fields are inspected, in priority order — first match wins. |
 | `signatures` | Literal lowercase substrings. Literal (not regex) because Apache mod_lua and Envoy Lua have no PCRE and the Rust `regex` crate would bloat the wasm binary. |
 | `reflect_max_len` | Cap on how much of the payload is echoed back into `{PAYLOAD}`. |

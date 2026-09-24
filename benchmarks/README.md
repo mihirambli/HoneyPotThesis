@@ -1,7 +1,7 @@
 <!-- benchmarks/README.md: external k6 load generator for WADM edge benchmarking; lives outside any edge profile so it never auto-runs with a normal `up`. -->
 # benchmarks (k6 load generator)
 
-External request-latency probe for the WADM edge proxies. A `grafana/k6` container joins the `honeypot` Docker network and hits whichever edge is selected via the `TARGET` env var. One iteration issues four `GET`s, chosen so that **every honeytoken kind has both its injection and its detection path exercised**:
+External request-latency probe for the WADM edge proxies. A `grafana/k6` container joins the `honeypot` Docker network and hits whichever edge is selected via the `TARGET` env var. One iteration issues four `GET`s and four `POST`s, chosen so that **every deception feature in `config.json` has every path it owns exercised**:
 
 | Request | k6 Trend metric | Detection fired | Injection fired |
 |---------|-----------------|-----------------|-----------------|
@@ -9,8 +9,14 @@ External request-latency probe for the WADM edge proxies. A `grafana/k6` contain
 | `GET ${TARGET}/api/login?password=${TRIGGER_KEYWORD}` | `detect_query_duration` | html_comments | html_comments, http_headers, cookies, decoy_paths |
 | `GET ${TARGET}${FORM_PAGE}?${FORM_FIELD}=1&probe=${HEADER_KEYWORD}` with a tampered `Cookie` | `token_tamper_duration` | form_fields, http_headers, cookies | all five kinds |
 | `GET ${TARGET}${DECOY_PATH}` | `token_decoy_duration` | decoy_paths | html_comments, http_headers, cookies, decoy_paths |
+| `POST ${TARGET}/api/login` with `${SQLI_HIT_BODY}` | `sqli_hit_duration` | sql_injection (hit, plain) | — |
+| `POST ${TARGET}/api/login` with `${SQLI_HIT_ENC_BODY}` | `sqli_hit_enc_duration` | sql_injection (hit, `%`-encoded) | — |
+| `POST ${TARGET}/api/login` with `${SQLI_MISS_BODY}` | `sqli_miss_duration` | sql_injection (no match, plain) | — |
+| `POST ${TARGET}/api/login` with `${SQLI_MISS_ENC_BODY}` | `sqli_miss_enc_duration` | sql_injection (no match, `%`-encoded) | — |
 
-The custom `Trend`s keep the four calls distinguishable; the built-in `http_req_duration` pools them into one distribution.
+The custom `Trend`s keep the eight calls distinguishable; the built-in `http_req_duration` pools them into one distribution.
+
+`sql_injection` fires no injection because it plants nothing — the login form is the origin's own page, and the hidden input WADM adds to it belongs to `form_fields`. It is the one feature measured in a single phase; see [The SQLi trap](#the-sqli-trap-a-detection-only-feature-with-two-arms).
 
 These two things are measured on **different planes** and must not be confused:
 
@@ -18,6 +24,8 @@ These two things are measured on **different planes** and must not be confused:
 - The per-phase, per-kind numbers behind the honeytoken figures are **microseconds** measured by the edges' own internal timers and scraped from their logs (see below). They exist only where WADM runs.
 
 The third request deliberately bundles three kinds: each edge times each kind in its own region, so bundling costs nothing in attribution while keeping the iteration short.
+
+The four `POST`s are the only non-`GET` requests, because the trap is gated on `POST /api/login`. On OpenResty, Envoy+Lua and Apache the trap answers them from the request phase, so WADM *saves* these requests the origin round-trip the bare tier pays and their end-to-end deltas are negative — which is why the overhead decomposition sums per-request-type deltas instead of scaling the pooled median.
 
 ## Why the keyword is in the query string
 
@@ -219,7 +227,11 @@ The raw file exists so that box plots can be drawn from the true latency distrib
         "http_headers":  { "detect_us": [...], "inject_us": [...] },
         "cookies":       { "detect_us": [...], "inject_us": [...] },
         "decoy_paths":   { "detect_us": [...], "inject_us": [...] },
-        "form_fields":   { "detect_us": [...], "inject_us": [...] }
+        "form_fields":   { "detect_us": [...], "inject_us": [...] },
+        "sql_injection":              { "detect_us": [...], "inject_us": [] },
+        "sql_injection_encoded":      { "detect_us": [...], "inject_us": [] },
+        "sql_injection_miss":         { "detect_us": [...], "inject_us": [] },
+        "sql_injection_miss_encoded": { "detect_us": [...], "inject_us": [] }
       }
     }
   ]
@@ -239,11 +251,13 @@ WADM TOKEN <kind> inject (us): N
 
 for `kind` in `http_headers | cookies | decoy_paths | form_fields`. `html_comments` keeps its original `Detection/Injection execution time (us)` lines and is folded into the same `tokens` structure by the orchestrators.
 
+The SQLi trap uses the same family but emits `detect` only, under four kind names crossing outcome with encoding — `sql_injection[_encoded]` on a signature hit, `sql_injection_miss[_encoded]` when nothing matched, with the `_encoded` suffix set when the request body required percent-decoding. The scraper regex accepts them unchanged (`\w+` already covers the underscore).
+
 The lowercase `detect` / `inject` words are deliberate: they share no substring with either html_comments scraper pattern, so OpenResty's **unprefixed** `Detection execution time \(us\):` regex cannot match a per-kind line and silently corrupt `detection_us`.
 
 What each timer wraps, and why the html_comments numbers are unaffected, is documented in [EDGE_LEVELING.md](../docs/EDGE_LEVELING.md#additional-honeytoken-kinds-get-their-own-timed-regions). In short: per-request setup (client IP, URI, parsed query, `Cookie`) is read once outside every timer; a `detect` timer wraps that kind's scan + in-memory IP record and fires only on a hit, with alert rendering and the log write happening *after* it closes; an `inject` timer wraps the header write or the anchor-locate-and-splice, with token selection and markup construction hoisted out.
 
-Because an iteration now carries four requests rather than two, absolute html_comments numbers are **not** comparable with runs recorded before this change. All four edges are re-measured together, so the cross-edge comparison remains valid.
+Because an iteration now carries eight requests rather than four, absolute html_comments numbers are **not** comparable with runs recorded before this change. All four edges are re-measured together, so the cross-edge comparison remains valid.
 
 ## Baseline (no-WADM) benchmarking
 
@@ -404,9 +418,9 @@ means the host was contaminated.
 
 `plot_edge_comparison.py` renders one figure per VU level, placing all four edges side by side with a detection subplot and an injection subplot. Every honeytoken kind — `html_comments`, `http_headers`, `cookies`, `decoy_paths`, `form_fields` — is **pooled into one distribution per edge**, so the figure answers "which edge is cheapest at honeytoken work overall". For the per-kind breakdown behind those numbers, use `plot_token_comparison.py` below.
 
-Pooling is by concatenation of raw samples, so each kind contributes in proportion to how often it actually fires within an iteration (the `/*` kinds inject on all four benchmark requests, `form_fields` on one). A box therefore reads as "what a honeytoken operation costs on this edge", not as a mean of per-kind means.
+Pooling is by concatenation of raw samples, so each kind contributes in proportion to how often it actually fires within an iteration (the `/*` kinds inject on all four benchmark `GET`s, `form_fields` on one). A box therefore reads as "what a honeytoken operation costs on this edge", not as a mean of per-kind means.
 
-The `sql_injection` trap is excluded from both figures: it plants no token, is a single response policy rather than a honeytoken kind, and logs under its own non-colliding label.
+The pool is **per phase**. `sql_injection` joins the detection pool but has no injection region at all, so the injection pool stays the five honeytoken kinds. Its clean-login arm is a control rather than a feature and is pooled nowhere — it is plotted against the hit arm by `plot_sqli_comparison.py`.
 
 ```bash
 # defaults to benchmarks/results/, writes PNGs to benchmarks/results/plots/
@@ -439,10 +453,82 @@ Output artifacts:
 
 | File | Layout |
 |------|--------|
-| `token_comparison_vus_<N>.png` (one per VU level) | 2 rows (detection, injection) × 5 columns (one per kind); four edge box plots per panel, log-scale y shared across each row so kinds are comparable within a phase. |
+| `token_comparison_vus_<N>.png` (one per VU level) | 2 rows (detection, injection) × one column per kind in that phase — 6 for detection, 5 for injection, with the surplus injection cell removed rather than drawn empty. Four edge box plots per panel, log-scale y shared across each row so kinds are comparable within a phase. |
 | `token_scaling_detect.png`, `token_scaling_inject.png` | Median latency vs. VU level, one panel per kind, one direct-labelled line per edge with a Q1–Q3 band — shows how each kind scales with load. |
 
 Both scripts share [plot_common.py](plot_common.py) — the palette, the raw-preferred / summary-fallback rule (hatched, faded boxes mark an approximation), the symlog convention and the result-file loader all live there, so an edge keeps one colour and one visual language across every figure.
+
+## The SQLi trap: a detection-only feature, measured as a 2×2
+
+`sql_injection` is the only feature in `config.json` that plants nothing. It never mutates a response the origin produced — it watches `POST /api/login`, scans the body, and answers. So it has a detection region and no injection region, and it is the only feature whose non-triggering path still does full work. That makes it worth plotting on its own, which `plot_sqli_comparison.py` does.
+
+Two factors are crossed, because measuring only hit-vs-miss confounds them.
+
+### Outcome: how deep the scan goes
+
+Nothing authenticates anything here. The origin is a static nginx with no `/api/login` route, no user store and no password check; the edge fabricates both the fake MySQL error and the canned 401. A non-matching request costs exactly what it takes to check the body against the signature list, and nothing more.
+
+`sqli_match` is a linear scan that returns on first match, walking `watch_fields → body pairs → signatures` in config order. That order is part of the [cross-edge contract](../docs/EDGE_LEVELING.md), so "first match wins" resolves identically on all four edges.
+
+| Outcome | Benchmark payload | Comparisons |
+|---------|-------------------|-------------|
+| hit | `username=admin'&password=x` | 11 — matches `admin'`, signature #11 of 22, in the first watch field |
+| no signature match | `username=alice&password=secret` | 44 — all 22 against `username`, then all 22 against `password` |
+
+**That 33-comparison difference costs nothing measurable on three of the four edges.** Most signatures are *longer* than a real field value — `information_schema` (18 chars), `union all select` (16), `waitfor delay` (13) against `alice` (5) — so they are rejected on length before a single character is compared, and a JIT compiles what is left down to noise.
+
+**Apache is the exception**, consistently by ~2.5 µs and in the direction the scan-depth hypothesis predicts. Its `mod_lua` links `liblua.so.5` — standard PUC Lua — while OpenResty and Envoy both run LuaJIT and the WASM filter is compiled Rust. Scan depth is measurable only where the matching loop is genuinely interpreted.
+
+The practical consequence is that **growing the signature list is close to free on a JIT-compiled or native edge**, and carries a small but real cost on an interpreted one. A single-edge measurement would have reported one of those two answers and missed the other.
+
+### Encoding: whether the body needs decoding
+
+This is where the time actually goes. `url_decode` runs over every body pair in `sqli_match`, and then again inside `sqli_normalize` on the matched value, so a percent-encoded payload pays the substitution path twice.
+
+The `%27` form of each payload decodes to exactly the plain form, so the two arms of one outcome scan identical bytes and differ **only** in decoding work. That isolation is what makes the factor attributable.
+
+### The four arms
+
+| Kind name | Outcome | Body |
+|-----------|---------|------|
+| `sql_injection` | hit | `username=admin'&password=x` |
+| `sql_injection_encoded` | hit | `username=admin%27&password=x` |
+| `sql_injection_miss` | no match | `username=alice&password=secret` |
+| `sql_injection_miss_encoded` | no match | `username=alice%27&password=secret` |
+
+The edge sets the `_encoded` suffix by checking the raw body for `%` *after* the timer closes, so the classification never enters the measurement. That check is not benchmark scaffolding — percent-encoded input is an evasion technique a honeypot has independent reason to record.
+
+Only `sql_injection` is pooled into the detection figures, as the trap's one representative sample per iteration; pooling all four would give it four times the weight of any honeytoken kind. The other three are controls, plotted only here.
+
+**If the `signatures` list in `config.json` is reordered, re-check the hit payloads** — `admin'` sitting at #11 is what makes the outcome axis mean what it says.
+
+```bash
+# defaults to benchmarks/results/, writes PNGs to benchmarks/results/plots/
+python3 benchmarks/plot_sqli_comparison.py
+
+# or point it at a different results directory
+python3 benchmarks/plot_sqli_comparison.py path/to/results
+```
+
+Output artifacts:
+
+| File | Layout |
+|------|--------|
+| `sqli_arms_vus_<N>.png` (one per VU level) | Four edges side by side, four boxes each in the order hit-plain, hit-encoded, clean-plain, clean-encoded. Filled = the body needed decoding; hue identifies the edge, as in every other figure. |
+| `sqli_arms_scaling.png` | Median scan cost vs. VU level, one panel per arm, one direct-labelled line per edge with a Q1–Q3 band. |
+
+### The end-to-end side
+
+The four `POST`s are deliberately **excluded** from `e2e_phase_overhead_vus_*.png` and given their own figure, `sqli_e2e_overhead_vus_*.png`. Two reasons: they carry no injection, so they do not belong on an axis comparing injection-only against injection-plus-detection; and on the three edges that answer from the request phase WADM *removes* the origin round-trip the bare tier pays, so their deltas are **negative**. Sharing an axis would put "WADM added 1.5 ms" beside "WADM saved 0.5 ms" under one "latency added" label and flatten the bars that figure exists to show.
+
+Note that `E2E_METRICS` still contains all eight requests — it is the summation set for the overhead decomposition, which must account for the whole iteration. `E2E_PHASE_METRICS` is the plotting subset.
+
+Two caveats on that plane, neither of which touches the microsecond figures:
+
+- **Envoy+WASM is not comparable to the other three.** It cannot answer from the request phase and rewrites the upstream response instead, so it alone pays an origin round-trip. Its bars sit near zero for that reason, not because WADM costs it more.
+- **Latency falls ~30% across an iteration even with WADM absent.** The first request after `sleep(1)` pays a wake-up cost later ones do not, so the eight Trends are eight measurements taken at eight points on a gradient. The `wadm − bare` subtraction cancels it (both tiers share the ordering), which is why every end-to-end figure plots a delta; absolute per-request figures would not be comparable across positions. See the 2026-09-21 entry in [THESIS_NOTES.md](../docs/THESIS_NOTES.md).
+
+The microsecond plane the 2×2 figures use is unaffected by both — those timers wrap a region inside the edge and never include the network.
 
 ### Why symlog rather than log
 
@@ -507,12 +593,15 @@ guarantees (all four edges obey them):
    iteration that enables it on all four edges at once (set the flag `true` and
    implement it in Apache + WASM).
    The `sql_injection` trap does read POST bodies, but only on `POST /api/login`,
-   and `test.js` is `http.get`-only — so it never touches the measured population.
-   It logs under `WADM SQLI trap build (us):`, which deliberately shares no substring
-   with either scraper regex. Note the OpenResty pattern is *unprefixed*
-   (`Detection execution time \(us\):`), so any prefixed variant of those words —
-   e.g. `SQLi Detection execution time (us):` — would have been matched by it and
-   silently corrupted `detection_us`. See `docs/EDGE_LEVELING.md`.
+   and it terminates the request before any honeytoken detector runs — so the two
+   `POST`s contribute samples to `sql_injection` / `sql_injection_miss` alone and
+   never touch the five honeytoken kinds' population. The trap logs under
+   `WADM TOKEN sql_injection[_miss] detect (us):`, in the per-kind family. Note the
+   OpenResty pattern is *unprefixed* (`Detection execution time \(us\):`), so any
+   prefixed variant of those words — e.g. `SQLi Detection execution time (us):` —
+   would be matched by it and silently corrupt `detection_us`, which is why the
+   per-kind family uses the lowercase `detect` / `inject` words instead.
+   See `docs/EDGE_LEVELING.md`.
 5. **Equal timed region: in-memory state, no disk I/O.** Every edge records the
    attacker IP into an *in-memory* store on a hit, inside the timed region, mirroring
    OpenResty's `ngx.shared.wadm_state` (`wadm:set`): Envoy+Lua and Apache use a
@@ -560,7 +649,12 @@ guarantees (all four edges obey them):
    replaced by the same plain find, so all four edges now share one splice primitive. See
    [EDGE_LEVELING.md](../docs/EDGE_LEVELING.md#the-splice-primitive-was-not-a-fair-intended-difference).
 7. **Per-kind contract: same setup hoisting, same fixed order.** The four additional
-   honeytoken kinds follow the same rules as html_comments. Per-request setup (client
+   honeytoken kinds follow the same rules as html_comments. `sql_injection` is the one
+   documented exception: its timed region is the signature scan alone, with the
+   attacker-IP record left *outside*. The miss arm performs no such write, so including
+   it would make the hit-vs-miss gap partly an artefact of one hash insert rather than
+   of scan depth. All four edges do this identically, so cross-edge comparability is
+   unaffected. Per-request setup (client
    IP, URI, parsed query args, `Cookie` header) is read **once** outside every timer
    and shared by all kinds; a `detect` timer wraps only that kind's scan, its alert
    log and the in-memory IP record; an `inject` timer wraps only the header write or
@@ -629,7 +723,7 @@ benchmark is in progress.
 
 | File | Role |
 |------|------|
-| [test.js](test.js) | The k6 default-function script: four `GET`s per iteration covering every honeytoken kind's injection and detection paths, the `Trend` definitions, and the `handleSummary` sentinel line that publishes end-to-end latency to the runners. |
+| [test.js](test.js) | The k6 default-function script: four `GET`s and four `POST`s per iteration covering every deception feature's injection and detection paths, the `Trend` definitions, and the `handleSummary` sentinel line that publishes end-to-end latency to the runners. |
 | [run_baseline_benchmark.py](run_baseline_benchmark.py) | Orchestrates the no-WADM tiers (four bare edges + the origin floor) from one parameterised table and writes `e2e_<edge>_bare.json`. |
 | [run_internal_openresty_benchmark.py](run_internal_openresty_benchmark.py) | Orchestrates internal OpenResty microsecond profiling runs and writes summary + raw JSON results. |
 | [run_internal_envoy_lua_benchmark.py](run_internal_envoy_lua_benchmark.py) | Orchestrates internal Envoy Lua microsecond profiling runs and writes summary + raw JSON results. |
@@ -637,9 +731,10 @@ benchmark is in progress.
 | [run_internal_wasm_benchmark.py](run_internal_wasm_benchmark.py) | Orchestrates internal Envoy WASM microsecond profiling runs and writes summary + raw JSON results. |
 | [parity_check.py](parity_check.py) | Functional check that all four edges produce identical responses, alert lines and origin requests for a fixed probe set; run before benchmarking after any edge change. |
 | [wadm_timings.py](wadm_timings.py) | Shared by every runner: Compose driving (cleanup, stack start, load-tester cycling), summary statistics, the cross-edge `WADM TOKEN <kind> <phase> (us):` scraper, the k6 end-to-end summary scraper, and the end-to-end result-document builders. |
-| [plot_common.py](plot_common.py) | Shared by both plotters: edge palette, result-file loader, raw/summary fallback, pooled-sample helpers, symlog axis styling. |
+| [plot_common.py](plot_common.py) | Shared by every plotter: edge palette, result-file loader, raw/summary fallback, pooled-sample helpers, symlog axis styling. |
 | [plot_edge_comparison.py](plot_edge_comparison.py) | Per-VU box-plot comparison of all four edges with **all honeytoken kinds pooled** — the edge-level ranking. |
 | [plot_token_comparison.py](plot_token_comparison.py) | Per-honeytoken-kind breakdown: box plots per (phase, kind) at each VU level, plus median-vs-load scaling panels. |
 | [plot_baseline_comparison.py](plot_baseline_comparison.py) | End-to-end latency with vs. without WADM: per-request-type boxes, latency-vs-load scaling, and the overhead breakdown against the internal timers. |
+| [plot_sqli_comparison.py](plot_sqli_comparison.py) | The SQLi trap's 2×2 per edge: outcome (signature hit / no match) crossed with payload encoding, plus median-vs-load scaling panels. |
 | [EDGE_LEVELING.md](EDGE_LEVELING.md) | Record of the source changes that made the four edges comparable (detection state store, canonical injection contract, Envoy path capture). |
 | [README.md](README.md) | This document. |

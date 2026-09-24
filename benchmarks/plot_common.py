@@ -21,6 +21,8 @@ import json
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter, LogLocator, SymmetricalLogLocator
 
+from wadm_timings import ALL_KINDS, KINDS, KINDS_FOR, PHASES, SQLI_ARMS
+
 # Display name -> file stem. Order here is the left-to-right box order and the
 # categorical slot assignment order below.
 EDGES = {
@@ -44,18 +46,34 @@ INK = "#0b0b0b"
 INK_MUTED = "#52514e"
 
 # html_comments leads: it is the reference measurement the added kinds are compared to.
-# The `sql_injection` trap is deliberately absent — it plants nothing, is a response
-# policy rather than a honeytoken kind, and logs under its own non-colliding label.
-KINDS = ["html_comments", "http_headers", "cookies", "decoy_paths", "form_fields"]
+# The taxonomy is imported rather than redeclared so the scrapers and the plotters can never
+# disagree about which kinds exist or which phases each one carries.
 KIND_LABELS = {
     "html_comments": "html_comments\n(body comment)",
     "http_headers": "http_headers\n(response header)",
     "cookies": "cookies\n(Set-Cookie bait)",
     "decoy_paths": "decoy_paths\n(hidden link / trap URI)",
     "form_fields": "form_fields\n(hidden input)",
+    "sql_injection": "sql_injection\n(signature hit)",
+    "sql_injection_encoded": "sql_injection\n(signature hit, %-encoded)",
+    "sql_injection_miss": "sql_injection\n(no signature match)",
+    "sql_injection_miss_encoded": "sql_injection\n(no match, %-encoded)",
 }
-PHASES = ["detect", "inject"]
 PHASE_LABELS = {"detect": "Detection", "inject": "Injection"}
+
+# Short axis labels for the SQLi 2x2. Outcome varies across the pair, encoding within it.
+SQLI_ARM_LABELS = {
+    "sql_injection": "hit\nplain",
+    "sql_injection_encoded": "hit\n%-encoded",
+    "sql_injection_miss": "no match\nplain",
+    "sql_injection_miss_encoded": "no match\n%-encoded",
+}
+SQLI_ARM_ENCODED = {
+    "sql_injection": False,
+    "sql_injection_encoded": True,
+    "sql_injection_miss": False,
+    "sql_injection_miss_encoded": True,
+}
 
 # ── End-to-end (millisecond) plane ───────────────────────────────────────────────────────────
 #
@@ -77,32 +95,63 @@ ORIGIN_KEY = "origin"
 # the two result families can never drift apart.
 EDGE_KEYS = {name: stem.removeprefix("internal_") for name, stem in EDGES.items()}
 
-# http_req_duration pools all four requests of an iteration, so it is what "the latency of a
-# request through this edge" means, and it is what the tier-comparison figures plot.
+# http_req_duration pools all eight requests of an iteration. It is what "the latency of a request
+# through this edge" means and is what the tier-comparison figures plot, but it is NOT what the
+# overhead decomposition scales up — see measured_overhead_ms_per_iteration.
 POOLED_METRIC = "http_req_duration"
 
-# The four requests of an iteration, and the WADM work each one triggers (see test.js).
+# The eight requests of an iteration, and the WADM work each one triggers (see test.js).
 #
-# Injection fires on ALL FOUR: every response is text/html and the `/*` tokens are planted on
-# every page. Detection differs — only the last three carry a trigger, so only they take the hit
-# path (record the attacker IP, render an alert). The *scan* still runs on the first request and
-# finds nothing, which is why it is labelled "no detection hit" rather than "no detection".
+# Injection fires on the four GETs: every response is text/html and the `/*` tokens are planted on
+# every page. Detection differs — only the last three GETs carry a trigger, so only they take the
+# hit path (record the attacker IP, render an alert). The *scan* still runs on the first request
+# and finds nothing, which is why it is labelled "no detection hit" rather than "no detection".
 #
 # That makes the first request the closest available injection-only measurement, and the
 # difference between it and the other three the marginal cost of a detection hit. The comparison
 # is only meaningful against the bare tier, which cancels out the fact that these are different
 # backend paths returning different-sized bodies.
-E2E_METRICS = [
+#
+# The four POSTs are the SQLi trap's 2x2 and behave in the opposite direction: on OpenResty, Envoy+Lua
+# and Apache the trap answers from the request phase, so WADM *saves* the origin round-trip the
+# bare tier pays and these requests come out faster with WADM than without. Envoy+WASM cannot
+# answer from the request phase (proxy-wasm rejects it) and rewrites the upstream response
+# instead, so it alone still pays that hop — its two POST figures carry one extra round-trip the
+# other three do not, and are not comparable across edges on this plane.
+# The four GETs. These are the ones the phase-overhead figure compares, because they share a
+# shape: every one is proxied to the origin and every one carries injection, so the difference
+# between them is a detection hit and nothing else.
+E2E_PHASE_METRICS = [
     "inject_get_duration",
     "detect_query_duration",
     "token_tamper_duration",
     "token_decoy_duration",
 ]
+
+# The four POSTs. Kept off the phase-overhead axis: they carry no injection, and on the three
+# edges that answer from the request phase WADM *removes* the origin round-trip, so their deltas
+# are negative. Drawing them beside the GETs puts "WADM added 1.5 ms" and "WADM saved 0.5 ms" on
+# one "latency added" axis and flattens the bars the figure exists to show. They get their own
+# figure in plot_sqli_comparison.py, where the sign is the result rather than a distraction.
+SQLI_E2E_METRICS = [
+    "sqli_hit_duration",
+    "sqli_hit_enc_duration",
+    "sqli_miss_duration",
+    "sqli_miss_enc_duration",
+]
+
+# Every request in the iteration. This is the summation set for the overhead decomposition, which
+# must account for the whole iteration — not the plotting set.
+E2E_METRICS = E2E_PHASE_METRICS + SQLI_E2E_METRICS
 E2E_METRIC_LABELS = {
     "inject_get_duration": "GET /\ninjection only\n(no detection hit)",
     "detect_query_duration": "GET /api/login?password=…\ninjection\n+ html_comments detection",
     "token_tamper_duration": "GET /login.html?is_admin=1&probe=…\ninjection\n+ headers, cookies, form_fields",
     "token_decoy_duration": "GET /api/v1/debug\ninjection\n+ decoy_paths detection",
+    "sqli_hit_duration": "POST /api/login\nsql_injection\nhit, plain",
+    "sqli_hit_enc_duration": "POST /api/login\nsql_injection\nhit, %-encoded",
+    "sqli_miss_duration": "POST /api/login\nsql_injection\nno signature match, plain",
+    "sqli_miss_enc_duration": "POST /api/login\nsql_injection\nno match, %-encoded",
 }
 
 
@@ -129,7 +178,7 @@ def load_edge(results_dir, stem):
                 kind: {
                     phase: tokens.get(kind, {}).get(f"{phase}_us", []) for phase in PHASES
                 }
-                for kind in KINDS
+                for kind in ALL_KINDS
             }
 
     summary_by_vus = None
@@ -146,7 +195,7 @@ def load_edge(results_dir, stem):
             }
             summary_by_vus[run["vus"]] = {
                 kind: {phase: tokens.get(kind, {}).get(phase) for phase in PHASES}
-                for kind in KINDS
+                for kind in ALL_KINDS
             }
 
     return raw_by_vus, summary_by_vus
@@ -185,18 +234,21 @@ def pooled_samples(edge, vus, phase):
     """Every kind's samples for one phase, concatenated into one distribution.
 
     Kinds contribute in proportion to how often they actually fire (the `/*` kinds
-    inject on all four benchmark requests, form_fields on one), so the pooled box is
+    inject on all four benchmark GETs, form_fields on one), so the pooled box is
     "what a honeytoken operation costs on this edge", not a mean of per-kind means.
+
+    KINDS_FOR, not KINDS: sql_injection has a detection region but nothing to inject, and the
+    clean-login control never belongs in a honeytoken pool at all.
     """
     out = []
-    for kind in KINDS:
+    for kind in KINDS_FOR[phase]:
         out.extend(samples_for(edge, vus, kind, phase))
     return out
 
 
 def pooled_stats(edge, vus, phase):
     """Count-weighted pooled summary, for edges with no raw file. Approximate."""
-    parts = [s for s in (stats_for(edge, vus, k, phase) for k in KINDS) if s]
+    parts = [s for s in (stats_for(edge, vus, k, phase) for k in KINDS_FOR[phase]) if s]
     if not parts:
         return None
     total = sum(p["count"] for p in parts)

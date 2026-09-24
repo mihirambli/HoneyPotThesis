@@ -23,6 +23,14 @@ Every edge emits two families of microsecond timing lines:
      the family-1 patterns, so OpenResty's *unprefixed* `Detection execution time \\(us\\):`
      scraper cannot swallow them and silently corrupt the html_comments distribution.
 
+     The `sql_injection` trap uses this family too, but emits `detect` only, under four
+     names crossing outcome with encoding: `sql_injection[_encoded]` on a signature hit and
+     `sql_injection_miss[_encoded]` when nothing matched, with the `_encoded` suffix set when the
+     request body required percent-decoding. It plants nothing, so there is no injection
+     region to time. The four names exist because the two factors pull in opposite
+     directions — decoding costs several microseconds while scan depth costs nothing
+     measurable — and a single hit/miss pair confounds them.
+
 `build_token_sections` merges both families into the per-kind structures written to
 `internal_<edge>_profile.json` (summary) and `internal_<edge>_raw.json` (raw samples),
 with html_comments carried over from family 1 so every kind is queried the same way.
@@ -52,6 +60,39 @@ K6_SUMMARY_RE = re.compile(r"WADM K6 SUMMARY (\{.*\})\s*$", re.M)
 # other kinds are compared against.
 KINDS = ["html_comments", "http_headers", "cookies", "decoy_paths", "form_fields"]
 PHASES = ["detect", "inject"]
+
+# sql_injection is measured but is NOT a honeytoken kind: it plants nothing, so it has no
+# injection phase at all. Keeping it out of KINDS is what stops it appearing in injection plots
+# and in the injection pool, where a page-generation cost would be compared against body mutation.
+#
+# Only the plain-hit arm is pooled, as the trap's one representative sample per iteration. Pooling
+# all four would give sql_injection four times the weight of any honeytoken kind.
+DETECT_ONLY_KINDS = ["sql_injection"]
+
+# The other three arms of the same trap, crossing outcome (signature hit / no match) with whether the
+# body needed percent-decoding. They are controls for the pooled arm, not separate features, so
+# they are persisted and plotted on their own but never pooled with the honeytoken kinds.
+CONTROL_KINDS = [
+    "sql_injection_encoded",
+    "sql_injection_miss",
+    "sql_injection_miss_encoded",
+]
+
+# The 2x2, in (outcome, encoding) order — what plot_sqli_comparison.py draws.
+SQLI_ARMS = [
+    "sql_injection",
+    "sql_injection_encoded",
+    "sql_injection_miss",
+    "sql_injection_miss_encoded",
+]
+
+# Which kinds carry data in each phase. Pooling and the per-kind grids read this rather than KINDS
+# so a detection-only kind cannot leak into an injection figure.
+KINDS_FOR = {"detect": KINDS + DETECT_ONLY_KINDS, "inject": KINDS}
+
+# Everything the scrapers persist. Phases a kind does not have land as count 0 / empty list, which
+# the plotters already treat as "no data" rather than "measured zero".
+ALL_KINDS = KINDS + DETECT_ONLY_KINDS + CONTROL_KINDS
 
 # Shared by every runner so the WADM and baseline tiers land on the same x-axis. VU 1/10/100 are
 # fixed-arrival-rate levels (test.js's sleep(1) caps a VU at one iteration/sec), which is the
@@ -125,7 +166,7 @@ def build_token_sections(
 
     summary: dict[str, Any] = {}
     raw: dict[str, Any] = {}
-    for kind in KINDS:
+    for kind in ALL_KINDS:
         per_phase = scraped.get(kind, {})
         summary[kind] = {
             phase: summarize(per_phase.get(phase, [])).to_json() for phase in PHASES
@@ -272,6 +313,10 @@ E2E_TRENDS = [
     "detect_query_duration",
     "token_tamper_duration",
     "token_decoy_duration",
+    "sqli_hit_duration",
+    "sqli_hit_enc_duration",
+    "sqli_miss_duration",
+    "sqli_miss_enc_duration",
 ]
 
 

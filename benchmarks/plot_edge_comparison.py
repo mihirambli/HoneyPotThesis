@@ -8,12 +8,14 @@ into one distribution per edge. It answers "which edge is cheapest at honeytoken
 overall". For the per-kind breakdown behind these numbers, see
 plot_token_comparison.py.
 
-The `sql_injection` trap is deliberately excluded: it plants no token, is a response
-policy rather than a honeytoken kind, and logs under its own separate label.
+The pool is per phase. `sql_injection` joins the detection pool but has no injection
+region at all — it plants nothing — so the injection pool stays the five honeytoken
+kinds. The trap's clean-login arm is a control rather than a feature and is pooled
+nowhere; it is plotted against the hit arm in plot_sqli_comparison.py.
 
 Pooling is by concatenation of raw samples, so each kind contributes in proportion to
 how often it actually fires within an iteration (the `/*` kinds inject on all four
-benchmark requests, form_fields on one). The box therefore reads as "what a honeytoken
+benchmark GETs, form_fields on one). The box therefore reads as "what a honeytoken
 operation costs on this edge", not as a mean of per-kind means.
 
 Data sources
@@ -47,7 +49,7 @@ from plot_common import (
     EDGES,
     INK,
     INK_MUTED,
-    KINDS,
+    KINDS_FOR,
     PHASES,
     PHASE_LABELS,
     add_headroom,
@@ -94,8 +96,11 @@ def plot_for_vus(vus, data, edges_present, out_dir):
         color=INK,
     )
 
+    pooled_note = "; ".join(
+        f"{PHASE_LABELS[p].lower()} over {', '.join(KINDS_FOR[p])}" for p in PHASES
+    )
     caption = (
-        f"Pooled over {', '.join(KINDS)}.\n"
+        f"Pooled {pooled_note}.\n"
         "Box = Q1–Q3, line = median, whiskers = 1.5×IQR. Y axis is symlog (linear below "
         "1 µs, log above) — the edges time in whole µs and a real share of samples lands on 0."
     )

@@ -27,9 +27,9 @@ from typing import Any
 # the k6 end-to-end summary scraper are all shared with the baseline suite; only the
 # html_comments regexes below differ per edge.
 from wadm_timings import (
+    ALL_KINDS,
     DEFAULT_DURATION,
     DEFAULT_START_DELAY,
-    KINDS,
     WARMUP_DURATION,
     WARMUP_VUS,
     append_e2e_run,
@@ -249,7 +249,7 @@ def main() -> int:
         print(f"Detection: count={detect_stats.count} min_us={detect_stats.min_us} avg_us={detect_stats.avg_us} p90_us={detect_stats.p90_us} max_us={detect_stats.max_us}")
         print(f"Injection: count={inject_stats.count} min_us={inject_stats.min_us} avg_us={inject_stats.avg_us} p90_us={inject_stats.p90_us} max_us={inject_stats.max_us}")
         print("Honeytoken kinds:")
-        for kind in KINDS:
+        for kind in ALL_KINDS:
             print(format_token_line(kind, token_summary))
         print(format_e2e_line(k6_summary))
         ratio = throughput["throughput_ratio"]

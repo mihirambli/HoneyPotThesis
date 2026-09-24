@@ -659,16 +659,21 @@ impl HoneypotHttp {
             .unwrap_or_else(|| "unknown".to_string())
     }
 
-    // Match and render the trap page, stashing it for the response phase. Timed region covers
-    // parse → match → render only, mirroring the detection-timer contract.
+    // Match and render the trap page, stashing it for the response phase.
     fn sqli_prepare(&mut self, c: &Compiled, raw: &str) {
         let cfg = match &c.sqli {
             Some(s) => &s.cfg,
             None => return,
         };
 
+        // Closed before the page is built so every arm measures the same unit: the scan alone,
+        // with rendering and the IP record outside it. The scan covers decoding each body pair,
+        // normalising the watched values and walking the signature list, and the benchmark drives
+        // all four combinations of outcome and encoding to attribute the cost between them.
         let start = self.get_current_time();
         let hit = sqli_match(cfg, raw);
+        let elapsed = self.elapsed_us(start);
+
         let (page, status) = match hit {
             Some(ref h) => (
                 sqli_render(&cfg.error_template, &h.value, cfg.reflect_max_len.unwrap_or(200)),
@@ -676,7 +681,22 @@ impl HoneypotHttp {
             ),
             None => (cfg.deny_template.clone(), cfg.deny_status_code.unwrap_or(401)),
         };
-        let elapsed = self.elapsed_us(start);
+
+        // The IP record stays outside the timed region, unlike the honeytoken kinds': only
+        // the hit arms perform it, so including it would surface as a hit-vs-miss difference
+        // that has nothing to do with the scan.
+        // Percent-encoded input is an evasion technique worth recording in its own right, and it
+        // is also where the scan actually spends its time: url_decode allocates a fresh String
+        // over every body pair and again during normalisation, while most signatures are rejected
+        // on length before a character is compared. Recording the four arms separately is what
+        // lets detection cost be attributed to normalisation rather than to scan depth. Classified
+        // after the timer closes so it never enters the measurement.
+        let kind = match (hit.is_some(), raw.contains('%')) {
+            (true, false) => "sql_injection",
+            (true, true) => "sql_injection_encoded",
+            (false, false) => "sql_injection_miss",
+            (false, true) => "sql_injection_miss_encoded",
+        };
 
         if let Some(ref h) = hit {
             warn!(
@@ -684,17 +704,16 @@ impl HoneypotHttp {
                 self.sqli_ip, h.signature, h.field, self.sqli_method, self.request_path, log_safe(&h.value)
             );
             self.detected_ips.borrow_mut().insert(self.sqli_ip.clone());
-            // Label deliberately shares no substring with the benchmark scrapers'
-            // "Detection/Injection execution time (us):" patterns.
-            warn!("WASM WADM SQLI trap build (us): {}", elapsed);
         } else {
-            // These requests are answered by the edge, so this is the only record that the trap
-            // endpoint was hit.
+            // Unlike the other three edges this one does reach the origin (the response is
+            // rewritten rather than short-circuited), but the origin has no /api/login route, so
+            // this line remains the only record that the trap endpoint was hit.
             warn!(
                 "WADM TRAP: {} {} {} answered locally with {} (no signature matched)",
                 self.sqli_ip, self.sqli_method, self.request_path, status
             );
         }
+        warn!("WADM TOKEN {} detect (us): {}", kind, elapsed);
 
         self.sqli_page = Some(page);
         self.sqli_status = status;

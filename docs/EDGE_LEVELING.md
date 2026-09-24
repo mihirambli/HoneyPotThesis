@@ -295,26 +295,67 @@ were re-measured together, so the cross-edge comparison they exist for is intact
 
 ---
 
-## The SQLi trap is outside the timed regions too
+## The SQLi trap is measured, in one phase, as a 2×2
 
-The `sql_injection` trap (see `CONTEXT.md`) terminates `POST /api/login` on all four edges. Three
-properties keep it from disturbing the leveled measurements:
+The `sql_injection` trap (see `CONTEXT.md`) terminates `POST /api/login` on all four edges. It is
+benchmarked alongside the honeytoken kinds, but it is **not** a honeytoken kind and is not
+measured like one.
 
-1. **POST-only.** `benchmarks/test.js` issues nothing but `http.get` (the four requests
-   tabulated above). Gating the trap on `methods: ["POST"]` leaves every benchmark request on
-   exactly the code path it used before. In particular the `GET` to
-   `/api/login` still reaches the origin and still returns nginx's `text/html` 404, so it keeps
-   contributing the same injection sample it always did. This is why the Apache edge deliberately
-   does **not** add `ProxyPass /api/login !` — that would answer the GET from Apache's own 404
-   page, a different-sized body, and shift the injection distribution.
-2. **Before both timers.** The trap runs at the top of each edge's request phase, ahead of
-   `get_micro_time()` / `r:clock()` / `get_current_time()`. The response-side filters gain only a
-   first-line early return, which for a non-owned request is a single nil/flag check.
-3. **A non-colliding log label.** The trap logs `WADM SQLI trap build (us):` (edge-prefixed on
-   Envoy/WASM/Apache). It shares no substring with either scraper pattern. This matters because
-   the OpenResty scraper regex is **unprefixed** — `Detection execution time \(us\):` — so any
-   prefixed variant such as `SQLi Detection execution time (us):` would have been matched by it
-   and silently corrupted `detection_us`.
+**It has no injection phase.** The trap plants nothing. The login form is the origin's own
+`/login.html`, and the hidden input WADM adds to it belongs to `form_fields`. The trap never
+mutates a response the origin produced — it watches, scans, and answers. So it has a detection
+region and nothing else, and it is excluded from every injection figure and from the injection
+pool rather than being drawn as an empty panel.
+
+**Four arms, crossing outcome with encoding.** A hit/miss pair alone confounds two factors that
+pull in opposite directions, so the benchmark drives all four combinations:
+
+```
+WADM TOKEN sql_injection detect (us): N               -- hit,         plain body
+WADM TOKEN sql_injection_encoded detect (us): N       -- hit,         %-encoded body
+WADM TOKEN sql_injection_miss detect (us): N          -- no signature match, plain body
+WADM TOKEN sql_injection_miss_encoded detect (us): N  -- no match, %-encoded body
+```
+
+`sqli_match` returns on first match, so the hit payload (`admin'`, signature #11 of 22, in the
+first watch field) stops after 11 comparisons while a non-matching body walks all 22 against `username`
+and then all 22 against `password`, 44 comparisons. **That difference is not measurable.** Most
+signatures are longer than a real field value — `information_schema` against `alice` — and are
+rejected on length before a character is compared, so the scan never really walks the list.
+
+What does cost is decoding: `url_decode` runs over every body pair and again inside
+`sqli_normalize`, so a percent-encoded payload pays the substitution path twice. The `%27` form of
+each payload decodes to exactly the plain form, so the two arms of one outcome scan identical
+bytes and differ only in decoding work, which is what makes the factor attributable.
+
+The `_encoded` suffix is set by checking the raw body for `%` *after* the timer closes, so the
+classification never enters the measurement. It is not benchmark scaffolding: percent-encoded
+input is an evasion technique the honeypot has independent reason to record.
+
+Four properties keep the trap from disturbing the levelled measurements:
+
+1. **POST-only, and terminal.** The trap is gated on `methods: ["POST"]` and short-circuits before
+   any honeytoken detector runs, so its four requests contribute samples to the `sql_injection*`
+   kinds alone and never enter the five honeytoken kinds' population. The four benchmark `GET`s
+   stay on exactly the code path they used before; in particular the `GET` to `/api/login` still
+   reaches the origin and still returns nginx's `text/html` 404, so it keeps contributing the same
+   injection sample it always did. This is why the Apache edge deliberately does **not** add
+   `ProxyPass /api/login !` — that would answer the GET from Apache's own 404 page, a
+   different-sized body, and shift the injection distribution.
+2. **Before both html_comments timers.** The trap runs at the top of each edge's request phase,
+   ahead of `get_micro_time()` / `r:clock()` / `get_current_time()`. The response-side filters
+   gain only a first-line early return, which for a non-owned request is a single nil/flag check.
+3. **One boundary, shared by all four arms.** The timed region is `sqli_match` alone. Page
+   rendering, the `WADM ALERT` / `WADM TRAP` write, the arm classification and the attacker-IP
+   record all sit outside it on every edge. The IP record being outside is a **deliberate
+   departure** from the honeytoken kinds, which time it inside their `detect` region: only the hit
+   arms perform it, so including it would surface as an outcome difference that has nothing to do
+   with the scan. All four edges do this identically, so cross-edge comparability is unaffected.
+4. **A non-colliding log label.** The lowercase `detect` word shares no substring with either
+   html_comments scraper pattern. This matters because the OpenResty scraper regex is
+   **unprefixed** — `Detection execution time \(us\):` — so any prefixed variant such as
+   `SQLi Detection execution time (us):` would be matched by it and silently corrupt
+   `detection_us`.
 
 **One owned request runs one detector.** An owned request short-circuits *all* other WADM
 detection. Enforcing this needs an explicit guard only on Apache, whose `LuaHookAccessChecker` and
@@ -347,11 +388,17 @@ measured to fail:
   (`Function: proxy_on_request_body failed: Uncaught RuntimeError: unreachable`). This happens
   whether or not the data path was paused first.
 
-`send_http_response` *is* legal from `on_http_request_headers`, which is how the trap answers a
-body-less `POST`. For the normal case the filter instead stashes the rendered page on the request
-side and swaps the status, `Content-Type` and body in `on_http_response_headers` /
-`on_http_response_body`. The attacker sees the same bytes; the cost is one round-trip to a
-same-network static nginx that would have 404'd anyway.
+`send_http_response` *would* be legal from `on_http_request_headers`, but the filter does not call
+it there either: a body-less `POST` still needs the same response-phase swap as every other trap
+request, so there is no call site for it anywhere in `wasm-filter/src/lib.rs`. The filter stashes
+the rendered page on the request side and swaps the status, `Content-Type` and body in
+`on_http_response_headers` / `on_http_response_body` in **all** cases. The attacker sees the same
+bytes; the cost is one round-trip to a same-network static nginx that would have 404'd anyway.
+
+This is invisible on the microsecond plane — the timed region closes before the round-trip — but it
+makes the four `sqli_*_duration` trends **not comparable across edges** on the end-to-end
+plane: Envoy+WASM alone pays that hop. `benchmarks/parity_check.py` also drops `POST /api/login`
+from its origin-log comparison, which is what lets the parity check pass despite the divergence.
 
 Envoy+Lua is the mirror-image case and *is* levelled: `request_handle:respond()` is rejected once
 `headers_continued_` is set, and buffering with `body()` leaves that flag clear — but
@@ -640,7 +687,8 @@ logging:
 | Response framing: Envoy+Lua sends an exact `Content-Length`; the others go chunked | `setBytes` runs before Envoy sends headers; the other three cannot know the final length at header time. Not part of the detection/injection mechanism |
 | Apache forwards `path?` when every parameter is stripped | mod_lua can only assign `r.args` a string, and mod_proxy appends `?` whenever args is non-NULL. The origin serves the same resource |
 | Apache sets `Set-Cookie` with `apr_table_set`, so several cookie tokens on one path would overwrite each other | mod_lua exposes no `add` for `err_headers_out`; the shipped config plants one cookie |
-| The Envoy+WASM SQLi trap contacts the origin | proxy-wasm host constraints — see [The SQLi trap is outside the timed regions too](#the-sqli-trap-is-outside-the-timed-regions-too) |
+| The Envoy+WASM SQLi trap contacts the origin | proxy-wasm host constraints — see [The SQLi trap is measured, in one phase, as a 2×2](#the-sqli-trap-is-measured-in-one-phase-as-a-22). Affects the end-to-end POST figures only; the timed region closes first |
+| `sql_injection` leaves the attacker-IP record outside its timed region, unlike the honeytoken kinds | Only the hit arms perform that write; including it would surface as an outcome difference unrelated to the scan. Identical on all four edges |
 | POST-body inspection exists on OpenResty and Envoy+Lua only | Off by default (`post_body_inspection: false`); aligned between those two edges and kept for a future iteration that adds it to all four |
 | Rust decodes query values with `from_utf8_lossy` | Only differs for invalid UTF-8 after decoding; identical for all ASCII input |
 

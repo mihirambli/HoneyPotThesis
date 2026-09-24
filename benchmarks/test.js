@@ -15,12 +15,38 @@ const FORM_PAGE = __ENV.FORM_PAGE || '/login.html';
 const FORM_FIELD = __ENV.FORM_FIELD || 'is_admin';
 const FORM_TAMPER_VALUE = __ENV.FORM_TAMPER_VALUE || '1';
 
+// sql_injection probes. The trap is POST-gated, so these are the only non-GET requests.
+//
+// Two factors crossed, because a measured 2x2 showed they pull in opposite directions and a
+// single hit/miss pair confounds them:
+//
+//   outcome   hit vs. clean login. `admin'` matches signature #11 of 22 and stops the scan
+//             there; a clean login walks all 22 against `username` then all 22 against
+//             `password`. That 33-comparison difference turned out to cost nothing measurable,
+//             because most signatures are longer than a real field value and are rejected on
+//             length before a character is compared.
+//   encoding  whether the body needs percent-decoding. This is what actually costs: url_decode's
+//             substitution path runs over every body pair and again inside sqli_normalize.
+//
+// The `%27` form of each payload decodes to exactly the plain form, so the encoded and plain arms
+// of the same outcome scan identical bytes and differ only in decoding work. Re-check the hit
+// payloads if the `signatures` list in config.json is ever reordered.
+const SQLI_PATH = __ENV.SQLI_PATH || '/api/login';
+const SQLI_HIT_BODY = __ENV.SQLI_HIT_BODY || "username=admin'&password=x";
+const SQLI_HIT_ENC_BODY = __ENV.SQLI_HIT_ENC_BODY || 'username=admin%27&password=x';
+const SQLI_MISS_BODY = __ENV.SQLI_MISS_BODY || 'username=alice&password=secret';
+const SQLI_MISS_ENC_BODY = __ENV.SQLI_MISS_ENC_BODY || 'username=alice%27&password=secret';
+
 // Per-phase Trends keep WADM injection vs. detection latency distinguishable in k6's summary;
 // the built-in http_req_duration would aggregate all calls into one distribution.
 const injectGetDuration = new Trend('inject_get_duration', true);
 const detectQueryDuration = new Trend('detect_query_duration', true);
 const tokenTamperDuration = new Trend('token_tamper_duration', true);
 const tokenDecoyDuration = new Trend('token_decoy_duration', true);
+const sqliHitDuration = new Trend('sqli_hit_duration', true);
+const sqliHitEncDuration = new Trend('sqli_hit_enc_duration', true);
+const sqliMissDuration = new Trend('sqli_miss_duration', true);
+const sqliMissEncDuration = new Trend('sqli_miss_enc_duration', true);
 
 // k6's default summary carries only min/avg/med/max/p(90)/p(95). The quartiles are what let the
 // baseline-vs-WADM plots draw a *true* box (Q1/median/Q3) from the summary alone; the alternative,
@@ -46,6 +72,14 @@ export const options = {
 // 404 is expected for the two edge-only paths (/api/login and the decoy trap have no backend
 // route); marking it acceptable keeps http_req_failed meaningful.
 const ALLOW_404 = { responseCallback: http.expectedStatuses(200, 404) };
+
+// The trap answers 500 on a signature hit and 401 on a clean login, while the baseline tiers have
+// no trap at all and fall through to the origin's 404. All three are expected outcomes, so all
+// three must count as non-failures or http_req_failed would read as a broken run.
+const SQLI_REQUEST = {
+  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  responseCallback: http.expectedStatuses(200, 401, 404, 500),
+};
 
 export default function () {
   // 1. Baseline HTML response: html_comments body injection, plus the header/cookie baits and
@@ -79,18 +113,39 @@ export default function () {
   const decoyRes = http.get(`${TARGET}${DECOY_PATH}`, ALLOW_404);
   tokenDecoyDuration.add(decoyRes.timings.duration);
 
+  // 5-8. sql_injection, all four arms. The trap is detection-only — it plants nothing, so it has
+  //      no injection phase. The edge labels each sample by outcome and by whether the body
+  //      needed decoding, which is what separates scan depth from normalisation cost.
+  const sqliHitRes = http.post(`${TARGET}${SQLI_PATH}`, SQLI_HIT_BODY, SQLI_REQUEST);
+  sqliHitDuration.add(sqliHitRes.timings.duration);
+
+  const sqliHitEncRes = http.post(`${TARGET}${SQLI_PATH}`, SQLI_HIT_ENC_BODY, SQLI_REQUEST);
+  sqliHitEncDuration.add(sqliHitEncRes.timings.duration);
+
+  const sqliMissRes = http.post(`${TARGET}${SQLI_PATH}`, SQLI_MISS_BODY, SQLI_REQUEST);
+  sqliMissDuration.add(sqliMissRes.timings.duration);
+
+  const sqliMissEncRes = http.post(`${TARGET}${SQLI_PATH}`, SQLI_MISS_ENC_BODY, SQLI_REQUEST);
+  sqliMissEncDuration.add(sqliMissEncRes.timings.duration);
+
   sleep(1);
 }
 
-// http_req_duration is the pooled headline (all four requests); the custom Trends keep the
-// per-request-type breakdown. Both are needed: the pooled figure is what the overhead
-// decomposition divides by four, the per-type ones show which request WADM actually taxes.
+// http_req_duration is the pooled headline (all eight requests); the custom Trends keep the
+// per-request-type breakdown. The per-type ones are what the overhead decomposition sums, because
+// the four POSTs are short-circuited by the trap on three of four edges and are therefore *faster*
+// than their baseline counterparts — scaling the pooled median by the request count would let
+// that saving cancel out the overhead the GETs add.
 const REPORTED_TRENDS = [
   'http_req_duration',
   'inject_get_duration',
   'detect_query_duration',
   'token_tamper_duration',
   'token_decoy_duration',
+  'sqli_hit_duration',
+  'sqli_hit_enc_duration',
+  'sqli_miss_duration',
+  'sqli_miss_enc_duration',
 ];
 
 // k6 stat key -> JSON key. Parentheses are stripped so the result files stay easy to index.

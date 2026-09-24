@@ -35,13 +35,14 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
 from plot_common import (
+    ALL_KINDS,
     COLORS,
     E2E_METRIC_LABELS,
     E2E_METRICS,
+    E2E_PHASE_METRICS,
     EDGES,
     INK,
     INK_MUTED,
-    KINDS,
     PHASES,
     POOLED_METRIC,
     TIER_LABELS,
@@ -56,10 +57,6 @@ from plot_common import (
     samples_for,
     style_axis_ms,
 )
-
-# Requests per k6 iteration (see test.js). Converts a per-request end-to-end delta into the
-# per-iteration figure the internal timers are naturally expressed against.
-REQUESTS_PER_ITERATION = 4
 
 TIER_OFFSET = {"bare": -0.19, "wadm": 0.19}
 
@@ -175,7 +172,7 @@ def plot_comparison_for_vus(vus, data, origin, edges_present, saturated, out_dir
         color=INK,
     )
     caption = (
-        "All four requests of an iteration pooled (http_req_duration). Box = Q1–Q3, line = "
+        "All six requests of an iteration pooled (http_req_duration). Box = Q1–Q3, line = "
         "median, whiskers = p5–p95 (k6 summary quantiles — real percentiles, unlike the hatched "
         "approximations in the internal-timer figures). Hollow = WADM absent, filled = WADM "
         "active; hue identifies the edge in every figure. The dashed rule is the no-proxy median. "
@@ -295,14 +292,19 @@ def plot_phase_overhead_for_vus(vus, data, edges_present, saturated, out_dir):
     four request types comparable: they hit different backend paths returning different-sized
     bodies, and the bare tier pays exactly those same costs without doing any WADM work, so the
     difference is WADM's contribution and nothing else.
+
+    E2E_PHASE_METRICS, not E2E_METRICS: the iteration's four sql_injection POSTs carry no
+    injection and are answered without contacting the origin on three of the four edges, so their
+    deltas are negative. Sharing an axis with the GETs would put "WADM added 1.5 ms" beside "WADM
+    saved 0.5 ms" under one "latency added" label. They are plotted by plot_sqli_comparison.py.
     """
-    fig, ax = plt.subplots(figsize=(13, 7.4))
+    fig, ax = plt.subplots(figsize=(3.4 * len(E2E_PHASE_METRICS), 7.4))
     width = 0.19
 
     for slot, name in enumerate(edges_present):
         offset = (slot - (len(edges_present) - 1) / 2) * width
         xs, heights = [], []
-        for i, metric in enumerate(E2E_METRICS, start=1):
+        for i, metric in enumerate(E2E_PHASE_METRICS, start=1):
             wadm = e2e_stats(data[name].get("wadm"), vus, metric)
             bare = e2e_stats(data[name].get("bare"), vus, metric)
             if not wadm or not bare:
@@ -314,9 +316,9 @@ def plot_phase_overhead_for_vus(vus, data, edges_present, saturated, out_dir):
                    edgecolor="white", linewidth=2, zorder=2)
 
     ax.axhline(0, color="#d5d4cf", linewidth=1, zorder=1)
-    ax.set_xlim(0.45, len(E2E_METRICS) + 0.55)
-    ax.set_xticks(range(1, len(E2E_METRICS) + 1))
-    ax.set_xticklabels([E2E_METRIC_LABELS[m] for m in E2E_METRICS], fontsize=8.5)
+    ax.set_xlim(0.45, len(E2E_PHASE_METRICS) + 0.55)
+    ax.set_xticks(range(1, len(E2E_PHASE_METRICS) + 1))
+    ax.set_xticklabels([E2E_METRIC_LABELS[m] for m in E2E_PHASE_METRICS], fontsize=8.5)
     style_axis_ms(ax, scale="linear", from_zero=False)
     low, high = ax.get_ylim()
     ax.set_ylim(min(low, 0) * 1.15 if low < 0 else 0, high * 1.15)
@@ -339,12 +341,15 @@ def plot_phase_overhead_for_vus(vus, data, edges_present, saturated, out_dir):
         color=INK,
     )
     caption = (
-        "Injection fires on all four requests — every response is text/html and the `/*` tokens "
-        "are planted on every page — so the leftmost group is the injection-only cost and the "
-        "other three add a detection hit on top of that same injection. The detection *scan* runs "
-        "on all four; only the hit path (record the IP, render the alert) is extra. End-to-end "
-        "latency cannot separate the two phases within one request — for that, see the detect and "
-        "inject panels of the internal-timer figures."
+        "The four GETs of the iteration. Injection fires on all of them — every response is "
+        "text/html and the `/*` tokens are planted on every page — so the leftmost group is the "
+        "injection-only cost and the other three add a detection hit on top of that same "
+        "injection. The detection *scan* runs on all four; only the hit path (record the IP, "
+        "render the alert) is extra. The iteration's four sql_injection POSTs are plotted "
+        "separately (sqli_e2e_overhead_vus_*.png): they carry no injection, and WADM answers them "
+        "without contacting the origin, so their deltas are negative and belong on their own "
+        "axis. End-to-end latency cannot separate the two phases within one request — for that, "
+        "see the detect and inject panels of the internal-timer figures."
     )
     if vus in saturated:
         caption += (
@@ -367,11 +372,14 @@ def attributed_us_per_iteration(internal_edge, vus, iterations):
     Summed as (median cost of one operation) × (how many of that operation fired), over every
     kind and both phases. Medians rather than means, to stay consistent with the end-to-end
     delta this is compared against, which is also a median difference.
+
+    ALL_KINDS, not KINDS: the SQLi trap's scan is real per-iteration WADM work whichever arm it
+    takes, and a kind that has no samples for a phase is skipped below rather than counted as 0.
     """
     if not iterations:
         return None
     total = 0.0
-    for kind in KINDS:
+    for kind in ALL_KINDS:
         for phase in PHASES:
             values = samples_for(internal_edge, vus, kind, phase)
             if not values:
@@ -382,12 +390,26 @@ def attributed_us_per_iteration(internal_edge, vus, iterations):
 
 
 def measured_overhead_ms_per_iteration(data, name, vus):
-    """End-to-end cost WADM adds to one iteration, in ms."""
-    wadm = e2e_stats(data[name].get("wadm"), vus, POOLED_METRIC)
-    bare = e2e_stats(data[name].get("bare"), vus, POOLED_METRIC)
-    if not wadm or not bare:
+    """End-to-end cost WADM adds to one iteration, in ms.
+
+    Summed per request type rather than taken as (pooled median delta × request count). The two
+    SQLi POSTs are answered from the request phase on OpenResty, Envoy+Lua and Apache, so WADM
+    *saves* them the origin round-trip the bare tier pays and their deltas are negative. Scaling
+    a pooled median would let that saving cancel the overhead the four GETs add, understating —
+    and on a fast origin inverting — the bar this figure exists to show. Summing the per-type
+    deltas keeps each request's own sign and is independent of iteration composition.
+    """
+    wadm_runs, bare_runs = data[name].get("wadm"), data[name].get("bare")
+    deltas = []
+    for metric in E2E_METRICS:
+        wadm = e2e_stats(wadm_runs, vus, metric)
+        bare = e2e_stats(bare_runs, vus, metric)
+        if not wadm or not bare:
+            continue
+        deltas.append(wadm["med"] - bare["med"])
+    if not deltas:
         return None
-    return (wadm["med"] - bare["med"]) * REQUESTS_PER_ITERATION
+    return sum(deltas)
 
 
 def iterations_for(data, name, vus):
@@ -475,9 +497,11 @@ def plot_overhead_breakdown(data, internal, edges_present, vus_list, saturated, 
         color=INK,
     )
     caption = (
-        "Per k6 iteration (4 requests); each panel is scaled to its own load level. "
-        "Measured = 4 × (median http_req_duration with WADM − without). Accounted = Σ over kinds "
-        "and phases of (median operation cost × operations fired) ÷ iterations. The gap is real "
+        "Per k6 iteration (6 requests); each panel is scaled to its own load level. "
+        "Measured = Σ over request types of (median with WADM − without); the two SQLi POSTs "
+        "contribute negatively on the edges that answer them without contacting the origin. "
+        "Accounted = Σ over kinds and phases of (median operation cost × operations fired) ÷ "
+        "iterations. The gap is real "
         "WADM cost the timers exclude by design — config parse, per-request setup, "
         "response-body buffering, and the alert log writes."
     )

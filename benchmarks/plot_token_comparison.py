@@ -8,8 +8,11 @@ into a `tokens` section of their result files; this script renders them per kind
 
 This is the companion to plot_edge_comparison.py, which pools the same samples into
 one distribution per edge. Use that one to rank edges, this one to see which kind
-drives the cost. The `sql_injection` trap appears in neither: it plants no token and
-is a response policy rather than a honeytoken kind.
+drives the cost.
+
+`sql_injection` appears in the detection row only. It plants nothing — the login form is the
+origin's own page — so it has no injection region to time, and its injection panel is omitted
+rather than drawn empty, which would read as "measured, and zero".
 
 Two figure families are produced into <results_dir>/plots/:
 
@@ -38,7 +41,7 @@ from plot_common import (
     INK,
     INK_MUTED,
     KIND_LABELS,
-    KINDS,
+    KINDS_FOR,
     PHASE_LABELS,
     PHASES,
     add_headroom,
@@ -54,10 +57,13 @@ from plot_common import (
 
 
 def plot_for_vus(vus, data, edges_present, out_dir):
+    # Phases carry different numbers of kinds (sql_injection is detection-only), so the grid is
+    # sized for the widest row and the surplus cells are removed below.
+    ncols = max(len(KINDS_FOR[p]) for p in PHASES)
     fig, axes = plt.subplots(
         len(PHASES),
-        len(KINDS),
-        figsize=(3.4 * len(KINDS), 4.1 * len(PHASES)),
+        ncols,
+        figsize=(3.4 * ncols, 4.1 * len(PHASES)),
         sharey="row",
     )
     any_fallback = False
@@ -66,7 +72,10 @@ def plot_for_vus(vus, data, edges_present, out_dir):
     flat_per_panel = {}
 
     for row, phase in enumerate(PHASES):
-        for col, kind in enumerate(KINDS):
+        kinds = KINDS_FOR[phase]
+        for col in range(len(kinds), ncols):
+            axes[row][col].set_visible(False)
+        for col, kind in enumerate(kinds):
             ax = axes[row][col]
             fallback, flat = draw_edge_boxes(
                 ax,
@@ -79,7 +88,7 @@ def plot_for_vus(vus, data, edges_present, out_dir):
 
             # Edge names on the x axis of the bottom row make identity readable without
             # colour; the top row shares the same fixed left-to-right order.
-            if row == len(PHASES) - 1:
+            if row == len(PHASES) - 1 or col >= len(KINDS_FOR[PHASES[row + 1]]):
                 ax.set_xticklabels(edges_present, rotation=40, ha="right", fontsize=8)
             else:
                 ax.set_xticklabels([])
@@ -130,13 +139,14 @@ def plot_for_vus(vus, data, edges_present, out_dir):
 
 def plot_scaling(phase, data, edges_present, vus_list, out_dir):
     """Median latency vs. VU level, one line per edge, IQR shaded — one panel per kind."""
-    fig, axes = plt.subplots(1, len(KINDS), figsize=(3.4 * len(KINDS), 4.6), sharey=True)
+    kinds = KINDS_FOR[phase]
+    fig, axes = plt.subplots(1, len(kinds), figsize=(3.4 * len(kinds), 4.6), sharey=True)
     x = range(len(vus_list))
     # Labels are placed in a second pass: with sharey, the y limits are not final until
     # every panel has been drawn, and the stagger is computed against those limits.
     endpoints_per_panel = {}
 
-    for col, kind in enumerate(KINDS):
+    for col, kind in enumerate(kinds):
         ax = axes[col]
         endpoints = []
         for name in edges_present:
