@@ -1,4 +1,29 @@
 # Compose file: pick ONE edge via profile (openresty | envoy | wasm | apache). backend always defined for upstream.
+#
+# CPU isolation and log delivery are set per service below, both for measurement fidelity:
+#
+#   cpuset   The edge, the origin and the load generator are pinned to disjoint cores. Without
+#            this, k6 at high rates competes with the edge it is measuring, and the "edge
+#            latency" it reports includes its own scheduling delay. Pinning also makes the
+#            saturation point a property of the edge rather than of whatever else the host was
+#            doing. Override via EDGE_CPUS / BACKEND_CPUS / LOADGEN_CPUS; set them all to 0-7 to
+#            restore the unpinned behaviour.
+#
+#   logging  Non-blocking delivery with a large buffer. Every measured request writes several
+#            `WADM TOKEN ... (us): N` lines to stderr, and under blocking delivery a full pipe
+#            stalls the worker mid-request. That stall lands inside the NEXT timed region, where a
+#            wall-clock timer charges it to WADM: it is the mechanism behind samples in the tens of
+#            milliseconds for work whose median is 5 us. The trade is that a line may be dropped
+#            rather than delivered under extreme burst, which shows up honestly as a lower sample
+#            count instead of as a corrupted sample.
+x-wadm-logging: &wadm_logging
+  driver: json-file
+  options:
+    max-size: "64m"
+    max-file: "3"
+    mode: non-blocking
+    max-buffer-size: "64m"
+
 services:
   # Origin only: static HTML; no honeytoken logic here — all WADM runs in the edge you enable.
   backend:
@@ -6,6 +31,8 @@ services:
     volumes:
       - ./backend/www:/usr/share/nginx/html:ro
       - ./backend/nginx.conf:/etc/nginx/nginx.conf:ro
+    cpuset: ${BACKEND_CPUS:-3}
+    logging: *wadm_logging
     networks:
       - honeypot
 
@@ -23,6 +50,8 @@ services:
       - ./config.json:/etc/openresty/config.json:ro
     depends_on:
       - backend
+    cpuset: ${EDGE_CPUS:-1-2}
+    logging: *wadm_logging
     networks:
       - honeypot
 
@@ -39,6 +68,8 @@ services:
       - ./envoy_scripts:/etc/envoy/scripts:ro
     depends_on:
       - backend
+    cpuset: ${EDGE_CPUS:-1-2}
+    logging: *wadm_logging
     networks:
       - honeypot
 
@@ -70,6 +101,8 @@ services:
         condition: service_completed_successfully
       backend:
         condition: service_started
+    cpuset: ${EDGE_CPUS:-1-2}
+    logging: *wadm_logging
     networks:
       - honeypot
 
@@ -86,6 +119,8 @@ services:
       - ${HTTPD_CONF:-./httpd.conf}:/usr/local/apache2/conf/httpd.conf:ro
     depends_on:
       - backend
+    cpuset: ${EDGE_CPUS:-1-2}
+    logging: *wadm_logging
     networks:
       - honeypot
 
@@ -118,10 +153,24 @@ services:
       SQLI_HIT_ENC_BODY: ${SQLI_HIT_ENC_BODY:-}
       SQLI_MISS_BODY: ${SQLI_MISS_BODY:-}
       SQLI_MISS_ENC_BODY: ${SQLI_MISS_ENC_BODY:-}
-      K6_VUS: ${K6_VUS:-5}
-      K6_DURATION: ${K6_DURATION:-30s}
-      K6_START_DELAY: ${K6_START_DELAY:-5s}
+      # WADM_*, never K6_*. k6 owns the K6_ prefix for its own CLI options, so exporting
+      # K6_VUS or K6_DURATION makes k6 synthesise a default scenario and discard test.js's
+      # `scenarios` block entirely — executor, arrival rate and startTime with it. The previous
+      # harness exported both, so every run it recorded was a plain constant-VUs run with no
+      # start delay, whatever test.js asked for.
+      WADM_RATE: ${WADM_RATE:-10}
+      WADM_DURATION: ${WADM_DURATION:-30s}
+      WADM_START_DELAY: ${WADM_START_DELAY:-5s}
+      WADM_ORDER: ${WADM_ORDER:-rotate}
+      WADM_SEED: ${WADM_SEED:-1}
+      WADM_PREALLOC_VUS: ${WADM_PREALLOC_VUS:-}
+      WADM_MAX_VUS: ${WADM_MAX_VUS:-}
     command: ["run", "/scripts/test.js"]
+    # The load generator gets its own cores. Sharing them with the edge made k6's own scheduling
+    # delay part of every "edge latency" reading, and at high rates k6 is the hungriest process on
+    # the host. Four of eight vCPUs is ample for eight in-flight requests per iteration.
+    cpuset: ${LOADGEN_CPUS:-4-7}
+    logging: *wadm_logging
     networks:
       - honeypot
 

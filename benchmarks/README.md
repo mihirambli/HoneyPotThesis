@@ -27,6 +27,117 @@ The third request deliberately bundles three kinds: each edge times each kind in
 
 The four `POST`s are the only non-`GET` requests, because the trap is gated on `POST /api/login`. On OpenResty, Envoy+Lua and Apache the trap answers them from the request phase, so WADM *saves* these requests the origin round-trip the bare tier pays and their end-to-end deltas are negative — which is why the overhead decomposition sums per-request-type deltas instead of scaling the pooled median.
 
+## Which harness to use
+
+There are now two, and only one of them produces a number you can report as a cost.
+
+| | `run_paired_benchmark.py` + `analyze_paired.py` | `run_baseline_benchmark.py` / `run_internal_<edge>_benchmark.py` |
+|---|---|---|
+| Tiers | bare and WADM, **paired**, minutes apart, order alternated | one tier per invocation, tens of minutes apart |
+| Replication | `--replicates` pairs, bootstrap CI on the differences | one run |
+| Bad runs | gated and excluded, with recorded reasons | warned about, then written and plotted |
+| Load shape | `constant-arrival-rate`, offered rate fixed | `constant-vus` + `sleep(1)`, achieved rate varies with latency |
+| Probe order | rotated, so no probe is pinned to a queue position | fixed |
+| CPU cost | cgroup `cpu.stat`, µs of CPU per request | not measured |
+| Use it for | **anything reported as an overhead** | running one tier in isolation; reproducing the original numbers |
+
+The split scripts are kept working and are not deprecated as *runners* — they are simply not a
+valid basis for a difference. Subtracting one of their outputs from another's compares runs made
+tens of minutes apart, and the drift between two such runs is larger than the effect being
+measured. That is what produced the negative WADM overhead bars in the committed figures, not any
+property of WADM. `docs/BENCHMARK_METHODOLOGY.md` sets out the evidence and every other artefact
+found with it.
+
+### The Apache remediation variant
+
+Apache is the only edge that segfaults under WADM, and the cause was isolated to the mod_lua output
+filter. `apache_lua_conn` is the same edge with `LuaScope conn` instead of `thread` — one directive,
+in `httpd-conn.conf` — which removes the crash. It is **not** part of `--all`: the four-edge
+comparison needs every edge running the same mechanism, so the variant is run by key and reported on
+its own.
+
+```bash
+python3 benchmarks/run_paired_benchmark.py --edge apache_lua_conn --preset full
+python3 benchmarks/plot_remediation.py
+```
+
+See `docs/BENCHMARK_METHODOLOGY.md` §4b for the crash investigation and §4c for how the variant is
+wired and presented.
+
+```bash
+sudo ./benchmarks/tune_guest.sh apply          # guest-side noise reduction
+
+python3 benchmarks/run_paired_benchmark.py --preset smoke --all   # ~20 min, proves the harness
+python3 benchmarks/run_paired_benchmark.py --preset full  --all   # ~2.5-3 h, reportable
+python3 benchmarks/analyze_paired.py                              # deltas, quantiles, CPU split, coverage
+
+python3 benchmarks/plot_paired_overhead.py     # latency added, shift function, timers, headline table
+python3 benchmarks/plot_cost_attribution.py    # timers vs CPU vs end-to-end
+python3 benchmarks/plot_remediation.py         # Apache LuaScope thread vs conn
+
+python3 benchmarks/run_capacity_benchmark.py --all                # see methodology §6.5 before quoting
+
+sudo ./benchmarks/tune_guest.sh revert
+```
+
+Every figure is drawn from `paired_<edge>.json`. The plotters that read the legacy
+`e2e_*` / `internal_*` files (`plot_baseline_comparison.py`, `plot_edge_comparison.py`,
+`plot_token_comparison.py`, `plot_sqli_comparison.py`) are **retired**: their committed figures came
+from the unpaired constant-VU runs, and the sections describing them below are kept as history.
+Results a regeneration replaces are copied to `results/archive/<date>-<label>/` first; see
+`docs/BENCHMARK_METHODOLOGY.md` §6 for what the review changed and why.
+
+### Load-shape variables are `WADM_*`, never `K6_*`
+
+k6 claims the `K6_` prefix for its own CLI options. Exporting `K6_VUS` or `K6_DURATION` makes k6
+build its own default scenario and **discard `options.scenarios` entirely** — executor, arrival
+rate and `startTime` with it. The suite used to export both, so every recorded run was a plain
+constant-VUs run with no start delay whatever `test.js` declared. Use `WADM_RATE`,
+`WADM_DURATION`, `WADM_START_DELAY`, `WADM_ORDER`, `WADM_SEED`, `WADM_PRIME`.
+
+`WADM_RATE` is **offered iterations per second**, not a VU count. Under the old `constant-vus`
+plus `sleep(1)` shape a VU produced at most one iteration per second, so the two are numerically
+comparable and land on the same x-axis — but the arrival rate is now an input held fixed rather
+than an outcome that falls as latency rises.
+
+### Cost attribution: what the timers miss
+
+`plot_cost_attribution.py` draws the gap between the three planes, which is a finding in its own
+right rather than a diagnostic. Measured on OpenResty at 10 iterations/s:
+
+| Plane | Per request | What it counts |
+|---|---|---|
+| Instrumented detect + inject timers | ~5-10 µs | only the regions someone wrapped |
+| Edge CPU added (cgroup `cpu.stat`) | ~55 µs | every cycle the container burned |
+| End-to-end added (GET probes) | ~100-190 µs | what the client actually waited |
+
+So the detect/inject timers — the numbers every per-kind figure in this repo is built on — account
+for roughly **5-10% of what WADM costs**. The rest is real work outside the timed regions: Lua VM
+entry and exit on each phase hook, the response body filter walking the body, the extra header
+table writes, and rendering and writing the alert lines. None of it is wrapped in a timer, so none
+of it appears in the microsecond figures.
+
+That gap was not measurable before, because it requires the CPU plane (new) and a bare-vs-WADM
+difference that is not swamped by drift (also new). Two figures:
+
+```
+cost_attribution.png            per edge, at the highest rate all edges share: the three scopes
+                                side by side, µs per iteration, the CPU bar from the marginal fit,
+                                replicate ranges, and the timer coverage % in the title
+instrumented_coverage.png       coverage as a percentage across the rate ladder, one line per edge
+```
+
+The CPU bar is **net** of the proxy work the SQLi trap saves and **includes** the cost of writing
+the timing log lines, so part of the gap may be the instrumentation itself — see
+`docs/BENCHMARK_METHODOLOGY.md` §6.3 before quoting the coverage percentage.
+
+The three scopes are **nested accounting boundaries, not addends** — they are measured on three
+different instruments (wall clock inside the regions, the cgroup CPU counter, the client's
+observed latency), so the figure deliberately does not stack them or draw a "remainder" bar.
+The four SQLi POSTs are excluded from the end-to-end bar and annotated separately, because the
+trap removes an origin round-trip there and folding a saving into a bar labelled "latency added"
+would cancel the GET overhead the figure exists to show.
+
 ## Why the keyword is in the query string
 
 All four edges inspect the request **query string**, and they parse and strip it the same way (see invariant 9 under [Cross-edge comparability](#cross-edge-comparability)). Putting `TRIGGER_KEYWORD` in `?password=...` therefore exercises the same detection path on every edge, so `detect_query_duration` is comparable across all four. The same reasoning drives the `form_fields` and `http_headers` surfaces in request 3 — both are query-string checks on every edge.
@@ -526,7 +637,9 @@ Note that `E2E_METRICS` still contains all eight requests — it is the summatio
 Two caveats on that plane, neither of which touches the microsecond figures:
 
 - **Envoy+WASM is not comparable to the other three.** It cannot answer from the request phase and rewrites the upstream response instead, so it alone pays an origin round-trip. Its bars sit near zero for that reason, not because WADM costs it more.
-- **Latency falls ~30% across an iteration even with WADM absent.** The first request after `sleep(1)` pays a wake-up cost later ones do not, so the eight Trends are eight measurements taken at eight points on a gradient. The `wadm − bare` subtraction cancels it (both tiers share the ordering), which is why every end-to-end figure plots a delta; absolute per-request figures would not be comparable across positions. See the 2026-09-21 entry in [THESIS_NOTES.md](../docs/THESIS_NOTES.md).
+- **Latency fell across an iteration even with WADM absent, and the subtraction did *not* rescue it.** Measured on the origin tier — no proxy, no WADM — the eight slots spread 1.6x at VU=1 and 4.9x at VU=500, monotonically decreasing in issue order. The earlier reading here was that `wadm − bare` cancels the gradient because both tiers share the ordering. That holds for one probe against itself, but two things broke it: the tiers ran at *different* achieved rates (0.554 vs 0.665 at VU=500), so the gradients had different magnitudes; and the phase-overhead figure compares probes **against each other**, where a fixed order means each probe sits at a different point on the gradient. `inject_get_duration` was permanently slot 1 and carried 0.4-2.9 ms of arrival artefact against a ~2 us injection cost.
+
+  Now fixed at the source rather than subtracted away: `constant-arrival-rate` removes the synchronised wake-up, an unrecorded priming request absorbs the idle-connection cost, and `WADM_ORDER=rotate` moves every probe through every position equally. Measured residual on OpenResty: slot spread 1.79x → 1.33x, and the four GET probes went from a 1.66x spread to 1.13x. `WADM_ORDER=fixed` reproduces the original behaviour if you want to quantify the bias directly. See `docs/BENCHMARK_METHODOLOGY.md` and the 2026-09-21 entry in [THESIS_NOTES.md](../docs/THESIS_NOTES.md).
 
 The microsecond plane the 2×2 figures use is unaffected by both — those timers wrap a region inside the edge and never include the network.
 
@@ -731,10 +844,11 @@ benchmark is in progress.
 | [run_internal_wasm_benchmark.py](run_internal_wasm_benchmark.py) | Orchestrates internal Envoy WASM microsecond profiling runs and writes summary + raw JSON results. |
 | [parity_check.py](parity_check.py) | Functional check that all four edges produce identical responses, alert lines and origin requests for a fixed probe set; run before benchmarking after any edge change. |
 | [wadm_timings.py](wadm_timings.py) | Shared by every runner: Compose driving (cleanup, stack start, load-tester cycling), summary statistics, the cross-edge `WADM TOKEN <kind> <phase> (us):` scraper, the k6 end-to-end summary scraper, and the end-to-end result-document builders. |
+| [plot_paired_overhead.py](plot_paired_overhead.py) | From the paired data: latency added per probe (forest plot), the shift function by quantile, the in-edge timer heatmap, and the headline table (`results/paired_headline.md/.csv`). |
 | [plot_common.py](plot_common.py) | Shared by every plotter: edge palette, result-file loader, raw/summary fallback, pooled-sample helpers, symlog axis styling. |
-| [plot_edge_comparison.py](plot_edge_comparison.py) | Per-VU box-plot comparison of all four edges with **all honeytoken kinds pooled** — the edge-level ranking. |
-| [plot_token_comparison.py](plot_token_comparison.py) | Per-honeytoken-kind breakdown: box plots per (phase, kind) at each VU level, plus median-vs-load scaling panels. |
-| [plot_baseline_comparison.py](plot_baseline_comparison.py) | End-to-end latency with vs. without WADM: per-request-type boxes, latency-vs-load scaling, and the overhead breakdown against the internal timers. |
-| [plot_sqli_comparison.py](plot_sqli_comparison.py) | The SQLi trap's 2×2 per edge: outcome (signature hit / no match) crossed with payload encoding, plus median-vs-load scaling panels. |
+| [plot_edge_comparison.py](plot_edge_comparison.py) | *Retired.* Per-VU box-plot comparison of all four edges with **all honeytoken kinds pooled** — the edge-level ranking. |
+| [plot_token_comparison.py](plot_token_comparison.py) | *Retired.* Per-honeytoken-kind breakdown: box plots per (phase, kind) at each VU level, plus median-vs-load scaling panels. |
+| [plot_baseline_comparison.py](plot_baseline_comparison.py) | *Retired.* End-to-end latency with vs. without WADM: per-request-type boxes, latency-vs-load scaling, and the overhead breakdown against the internal timers. |
+| [plot_sqli_comparison.py](plot_sqli_comparison.py) | *Retired.* The SQLi trap's 2×2 per edge: outcome (signature hit / no match) crossed with payload encoding, plus median-vs-load scaling panels. |
 | [EDGE_LEVELING.md](EDGE_LEVELING.md) | Record of the source changes that made the four edges comparable (detection state store, canonical injection contract, Envoy path capture). |
 | [README.md](README.md) | This document. |

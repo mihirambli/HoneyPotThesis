@@ -361,7 +361,7 @@ Four properties keep the trap from disturbing the levelled measurements:
 detection. Enforcing this needs an explicit guard only on Apache, whose `LuaHookAccessChecker` and
 `LuaHookFixups` hooks structurally run before the content handler and so cannot be short-circuited
 the way the other three edges' single filter can — hence the `sqli.owns(...)` early return at the
-top of `detect.lua`'s `handle_detect` and `inject.lua`'s `handle_headers`. Without it a crafted
+top of `detect.lua`'s `handle_detect` and `inject.lua`'s `handle_inject`. Without it a crafted
 `POST /api/login?password=<trigger>` would emit an extra alert *and* an extra detection timing line
 on Apache alone.
 
@@ -412,7 +412,7 @@ existing injection path, so it is accepted rather than fixed.
 **Response-filter suppression.** Every edge re-enters its own response phase for a locally
 generated reply, so each needed an explicit opt-out or the trap page would arrive stamped with the
 `DEV-PORTAL` comment, the hidden decoy link, `X-Backend-Server` and `Set-Cookie: admin_ui=0`:
-`ngx.ctx.wadm_local_response` (OpenResty), a `local_response` key in the existing
+`ngx.ctx.wadm.local_response` (OpenResty), a `local_response` key in the existing
 `wadm.honeypot` dynamic-metadata namespace (Envoy+Lua), `self.sqli_page.is_some()` (WASM), and the
 two `sqli.owns(...)` guards in `inject.lua` (Apache).
 

@@ -106,25 +106,57 @@ WARMUP_VUS = 100
 WARMUP_DURATION = "20s"
 
 
+# A timed region that reports far above this is not doing CPU work: every measured region is a
+# bounded substring scan or a header write, and all four edges time them with a WALL clock
+# (gettimeofday / apr_time_now / proxy-wasm get_current_time). A sample in the millisecond range
+# therefore records the worker being descheduled, a page fault, or a THP compaction stall that
+# happened to land inside the region — host noise billed to WADM. The count of such samples is
+# kept as a per-run contamination measure rather than silently averaged in.
+PREEMPTION_THRESHOLD_US = 1000
+
+
 @dataclass
 class PhaseStats:
+    """Robust and non-robust summaries of one timed region, kept side by side.
+
+    `avg_us` is retained because the existing plotters and result files index it, but it must not
+    be read as the cost of the operation: a sub-1% preemption tail moves it by two orders of
+    magnitude while the median does not move at all. On Apache at 500 iterations/s the mean of
+    html_comments detection came out at 552 us against a median of 5 us, because 2% of samples
+    exceeded 1 ms and the largest was 196 ms. `p50_us` is the headline; `tail_over_threshold`
+    says how much of the distribution the mean was reporting on.
+    """
+
     count: int
     min_us: int | None
     avg_us: float | None
     p90_us: float | None
     max_us: int | None
+    p50_us: float | None = None
+    p99_us: float | None = None
+    trimmed_mean_us: float | None = None
+    mad_us: float | None = None
+    tail_over_threshold: int = 0
+    tail_pct: float | None = None
 
     def to_json(self) -> dict[str, Any]:
         return {
             "count": self.count,
             "min_us": self.min_us,
             "avg_us": self.avg_us,
+            "p50_us": self.p50_us,
             "p90_us": self.p90_us,
+            "p99_us": self.p99_us,
             "max_us": self.max_us,
+            "trimmed_mean_us": self.trimmed_mean_us,
+            "mad_us": self.mad_us,
+            "tail_over_threshold": self.tail_over_threshold,
+            "tail_pct": self.tail_pct,
+            "threshold_us": PREEMPTION_THRESHOLD_US,
         }
 
 
-def percentile_nearest_rank(values: list[int], pct: int) -> float | None:
+def percentile_nearest_rank(values: list[int], pct: float) -> float | None:
     if not values:
         return None
     ordered = sorted(values)
@@ -133,15 +165,45 @@ def percentile_nearest_rank(values: list[int], pct: int) -> float | None:
     return float(ordered[idx])
 
 
+def trimmed_mean(values: list[int], proportion: float = 0.05) -> float | None:
+    """Mean with `proportion` of the mass dropped from each end.
+
+    Reported alongside the median because it answers the question the mean was meant to answer —
+    the average cost, including the shape of the body — without letting a handful of descheduled
+    samples set the result.
+    """
+    if not values:
+        return None
+    ordered = sorted(values)
+    cut = int(len(ordered) * proportion)
+    core = ordered[cut: len(ordered) - cut] or ordered
+    return round(statistics.fmean(core), 2)
+
+
+def median_abs_deviation(values: list[int]) -> float | None:
+    """Spread measure that does not move when the tail does, unlike the standard deviation."""
+    if not values:
+        return None
+    med = statistics.median(values)
+    return round(statistics.median([abs(v - med) for v in values]), 2)
+
+
 def summarize(values: list[int]) -> PhaseStats:
     if not values:
         return PhaseStats(count=0, min_us=None, avg_us=None, p90_us=None, max_us=None)
+    tail = sum(1 for v in values if v > PREEMPTION_THRESHOLD_US)
     return PhaseStats(
         count=len(values),
         min_us=min(values),
         avg_us=round(statistics.fmean(values), 2),
         p90_us=round(percentile_nearest_rank(values, 90) or 0.0, 2),
         max_us=max(values),
+        p50_us=round(percentile_nearest_rank(values, 50) or 0.0, 2),
+        p99_us=round(percentile_nearest_rank(values, 99) or 0.0, 2),
+        trimmed_mean_us=trimmed_mean(values),
+        mad_us=median_abs_deviation(values),
+        tail_over_threshold=tail,
+        tail_pct=round(100.0 * tail / len(values), 3),
     )
 
 
@@ -431,3 +493,405 @@ def cycle_loadtester(env: dict[str, str]) -> tuple[subprocess.CompletedProcess[s
         env=env,
     )
     return wait_result, run_start
+
+
+# ── Load shape (arrival-rate era) ────────────────────────────────────────────────────────────
+#
+# These names are WADM_-prefixed because k6 claims the whole K6_* namespace for its own options:
+# exporting K6_VUS or K6_DURATION makes k6 build its own default scenario and throw away test.js's
+# `scenarios` block, executor and startTime with it. The old harness exported both, so every run
+# it produced was a plain constant-VUs run with no start delay, whatever test.js asked for.
+RATE_ENV = "WADM_RATE"
+DURATION_ENV = "WADM_DURATION"
+START_DELAY_ENV = "WADM_START_DELAY"
+ORDER_ENV = "WADM_ORDER"
+SEED_ENV = "WADM_SEED"
+MAX_VUS_ENV = "WADM_MAX_VUS"
+
+# Offered iterations per second. 1/10/100 are the latency regime: the edge is far from saturation,
+# so a measured difference is service time rather than queueing. 500 is deliberately absent — at
+# that level queueing delay reached 4 ms on the origin tier alone (no proxy, no WADM), which is
+# 100x the effect being measured. Saturation is a separate question and has its own runner,
+# run_capacity_benchmark.py, which reports throughput rather than latency.
+DEFAULT_RATES = [1, 10, 100]
+
+# Low rates produce few samples per second, and the sample count is what sets the width of the
+# confidence interval. 30 s at rate 1 is 30 iterations; 120 s is 120, and five replicates make
+# 600. Runtime is bounded because only the lowest rates get the longer window.
+DURATION_FOR_RATE = {1: "120s", 10: "60s"}
+DEFAULT_RATE_DURATION = "30s"
+
+DEFAULT_REPLICATES = 5
+
+# Below this, a percentile bootstrap degenerates to the observed range: with n=2 the only resamples
+# are the two points themselves. Intervals are still reported for inspection, but `significant` is
+# withheld so a 1-2 replicate smoke run cannot produce a confident-looking number.
+MIN_REPLICATES_FOR_CI = 3
+
+
+def duration_for_rate(rate: int, override: str | None = None) -> str:
+    if override:
+        return override
+    return DURATION_FOR_RATE.get(rate, DEFAULT_RATE_DURATION)
+
+
+def k6_env(
+    rate: int,
+    duration: str,
+    start_delay: str = DEFAULT_START_DELAY,
+    order: str = "rotate",
+    seed: int = 1,
+    max_vus: int | None = None,
+) -> dict[str, str]:
+    """Load-shape variables for one k6 run.
+
+    Deliberately returns only WADM_* keys: a caller that merges this over os.environ must not
+    reintroduce K6_VUS/K6_DURATION, so they are never written here.
+    """
+    env = {
+        RATE_ENV: str(rate),
+        DURATION_ENV: duration,
+        START_DELAY_ENV: start_delay,
+        ORDER_ENV: order,
+        SEED_ENV: str(seed),
+    }
+    if max_vus is not None:
+        env[MAX_VUS_ENV] = str(max_vus)
+    return env
+
+
+def strip_k6_option_env(env: dict[str, str]) -> dict[str, str]:
+    """Remove any inherited K6_* option that would override test.js's scenarios block.
+
+    A stale `export K6_VUS=...` in the operator's shell is enough to silently turn every run back
+    into a constant-VUs run, so the runners scrub it rather than trusting the environment.
+    """
+    for key in ("K6_VUS", "K6_DURATION", "K6_ITERATIONS", "K6_STAGES", "K6_START_DELAY"):
+        env.pop(key, None)
+    return env
+
+
+# ── Run validity ─────────────────────────────────────────────────────────────────────────────
+#
+# A run can fail in ways that leave its per-operation numbers looking entirely plausible. The
+# results directory currently holds one such run: the WASM WADM tier at rate 100 completed 15.6%
+# of its offered iterations, with a 75th-percentile latency of 1.78 s, and it still contributed a
+# "+110 ms WADM overhead" bar to a figure. Every gate below turns one of those into a recorded,
+# machine-readable reason instead.
+
+# Above this share of failed HTTP requests the run is not measuring the intended response path.
+MAX_FAILED_RATE = 0.005
+# k6 could not place the offered iterations even with maxVUs allocated; latency is queueing delay.
+MAX_DROPPED_RATE = 0.01
+# Below this share of offered iterations actually completed, something outside the edge was wrong.
+MIN_ACHIEVED_RATIO = 0.95
+# Share of internal samples in the millisecond range, i.e. dominated by preemption not by work.
+MAX_TAIL_PCT = 1.0
+# ...but only once enough samples exist for a share to mean anything. At the lowest rate a kind
+# collects about 90 samples per run, so ONE preempted sample is 1.1% and trips a 1% threshold on
+# its own. That rejected two otherwise pristine replicates in the first full run — cells whose
+# medians were 3-4 us with a 0.0% tail on every major kind. A percentage needs a denominator
+# before it is evidence, so the gate also requires a minimum absolute count.
+MIN_TAIL_SAMPLES = 3
+# The backend container is a negative control: the same origin serves the same pages in every
+# cell, of every tier, of every edge, so its CPU per request has nothing to do with what is under
+# test and should barely move. Across the first 150 paired cells it stayed between 86 and 311 us.
+# One cell read 39,948 us — 130x the worst legitimate value — and the edge in the same cell read
+# 42,395 us against a normal 350 us. Both containers burning kernel time together is a host event,
+# not edge behaviour, and every other gate passed it: at rate 1 the arrival-rate executor simply
+# spent more VUs, so nothing dropped, nothing failed, and the offered rate was still met. The
+# preemption gate could not see it either, because it reads internal WADM timings and a bare cell
+# has none. This ceiling sits ~3x above the worst clean observation, so it catches the host
+# stealing the machine without touching any cell that measured the edge.
+MAX_ORIGIN_CPU_US_PER_REQUEST = 1000.0
+
+
+def assess_run(
+    rate: int,
+    duration: str,
+    summary: dict[str, Any] | None,
+    crash_patterns: list[str] | None = None,
+    worst_tail_pct: float | None = None,
+    crash_count: int = 0,
+    worst_tail_count: int = 0,
+    origin_cpu_us_per_request: float | None = None,
+) -> dict[str, Any]:
+    """Decide whether one run's numbers may be used, and record why if not.
+
+    Returns a dict carrying both the verdict and every input to it, so a rejected run stays in the
+    result file as evidence rather than being dropped and forgotten.
+    """
+    seconds = duration_seconds(duration)
+    offered = rate * seconds
+    iterations = k6_iterations(summary)
+    dropped = int((summary or {}).get("dropped_iterations") or 0)
+    failed_rate = (summary or {}).get("http_req_failed_rate")
+    achieved = (iterations / offered) if offered else None
+
+    reasons: list[str] = []
+    warnings: list[str] = []
+    if summary is None:
+        reasons.append("k6 summary could not be read")
+    # A crash is a warning, not automatically a rejection. An edge process that dies takes the one
+    # request in flight with it, and that shows up in the failure rate and the achieved rate — both
+    # already gated below. Rejecting on the mere presence of a crash line discards a whole rate
+    # level for damage that may be a hundredth of a percent, and it discards exactly the runs where
+    # "this edge crashes under load" is the finding. The crash is recorded, surfaced in the report
+    # and carried into the figures; whether the DATA is usable is decided by the damage gates.
+    if crash_patterns:
+        warnings.append(
+            f"edge crashed {crash_count}x during this run "
+            f"({', '.join(crash_patterns)}) — surviving samples are gated below"
+        )
+    if failed_rate is not None and failed_rate > MAX_FAILED_RATE:
+        reasons.append(f"http_req_failed {failed_rate:.3%} > {MAX_FAILED_RATE:.1%}")
+    if offered and dropped / offered > MAX_DROPPED_RATE:
+        reasons.append(f"dropped_iterations {dropped}/{offered} > {MAX_DROPPED_RATE:.0%}")
+    if achieved is not None and achieved < MIN_ACHIEVED_RATIO:
+        reasons.append(f"achieved only {achieved:.1%} of offered rate")
+    if (
+        origin_cpu_us_per_request is not None
+        and origin_cpu_us_per_request > MAX_ORIGIN_CPU_US_PER_REQUEST
+    ):
+        reasons.append(
+            f"origin control burned {origin_cpu_us_per_request:.0f} us/req > "
+            f"{MAX_ORIGIN_CPU_US_PER_REQUEST:.0f} us (host contention, not the edge)"
+        )
+    if worst_tail_pct is not None and worst_tail_pct > MAX_TAIL_PCT:
+        if worst_tail_count >= MIN_TAIL_SAMPLES:
+            reasons.append(
+                f"{worst_tail_pct:.2f}% of internal samples ({worst_tail_count}) above "
+                f"{PREEMPTION_THRESHOLD_US} us (host preemption)"
+            )
+        else:
+            warnings.append(
+                f"{worst_tail_count} sample(s) above {PREEMPTION_THRESHOLD_US} us "
+                f"({worst_tail_pct:.2f}%) — too few to judge the run contaminated"
+            )
+
+    return {
+        "valid": not reasons,
+        "reasons": reasons,
+        "warnings": warnings,
+        "crash_count": crash_count,
+        "offered_iterations": offered or None,
+        "iterations": iterations,
+        "achieved_ratio": round(achieved, 4) if achieved is not None else None,
+        "dropped_iterations": dropped,
+        "http_req_failed_rate": failed_rate,
+        "worst_tail_pct": worst_tail_pct,
+        "worst_tail_count": worst_tail_count,
+        "origin_cpu_us_per_request": origin_cpu_us_per_request,
+    }
+
+
+# ── CPU cost per request ─────────────────────────────────────────────────────────────────────
+#
+# The most robust metric available on a noisy VM, and the one latency cannot give: cgroup
+# cpu.stat's usage_usec is a monotonic counter of CPU time actually consumed by the container's
+# processes. Scheduling delay, queueing and hypervisor jitter add wall-clock latency without
+# adding CPU time, so (delta usage_usec / requests served) isolates the work WADM does from the
+# noise the environment adds. A bare-vs-WADM difference here is a real cost even when the
+# end-to-end latency difference is buried under the noise floor.
+
+CPU_STAT_KEYS = ("usage_usec", "user_usec", "system_usec")
+
+
+def read_container_cpu(service: str, env: dict[str, str], profile: str | None = None) -> dict[str, int] | None:
+    """cgroup v2 cpu.stat counters for one Compose service, or None if unreadable.
+
+    Read from inside the container: Docker runs containers in a private cgroup namespace here, so
+    /sys/fs/cgroup/cpu.stat inside the container is that container's own accounting and needs no
+    knowledge of the host's cgroup layout or the systemd/cgroupfs driver in use.
+    """
+    command = ["docker", "compose"]
+    if profile:
+        command += ["--profile", profile]
+    command += ["exec", "-T", service, "cat", "/sys/fs/cgroup/cpu.stat"]
+    result = run_cmd(command, env=env)
+    if result.returncode != 0:
+        return None
+    out: dict[str, int] = {}
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[0] in CPU_STAT_KEYS:
+            try:
+                out[parts[0]] = int(parts[1])
+            except ValueError:
+                continue
+    return out or None
+
+
+def cpu_cost_per_request(
+    before: dict[str, int] | None,
+    after: dict[str, int] | None,
+    http_reqs: int | None,
+) -> dict[str, Any]:
+    """CPU microseconds the edge spent per request served, from two cpu.stat readings."""
+    if not before or not after or not http_reqs:
+        return {"available": False, "cpu_us_per_request": None}
+    delta = {k: after.get(k, 0) - before.get(k, 0) for k in CPU_STAT_KEYS if k in after}
+    total = delta.get("usage_usec")
+    if total is None or total < 0:
+        return {"available": False, "cpu_us_per_request": None}
+    return {
+        "available": True,
+        "http_reqs": http_reqs,
+        "cpu_usec_total": total,
+        "cpu_us_per_request": round(total / http_reqs, 3),
+        "user_us_per_request": (
+            round(delta["user_usec"] / http_reqs, 3) if "user_usec" in delta else None
+        ),
+        "system_us_per_request": (
+            round(delta["system_usec"] / http_reqs, 3) if "system_usec" in delta else None
+        ),
+    }
+
+
+# ── Paired statistics ────────────────────────────────────────────────────────────────────────
+#
+# The old suite measured the bare tier and the WADM tier in separate script invocations, 15-30
+# minutes apart, and subtracted the two medians. Everything that drifts on that timescale — CPU
+# turbo and thermal state, host background work, page cache, which physical core a vCPU landed on
+# — went straight into the difference. With a true effect of 5-30 us and drift of 100-500 us the
+# sign of the result was set by the drift, which is why overhead bars came out negative.
+#
+# Pairing replaces that with N replicates in which bare and WADM run within a minute of each
+# other, so drift is common to both members of a pair and cancels in the difference. The reported
+# statistic is the median of the per-replicate differences, with a bootstrap interval around it.
+
+
+def bootstrap_ci(
+    values: list[float],
+    statistic=statistics.median,
+    confidence: float = 0.95,
+    iterations: int = 10000,
+    seed: int = 12345,
+) -> tuple[float | None, float | None]:
+    """Percentile bootstrap interval for `statistic` over `values`.
+
+    Non-parametric on purpose: with five replicates there is no basis for assuming normality, and
+    a t-interval on five points of a skewed quantity would be a stronger claim than the data
+    supports.
+
+    For the median of five values this degenerates to exactly [min, max]: a resampled median can
+    only be one of the observed values, and min/max are the 2.5th/97.5th percentiles of that
+    resampling distribution. [min, max] is still a valid interval — the distribution-free
+    order-statistic interval for a median, with 1 - 2/2^n = 93.75% coverage at n=5 — but it should
+    be described as "the range of n paired replicates", not as a 95% bootstrap interval.
+    """
+    if len(values) < 2:
+        return (None, None)
+    import random
+
+    rng = random.Random(seed)
+    n = len(values)
+    estimates = []
+    for _ in range(iterations):
+        estimates.append(statistic([values[rng.randrange(n)] for _ in range(n)]))
+    estimates.sort()
+    lo_idx = int((1 - confidence) / 2 * iterations)
+    hi_idx = min(iterations - 1, int((1 + confidence) / 2 * iterations))
+    return (round(estimates[lo_idx], 4), round(estimates[hi_idx], 4))
+
+
+def paired_delta(values: list[float], confidence: float = 0.95) -> dict[str, Any]:
+    """Summarise per-replicate differences, and say plainly when they are indistinguishable from 0.
+
+    `significant` False means the interval spans zero: the measurement cannot tell the direction
+    of the effect, let alone its size. Reporting that is the point — a negative point estimate
+    with an interval spanning zero is a noise floor, not a speed-up, and the figures must not
+    draw it as one.
+    """
+    if not values:
+        return {"n": 0, "median": None, "ci_low": None, "ci_high": None, "significant": False}
+    lo, hi = bootstrap_ci(values, confidence=confidence)
+    median = round(statistics.median(values), 4)
+    # With two points a percentile bootstrap can only ever return the two points, so the interval
+    # is the observed range and carries no information about the sampling distribution. The
+    # significance claim is withheld rather than made on that basis — a smoke run must not be able
+    # to produce a confident-looking result.
+    adequate = len(values) >= MIN_REPLICATES_FOR_CI
+    significant = (
+        adequate and lo is not None and hi is not None and (lo > 0 or hi < 0)
+    )
+    # At n=5 `significant` is equivalent to every replicate agreeing in sign (a sign test at
+    # p = 2/32 = 0.0625), so the agreement count is the plainest honest statement of the evidence.
+    same_sign = max(sum(1 for v in values if v > 0), sum(1 for v in values if v < 0))
+    return {
+        "n": len(values),
+        "sign_agreement": f"{same_sign}/{len(values)}",
+        "ci_reliable": adequate,
+        "median": median,
+        "mean": round(statistics.fmean(values), 4),
+        "min": round(min(values), 4),
+        "max": round(max(values), 4),
+        "ci_low": lo,
+        "ci_high": hi,
+        "confidence": confidence,
+        "significant": significant,
+        "samples": [round(v, 4) for v in values],
+    }
+
+
+# ── Run provenance ───────────────────────────────────────────────────────────────────────────
+#
+# Recorded into every result file so a figure can be traced back to the machine configuration that
+# produced it. This matters more than usual here: the edge containers are pinned to a subset of
+# CPUs while the edges' own worker counts are auto-detected from the full CPU count, so an edge may
+# be running more workers than it has cores. That cancels in a paired bare-vs-WADM difference, since
+# both tiers share the config, but it does affect cross-edge comparison and the capacity numbers —
+# so the write-up has to be able to state what was actually in force.
+
+
+def container_provenance(service: str, env: dict[str, str], profile: str | None = None) -> dict[str, Any]:
+    """CPU affinity, visible CPU count and worker-process count for one Compose service."""
+    prefix = ["docker", "compose"]
+    if profile:
+        prefix += ["--profile", profile]
+
+    container_id = run_cmd(prefix + ["ps", "-q", service], env=env).stdout.strip().splitlines()
+    cpuset = None
+    if container_id:
+        cpuset = run_cmd(
+            ["docker", "inspect", container_id[0], "--format", "{{.HostConfig.CpusetCpus}}"],
+            env=env,
+        ).stdout.strip() or None
+
+    # Two different CPU counts, because the servers disagree about which one to use. `nproc` calls
+    # sched_getaffinity and so respects the cpuset; nginx's `worker_processes auto` calls
+    # sysconf(_SC_NPROCESSORS_ONLN), which does NOT. Verified on this host: nproc reports 2 inside
+    # a container pinned to two CPUs while nginx spawns 8 workers. Recording only one of these
+    # would hide the oversubscription rather than document it.
+    affinity_cpus = run_cmd(prefix + ["exec", "-T", service, "nproc"], env=env).stdout.strip()
+    online_cpus = run_cmd(
+        prefix + ["exec", "-T", service, "getconf", "_NPROCESSORS_ONLN"], env=env
+    ).stdout.strip()
+
+    # Worker count from /proc rather than `ps`, which several of these images do not ship.
+    cmdlines = run_cmd(
+        prefix + ["exec", "-T", service, "sh", "-c",
+                  'for p in /proc/[0-9]*; do tr "\\0" " " < $p/cmdline 2>/dev/null; echo; done'],
+        env=env,
+    ).stdout
+    workers = sum(1 for line in cmdlines.splitlines() if "worker process" in line)
+    processes = sum(1 for line in cmdlines.splitlines() if line.strip())
+
+    affinity = int(affinity_cpus) if affinity_cpus.isdigit() else None
+    online = int(online_cpus) if online_cpus.isdigit() else None
+
+    return {
+        "cpuset": cpuset,
+        "affinity_cpus": affinity,
+        "online_cpus": online,
+        "worker_processes": workers or None,
+        "process_count": processes or None,
+        "oversubscribed": (
+            bool(workers and affinity and workers > affinity) if workers and affinity else None
+        ),
+        "note": (
+            "affinity_cpus is sched_getaffinity (respects cpuset); online_cpus is "
+            "_SC_NPROCESSORS_ONLN, which nginx's `worker_processes auto` uses and which ignores "
+            "the cpuset. oversubscribed=true means more workers than pinned cores."
+        ),
+    }

@@ -43,6 +43,7 @@ from wadm_timings import (
     new_e2e_document,
     parse_vus,
     run_cmd,
+    strip_k6_option_env,
     summarize,
     throughput_check,
     wait_for_quiet_host,
@@ -57,6 +58,25 @@ INJECTION_RE = re.compile(r"Apache Injection execution time \(us\):\s*(\d+)")
 # directly comparable.
 E2E_EDGE = "apache_lua"
 E2E_EDGE_CONFIG = "httpd.conf"
+
+# ── Superseded ───────────────────────────────────────────────────────────────────────────────
+#
+# This script measures ONE tier in ONE invocation. Any overhead computed by subtracting its output
+# from the other tier's is a difference between runs made tens of minutes apart, which is how the
+# original figures came to show negative WADM overhead: the drift between two such runs is larger
+# than the effect. Use run_paired_benchmark.py for anything reported as a cost.
+#
+# Kept working, and kept honest, for two reasons: it is the only way to run a single tier in
+# isolation, and reproducing the original numbers is what demonstrates the new method changed
+# something. The load-shape variables are WADM_*, matching test.js and docker-compose.yml — the
+# K6_* names this script used to export were read by k6 as its own options and silently replaced
+# test.js's entire scenarios block.
+SUPERSEDED_NOTICE = """
+!!  This script writes UNPAIRED results. A bare-vs-WADM difference taken across two of its
+!!  invocations is dominated by drift between them, not by WADM. For a reportable overhead use:
+!!      python3 benchmarks/run_paired_benchmark.py --preset full --all
+!!      python3 benchmarks/analyze_paired.py
+"""
 
 DEFAULT_TRIGGER = "internal-admin.example.com"
 DEFAULT_TARGET = "http://apache:80"
@@ -136,12 +156,13 @@ def main() -> int:
         vus_list=vus_list,
     )
 
+    print(SUPERSEDED_NOTICE)
     print("=== Internal Apache mod_lua Benchmark ===")
     print(f"VUs: {vus_list}")
     print(f"TARGET={target} K6_DURATION={duration} K6_START_DELAY={start_delay}")
     print("")
 
-    base_env = os.environ.copy()
+    base_env = strip_k6_option_env(os.environ.copy())
     base_env["TRIGGER_KEYWORD"] = trigger
     base_env["TARGET"] = target
 
@@ -163,10 +184,10 @@ def main() -> int:
     # levels. Its result is discarded (not parsed, not recorded); each recorded level
     # isolates its own log lines via --since, so this earlier traffic never leaks into a
     # measured window.
-    warmup_env = os.environ.copy()
-    warmup_env["K6_VUS"] = str(WARMUP_VUS)
-    warmup_env["K6_DURATION"] = WARMUP_DURATION
-    warmup_env["K6_START_DELAY"] = start_delay
+    warmup_env = strip_k6_option_env(os.environ.copy())
+    warmup_env["WADM_RATE"] = str(WARMUP_VUS)
+    warmup_env["WADM_DURATION"] = WARMUP_DURATION
+    warmup_env["WADM_START_DELAY"] = start_delay
     warmup_env["TRIGGER_KEYWORD"] = trigger
     warmup_env["TARGET"] = target
     print(f"--- Warm-up (VUs={WARMUP_VUS}, {WARMUP_DURATION}, discarded) ---")
@@ -174,10 +195,10 @@ def main() -> int:
     print("")
 
     for vus in vus_list:
-        env = os.environ.copy()
-        env["K6_VUS"] = str(vus)
-        env["K6_DURATION"] = duration
-        env["K6_START_DELAY"] = start_delay
+        env = strip_k6_option_env(os.environ.copy())
+        env["WADM_RATE"] = str(vus)
+        env["WADM_DURATION"] = duration
+        env["WADM_START_DELAY"] = start_delay
         env["TRIGGER_KEYWORD"] = trigger
         env["TARGET"] = target
 

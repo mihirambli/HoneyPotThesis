@@ -51,6 +51,7 @@ from wadm_timings import (
     new_e2e_document,
     parse_vus,
     run_cmd,
+    strip_k6_option_env,
     throughput_check,
     wait_for_quiet_host,
 )
@@ -88,6 +89,25 @@ EDGE_SPECS = {
     "origin": EdgeSpec("Origin only", None, "http://backend:80", None, None),
 }
 
+# ── Superseded ───────────────────────────────────────────────────────────────────────────────
+#
+# This script measures ONE tier in ONE invocation. Any overhead computed by subtracting its output
+# from the other tier's is a difference between runs made tens of minutes apart, which is how the
+# original figures came to show negative WADM overhead: the drift between two such runs is larger
+# than the effect. Use run_paired_benchmark.py for anything reported as a cost.
+#
+# Kept working, and kept honest, for two reasons: it is the only way to run a single tier in
+# isolation, and reproducing the original numbers is what demonstrates the new method changed
+# something. The load-shape variables are WADM_*, matching test.js and docker-compose.yml — the
+# K6_* names this script used to export were read by k6 as its own options and silently replaced
+# test.js's entire scenarios block.
+SUPERSEDED_NOTICE = """
+!!  This script writes UNPAIRED results. A bare-vs-WADM difference taken across two of its
+!!  invocations is dominated by drift between them, not by WADM. For a reportable overhead use:
+!!      python3 benchmarks/run_paired_benchmark.py --preset full --all
+!!      python3 benchmarks/analyze_paired.py
+"""
+
 DEFAULT_TRIGGER = "internal-admin.example.com"
 
 
@@ -97,7 +117,7 @@ def build_env(spec: EdgeSpec, target: str, trigger: str) -> dict[str, str]:
     Setting the config override here rather than per-command means `up`, `down` and `logs` all
     see the same mount, so Compose never decides the container is out of date mid-run.
     """
-    env = os.environ.copy()
+    env = strip_k6_option_env(os.environ.copy())
     env["TARGET"] = target
     env["TRIGGER_KEYWORD"] = trigger
     if spec.config_env and spec.baseline_config:
@@ -129,6 +149,7 @@ def run_edge(key: str, spec: EdgeSpec, results_dir: Path, args: argparse.Namespa
         vus_list=args.vus_list,
     )
 
+    print(SUPERSEDED_NOTICE)
     print(f"=== Baseline (no WADM) — {spec.label} ===")
     print(f"VUs: {args.vus_list}")
     print(f"TARGET={target} K6_DURATION={args.duration} K6_START_DELAY={args.start_delay}")
@@ -152,18 +173,18 @@ def run_edge(key: str, spec: EdgeSpec, results_dir: Path, args: argparse.Namespa
     print("")
 
     warmup_env = build_env(spec, target, args.trigger)
-    warmup_env["K6_VUS"] = str(WARMUP_VUS)
-    warmup_env["K6_DURATION"] = WARMUP_DURATION
-    warmup_env["K6_START_DELAY"] = args.start_delay
+    warmup_env["WADM_RATE"] = str(WARMUP_VUS)
+    warmup_env["WADM_DURATION"] = WARMUP_DURATION
+    warmup_env["WADM_START_DELAY"] = args.start_delay
     print(f"--- Warm-up (VUs={WARMUP_VUS}, {WARMUP_DURATION}, discarded) ---")
     cycle_loadtester(warmup_env)
     print("")
 
     for vus in args.vus_list:
         env = build_env(spec, target, args.trigger)
-        env["K6_VUS"] = str(vus)
-        env["K6_DURATION"] = args.duration
-        env["K6_START_DELAY"] = args.start_delay
+        env["WADM_RATE"] = str(vus)
+        env["WADM_DURATION"] = args.duration
+        env["WADM_START_DELAY"] = args.start_delay
 
         print(f"--- Running VUs={vus} ---")
         up_result, run_start = cycle_loadtester(env)

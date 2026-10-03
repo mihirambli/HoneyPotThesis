@@ -1,0 +1,714 @@
+{
+  "metadata": {
+    "generated_at": "2026-09-21T12:47:40.240837+00:00",
+    "script": "benchmarks/run_internal_wasm_benchmark.py",
+    "target": "http://envoy-wasm:8080",
+    "trigger_keyword": "internal-admin.example.com",
+    "duration": "30s",
+    "start_delay": "5s",
+    "vus_list": [
+      1,
+      10,
+      100,
+      500
+    ]
+  },
+  "runs": [
+    {
+      "vus": 1,
+      "compose_exit_code": 0,
+      "throughput": {
+        "iterations": 30,
+        "expected_iterations": 30,
+        "throughput_ratio": 1.0,
+        "expected_reachable": true
+      },
+      "detection": {
+        "count": 30,
+        "min_us": 3,
+        "avg_us": 19.4,
+        "p90_us": 5.0,
+        "max_us": 452
+      },
+      "injection": {
+        "count": 120,
+        "min_us": 1,
+        "avg_us": 2.47,
+        "p90_us": 3.0,
+        "max_us": 54
+      },
+      "tokens": {
+        "html_comments": {
+          "detect": {
+            "count": 30,
+            "min_us": 3,
+            "avg_us": 19.4,
+            "p90_us": 5.0,
+            "max_us": 452
+          },
+          "inject": {
+            "count": 120,
+            "min_us": 1,
+            "avg_us": 2.47,
+            "p90_us": 3.0,
+            "max_us": 54
+          }
+        },
+        "http_headers": {
+          "detect": {
+            "count": 30,
+            "min_us": 1,
+            "avg_us": 1.1,
+            "p90_us": 1.0,
+            "max_us": 2
+          },
+          "inject": {
+            "count": 120,
+            "min_us": 1,
+            "avg_us": 2.14,
+            "p90_us": 3.0,
+            "max_us": 4
+          }
+        },
+        "cookies": {
+          "detect": {
+            "count": 30,
+            "min_us": 0,
+            "avg_us": 1.2,
+            "p90_us": 2.0,
+            "max_us": 3
+          },
+          "inject": {
+            "count": 120,
+            "min_us": 0,
+            "avg_us": 1.55,
+            "p90_us": 2.0,
+            "max_us": 4
+          }
+        },
+        "decoy_paths": {
+          "detect": {
+            "count": 30,
+            "min_us": 0,
+            "avg_us": 0.77,
+            "p90_us": 1.0,
+            "max_us": 2
+          },
+          "inject": {
+            "count": 120,
+            "min_us": 0,
+            "avg_us": 2.02,
+            "p90_us": 2.0,
+            "max_us": 91
+          }
+        },
+        "form_fields": {
+          "detect": {
+            "count": 30,
+            "min_us": 0,
+            "avg_us": 0.5,
+            "p90_us": 1.0,
+            "max_us": 1
+          },
+          "inject": {
+            "count": 30,
+            "min_us": 1,
+            "avg_us": 1.13,
+            "p90_us": 2.0,
+            "max_us": 2
+          }
+        },
+        "sql_injection": {
+          "detect": {
+            "count": 30,
+            "min_us": 2,
+            "avg_us": 3.23,
+            "p90_us": 4.0,
+            "max_us": 4
+          },
+          "inject": {
+            "count": 0,
+            "min_us": null,
+            "avg_us": null,
+            "p90_us": null,
+            "max_us": null
+          }
+        },
+        "sql_injection_encoded": {
+          "detect": {
+            "count": 30,
+            "min_us": 2,
+            "avg_us": 2.77,
+            "p90_us": 3.0,
+            "max_us": 3
+          },
+          "inject": {
+            "count": 0,
+            "min_us": null,
+            "avg_us": null,
+            "p90_us": null,
+            "max_us": null
+          }
+        },
+        "sql_injection_miss": {
+          "detect": {
+            "count": 30,
+            "min_us": 2,
+            "avg_us": 2.9,
+            "p90_us": 3.0,
+            "max_us": 4
+          },
+          "inject": {
+            "count": 0,
+            "min_us": null,
+            "avg_us": null,
+            "p90_us": null,
+            "max_us": null
+          }
+        },
+        "sql_injection_miss_encoded": {
+          "detect": {
+            "count": 30,
+            "min_us": 2,
+            "avg_us": 2.97,
+            "p90_us": 3.0,
+            "max_us": 4
+          },
+          "inject": {
+            "count": 0,
+            "min_us": null,
+            "avg_us": null,
+            "p90_us": null,
+            "max_us": null
+          }
+        }
+      },
+      "errors": {
+        "compose_stderr": "",
+        "logs_stderr": ""
+      }
+    },
+    {
+      "vus": 10,
+      "compose_exit_code": 0,
+      "throughput": {
+        "iterations": 296,
+        "expected_iterations": 300,
+        "throughput_ratio": 0.987,
+        "expected_reachable": true
+      },
+      "detection": {
+        "count": 296,
+        "min_us": 1,
+        "avg_us": 5.08,
+        "p90_us": 5.0,
+        "max_us": 213
+      },
+      "injection": {
+        "count": 1184,
+        "min_us": 0,
+        "avg_us": 3.17,
+        "p90_us": 3.0,
+        "max_us": 780
+      },
+      "tokens": {
+        "html_comments": {
+          "detect": {
+            "count": 296,
+            "min_us": 1,
+            "avg_us": 5.08,
+            "p90_us": 5.0,
+            "max_us": 213
+          },
+          "inject": {
+            "count": 1184,
+            "min_us": 0,
+            "avg_us": 3.17,
+            "p90_us": 3.0,
+            "max_us": 780
+          }
+        },
+        "http_headers": {
+          "detect": {
+            "count": 296,
+            "min_us": 0,
+            "avg_us": 1.07,
+            "p90_us": 1.0,
+            "max_us": 17
+          },
+          "inject": {
+            "count": 1184,
+            "min_us": 0,
+            "avg_us": 2.59,
+            "p90_us": 3.0,
+            "max_us": 356
+          }
+        },
+        "cookies": {
+          "detect": {
+            "count": 296,
+            "min_us": 0,
+            "avg_us": 0.99,
+            "p90_us": 2.0,
+            "max_us": 3
+          },
+          "inject": {
+            "count": 1184,
+            "min_us": 0,
+            "avg_us": 1.85,
+            "p90_us": 2.0,
+            "max_us": 176
+          }
+        },
+        "decoy_paths": {
+          "detect": {
+            "count": 296,
+            "min_us": 0,
+            "avg_us": 0.74,
+            "p90_us": 1.0,
+            "max_us": 2
+          },
+          "inject": {
+            "count": 1184,
+            "min_us": 0,
+            "avg_us": 2.04,
+            "p90_us": 2.0,
+            "max_us": 405
+          }
+        },
+        "form_fields": {
+          "detect": {
+            "count": 296,
+            "min_us": 0,
+            "avg_us": 6.04,
+            "p90_us": 1.0,
+            "max_us": 1571
+          },
+          "inject": {
+            "count": 296,
+            "min_us": 0,
+            "avg_us": 1.17,
+            "p90_us": 2.0,
+            "max_us": 17
+          }
+        },
+        "sql_injection": {
+          "detect": {
+            "count": 296,
+            "min_us": 1,
+            "avg_us": 3.09,
+            "p90_us": 3.0,
+            "max_us": 74
+          },
+          "inject": {
+            "count": 0,
+            "min_us": null,
+            "avg_us": null,
+            "p90_us": null,
+            "max_us": null
+          }
+        },
+        "sql_injection_encoded": {
+          "detect": {
+            "count": 296,
+            "min_us": 1,
+            "avg_us": 3.26,
+            "p90_us": 3.0,
+            "max_us": 106
+          },
+          "inject": {
+            "count": 0,
+            "min_us": null,
+            "avg_us": null,
+            "p90_us": null,
+            "max_us": null
+          }
+        },
+        "sql_injection_miss": {
+          "detect": {
+            "count": 296,
+            "min_us": 1,
+            "avg_us": 4.77,
+            "p90_us": 4.0,
+            "max_us": 561
+          },
+          "inject": {
+            "count": 0,
+            "min_us": null,
+            "avg_us": null,
+            "p90_us": null,
+            "max_us": null
+          }
+        },
+        "sql_injection_miss_encoded": {
+          "detect": {
+            "count": 296,
+            "min_us": 1,
+            "avg_us": 4.78,
+            "p90_us": 4.0,
+            "max_us": 235
+          },
+          "inject": {
+            "count": 0,
+            "min_us": null,
+            "avg_us": null,
+            "p90_us": null,
+            "max_us": null
+          }
+        }
+      },
+      "errors": {
+        "compose_stderr": "",
+        "logs_stderr": ""
+      }
+    },
+    {
+      "vus": 100,
+      "compose_exit_code": 0,
+      "throughput": {
+        "iterations": 467,
+        "expected_iterations": 3000,
+        "throughput_ratio": 0.156,
+        "expected_reachable": true
+      },
+      "detection": {
+        "count": 467,
+        "min_us": 0,
+        "avg_us": 6.72,
+        "p90_us": 15.0,
+        "max_us": 164
+      },
+      "injection": {
+        "count": 1868,
+        "min_us": 0,
+        "avg_us": 110.99,
+        "p90_us": 10.0,
+        "max_us": 125508
+      },
+      "tokens": {
+        "html_comments": {
+          "detect": {
+            "count": 467,
+            "min_us": 0,
+            "avg_us": 6.72,
+            "p90_us": 15.0,
+            "max_us": 164
+          },
+          "inject": {
+            "count": 1868,
+            "min_us": 0,
+            "avg_us": 110.99,
+            "p90_us": 10.0,
+            "max_us": 125508
+          }
+        },
+        "http_headers": {
+          "detect": {
+            "count": 467,
+            "min_us": 0,
+            "avg_us": 6.47,
+            "p90_us": 5.0,
+            "max_us": 2033
+          },
+          "inject": {
+            "count": 1868,
+            "min_us": 0,
+            "avg_us": 320.94,
+            "p90_us": 8.0,
+            "max_us": 576990
+          }
+        },
+        "cookies": {
+          "detect": {
+            "count": 467,
+            "min_us": 0,
+            "avg_us": 4.4,
+            "p90_us": 5.0,
+            "max_us": 1059
+          },
+          "inject": {
+            "count": 1868,
+            "min_us": 0,
+            "avg_us": 188.43,
+            "p90_us": 6.0,
+            "max_us": 333692
+          }
+        },
+        "decoy_paths": {
+          "detect": {
+            "count": 467,
+            "min_us": 0,
+            "avg_us": 1.36,
+            "p90_us": 3.0,
+            "max_us": 9
+          },
+          "inject": {
+            "count": 1868,
+            "min_us": 0,
+            "avg_us": 80.21,
+            "p90_us": 6.0,
+            "max_us": 110819
+          }
+        },
+        "form_fields": {
+          "detect": {
+            "count": 467,
+            "min_us": 0,
+            "avg_us": 0.96,
+            "p90_us": 2.0,
+            "max_us": 6
+          },
+          "inject": {
+            "count": 467,
+            "min_us": 0,
+            "avg_us": 11.4,
+            "p90_us": 6.0,
+            "max_us": 4125
+          }
+        },
+        "sql_injection": {
+          "detect": {
+            "count": 467,
+            "min_us": 0,
+            "avg_us": 14.91,
+            "p90_us": 12.0,
+            "max_us": 4408
+          },
+          "inject": {
+            "count": 0,
+            "min_us": null,
+            "avg_us": null,
+            "p90_us": null,
+            "max_us": null
+          }
+        },
+        "sql_injection_encoded": {
+          "detect": {
+            "count": 467,
+            "min_us": 0,
+            "avg_us": 45.2,
+            "p90_us": 12.0,
+            "max_us": 12061
+          },
+          "inject": {
+            "count": 0,
+            "min_us": null,
+            "avg_us": null,
+            "p90_us": null,
+            "max_us": null
+          }
+        },
+        "sql_injection_miss": {
+          "detect": {
+            "count": 467,
+            "min_us": 1,
+            "avg_us": 9.04,
+            "p90_us": 14.0,
+            "max_us": 1356
+          },
+          "inject": {
+            "count": 0,
+            "min_us": null,
+            "avg_us": null,
+            "p90_us": null,
+            "max_us": null
+          }
+        },
+        "sql_injection_miss_encoded": {
+          "detect": {
+            "count": 467,
+            "min_us": 1,
+            "avg_us": 5.65,
+            "p90_us": 15.0,
+            "max_us": 75
+          },
+          "inject": {
+            "count": 0,
+            "min_us": null,
+            "avg_us": null,
+            "p90_us": null,
+            "max_us": null
+          }
+        }
+      },
+      "errors": {
+        "compose_stderr": "",
+        "logs_stderr": ""
+      }
+    },
+    {
+      "vus": 500,
+      "compose_exit_code": 0,
+      "throughput": {
+        "iterations": 7256,
+        "expected_iterations": 15000,
+        "throughput_ratio": 0.484,
+        "expected_reachable": false
+      },
+      "detection": {
+        "count": 7256,
+        "min_us": 0,
+        "avg_us": 10.67,
+        "p90_us": 4.0,
+        "max_us": 18083
+      },
+      "injection": {
+        "count": 29024,
+        "min_us": 0,
+        "avg_us": 5.32,
+        "p90_us": 3.0,
+        "max_us": 18429
+      },
+      "tokens": {
+        "html_comments": {
+          "detect": {
+            "count": 7256,
+            "min_us": 0,
+            "avg_us": 10.67,
+            "p90_us": 4.0,
+            "max_us": 18083
+          },
+          "inject": {
+            "count": 29024,
+            "min_us": 0,
+            "avg_us": 5.32,
+            "p90_us": 3.0,
+            "max_us": 18429
+          }
+        },
+        "http_headers": {
+          "detect": {
+            "count": 7256,
+            "min_us": 0,
+            "avg_us": 5.29,
+            "p90_us": 1.0,
+            "max_us": 13465
+          },
+          "inject": {
+            "count": 29024,
+            "min_us": 0,
+            "avg_us": 5.31,
+            "p90_us": 2.0,
+            "max_us": 18413
+          }
+        },
+        "cookies": {
+          "detect": {
+            "count": 7256,
+            "min_us": 0,
+            "avg_us": 1.52,
+            "p90_us": 2.0,
+            "max_us": 1851
+          },
+          "inject": {
+            "count": 29024,
+            "min_us": 0,
+            "avg_us": 3.56,
+            "p90_us": 3.0,
+            "max_us": 7631
+          }
+        },
+        "decoy_paths": {
+          "detect": {
+            "count": 7256,
+            "min_us": 0,
+            "avg_us": 1.45,
+            "p90_us": 1.0,
+            "max_us": 3375
+          },
+          "inject": {
+            "count": 29024,
+            "min_us": 0,
+            "avg_us": 2.47,
+            "p90_us": 2.0,
+            "max_us": 9274
+          }
+        },
+        "form_fields": {
+          "detect": {
+            "count": 7256,
+            "min_us": 0,
+            "avg_us": 1.82,
+            "p90_us": 1.0,
+            "max_us": 6684
+          },
+          "inject": {
+            "count": 7256,
+            "min_us": 0,
+            "avg_us": 3.81,
+            "p90_us": 2.0,
+            "max_us": 8353
+          }
+        },
+        "sql_injection": {
+          "detect": {
+            "count": 7256,
+            "min_us": 0,
+            "avg_us": 8.76,
+            "p90_us": 3.0,
+            "max_us": 11929
+          },
+          "inject": {
+            "count": 0,
+            "min_us": null,
+            "avg_us": null,
+            "p90_us": null,
+            "max_us": null
+          }
+        },
+        "sql_injection_encoded": {
+          "detect": {
+            "count": 7256,
+            "min_us": 0,
+            "avg_us": 5.96,
+            "p90_us": 3.0,
+            "max_us": 8783
+          },
+          "inject": {
+            "count": 0,
+            "min_us": null,
+            "avg_us": null,
+            "p90_us": null,
+            "max_us": null
+          }
+        },
+        "sql_injection_miss": {
+          "detect": {
+            "count": 7256,
+            "min_us": 0,
+            "avg_us": 10.44,
+            "p90_us": 4.0,
+            "max_us": 9409
+          },
+          "inject": {
+            "count": 0,
+            "min_us": null,
+            "avg_us": null,
+            "p90_us": null,
+            "max_us": null
+          }
+        },
+        "sql_injection_miss_encoded": {
+          "detect": {
+            "count": 7256,
+            "min_us": 1,
+            "avg_us": 5.26,
+            "p90_us": 4.0,
+            "max_us": 6174
+          },
+          "inject": {
+            "count": 0,
+            "min_us": null,
+            "avg_us": null,
+            "p90_us": null,
+            "max_us": null
+          }
+        }
+      },
+      "errors": {
+        "compose_stderr": "",
+        "logs_stderr": ""
+      }
+    }
+  ]
+}

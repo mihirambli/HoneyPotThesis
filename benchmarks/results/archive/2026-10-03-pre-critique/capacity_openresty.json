@@ -1,0 +1,270 @@
+{
+  "metadata": {
+    "generated_at": "2026-09-30T09:31:00.806669+00:00",
+    "script": "benchmarks/run_capacity_benchmark.py",
+    "schema": "capacity-v1",
+    "edge": "openresty",
+    "label": "OpenResty",
+    "ladder": [
+      100,
+      200,
+      400,
+      800,
+      1600
+    ],
+    "step_duration": "20s",
+    "slo_ms": 100.0,
+    "note": "offered_rate is ITERATIONS/s; each iteration issues 8 requests, so throughput_rps is the served request rate. cpu_us_per_request is CPU microseconds from cgroup cpu.stat, and is the cost-per-request figure."
+  },
+  "steps": [
+    {
+      "tier": "bare",
+      "offered_rate": 100,
+      "offered_iterations": 2000,
+      "duration": "20s",
+      "throughput_rps": 900.5,
+      "cpu": {
+        "available": true,
+        "http_reqs": 18009,
+        "cpu_usec_total": 2429915,
+        "cpu_us_per_request": 134.928,
+        "user_us_per_request": 18.089,
+        "system_us_per_request": 116.839
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "achieved_ratio": 1.0005,
+        "iterations": 2001,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "p50_ms": 0.54376,
+        "p95_ms": 1.0076015999999974,
+        "p99_ms": 2.5392453999999876
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "bare",
+      "offered_rate": 200,
+      "offered_iterations": 4000,
+      "duration": "20s",
+      "throughput_rps": 1800.5,
+      "cpu": {
+        "available": true,
+        "http_reqs": 36009,
+        "cpu_usec_total": 4563433,
+        "cpu_us_per_request": 126.73,
+        "user_us_per_request": 18.688,
+        "system_us_per_request": 108.042
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "achieved_ratio": 1.0003,
+        "iterations": 4001,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "p50_ms": 0.524095,
+        "p95_ms": 1.5269855999999993,
+        "p99_ms": 7.142871599999919
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "bare",
+      "offered_rate": 400,
+      "offered_iterations": 8000,
+      "duration": "20s",
+      "throughput_rps": 3600.0,
+      "cpu": {
+        "available": true,
+        "http_reqs": 72000,
+        "cpu_usec_total": 8886835,
+        "cpu_us_per_request": 123.428,
+        "user_us_per_request": 16.459,
+        "system_us_per_request": 106.97
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "achieved_ratio": 1.0,
+        "iterations": 8000,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "p50_ms": 0.641719,
+        "p95_ms": 12.04160535000001,
+        "p99_ms": 57.452958219999864
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "bare",
+      "offered_rate": 800,
+      "offered_iterations": 16000,
+      "duration": "20s",
+      "throughput_rps": 7018.2,
+      "cpu": {
+        "available": true,
+        "http_reqs": 140364,
+        "cpu_usec_total": 17797343,
+        "cpu_us_per_request": 126.794,
+        "user_us_per_request": 14.496,
+        "system_us_per_request": 112.298
+      },
+      "verdict": {
+        "sustained": false,
+        "reasons": [
+          "dropped 406/16000 iterations",
+          "p95 119.1 ms over the 100 ms SLO"
+        ],
+        "achieved_ratio": 0.9748,
+        "iterations": 15596,
+        "dropped_iterations": 406,
+        "http_req_failed_rate": 0.0,
+        "p50_ms": 1.563743,
+        "p95_ms": 119.11964625000006,
+        "p99_ms": 1304.3220049799997
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "wadm",
+      "offered_rate": 100,
+      "offered_iterations": 2000,
+      "duration": "20s",
+      "throughput_rps": 900.9,
+      "cpu": {
+        "available": true,
+        "http_reqs": 18018,
+        "cpu_usec_total": 4336024,
+        "cpu_us_per_request": 240.65,
+        "user_us_per_request": 56.004,
+        "system_us_per_request": 184.645
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "achieved_ratio": 1.001,
+        "iterations": 2002,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "p50_ms": 0.5996509999999999,
+        "p95_ms": 5.833331699999995,
+        "p99_ms": 30.14204766999986
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "wadm",
+      "offered_rate": 200,
+      "offered_iterations": 4000,
+      "duration": "20s",
+      "throughput_rps": 1800.0,
+      "cpu": {
+        "available": true,
+        "http_reqs": 36000,
+        "cpu_usec_total": 7764138,
+        "cpu_us_per_request": 215.671,
+        "user_us_per_request": 50.209,
+        "system_us_per_request": 165.461
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "achieved_ratio": 1.0,
+        "iterations": 4000,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "p50_ms": 0.5759055,
+        "p95_ms": 4.119060899999989,
+        "p99_ms": 16.93271818000022
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "wadm",
+      "offered_rate": 400,
+      "offered_iterations": 8000,
+      "duration": "20s",
+      "throughput_rps": 3600.4,
+      "cpu": {
+        "available": true,
+        "http_reqs": 72009,
+        "cpu_usec_total": 16014937,
+        "cpu_us_per_request": 222.402,
+        "user_us_per_request": 46.473,
+        "system_us_per_request": 175.929
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "achieved_ratio": 1.0001,
+        "iterations": 8001,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "p50_ms": 1.036711,
+        "p95_ms": 29.62278059999985,
+        "p99_ms": 108.63302675999914
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "wadm",
+      "offered_rate": 800,
+      "offered_iterations": 16000,
+      "duration": "20s",
+      "throughput_rps": 4736.7,
+      "cpu": {
+        "available": true,
+        "http_reqs": 94734,
+        "cpu_usec_total": 39485806,
+        "cpu_us_per_request": 416.807,
+        "user_us_per_request": 37.052,
+        "system_us_per_request": 379.755
+      },
+      "verdict": {
+        "sustained": false,
+        "reasons": [
+          "placed only 65.8% of offered iterations",
+          "dropped 5485/16000 iterations",
+          "p95 1688.2 ms over the 100 ms SLO"
+        ],
+        "achieved_ratio": 0.6579,
+        "iterations": 10526,
+        "dropped_iterations": 5485,
+        "http_req_failed_rate": 0.0015939367069900986,
+        "p50_ms": 243.646475,
+        "p95_ms": 1688.1896041499974,
+        "p99_ms": 4299.67544135
+      },
+      "compose_exit_code": 0
+    }
+  ],
+  "capacity": {
+    "bare": {
+      "max_sustained_offered_rate": 400,
+      "max_sustained_rps": 3600.0,
+      "first_failure": {
+        "offered_rate": 800,
+        "reasons": [
+          "dropped 406/16000 iterations",
+          "p95 119.1 ms over the 100 ms SLO"
+        ]
+      }
+    },
+    "wadm": {
+      "max_sustained_offered_rate": 400,
+      "max_sustained_rps": 3600.4,
+      "first_failure": {
+        "offered_rate": 800,
+        "reasons": [
+          "placed only 65.8% of offered iterations",
+          "dropped 5485/16000 iterations",
+          "p95 1688.2 ms over the 100 ms SLO"
+        ]
+      }
+    },
+    "wadm_throughput_retained": 1.0001
+  }
+}
