@@ -1,0 +1,7 @@
+2026-10-05T20:39:35Z START sqli suite 20261005T203935Z
+2026-10-05T21:54:40Z OK     python3 benchmarks/run_paired_benchmark.py --edge openresty --mixes sqli-hit,sqli-miss --no-prime --rates 100 --duration 60s --replicates 7
+2026-10-05T23:26:46Z OK     python3 benchmarks/run_paired_benchmark.py --edge wasm --mixes sqli-hit,sqli-miss --no-prime --rates 100 --duration 60s --replicates 7
+2026-10-06T16:07:47Z OK     python3 benchmarks/run_paired_benchmark.py --edge apache_lua --mixes sqli-hit,sqli-miss --no-prime --rates 100 --duration 60s --replicates 7
+2026-10-06T17:35:12Z OK     python3 benchmarks/run_paired_benchmark.py --edge envoy_lua --mixes sqli-hit,sqli-miss --no-prime --rates 100 --duration 60s --replicates 7
+2026-10-06T17:35:14Z OK     python3 benchmarks/plot_sqli.py
+2026-10-06T17:35:14Z DONE

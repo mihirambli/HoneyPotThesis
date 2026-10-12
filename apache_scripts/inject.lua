@@ -59,7 +59,9 @@ function handle_inject(r)
         local nb = splice_before(body, p.anchor, p.markup)
         local extra_end = r:clock()
         if nb then body = nb end
-        r:warn("WADM TOKEN " .. p.kind .. " inject (us): " .. tostring(extra_end - extra_start))
+        if wadm.emit_timings then
+            r:warn("WADM TOKEN " .. p.kind .. " inject (us): " .. tostring(extra_end - extra_start))
+        end
     end
 
     local injection = plan.comments
@@ -67,7 +69,9 @@ function handle_inject(r)
         local start_time = r:clock()
         body = splice_before(body, "</body>", injection) or (body .. injection)
         local end_time = r:clock()
-        r:warn("Apache Injection execution time (us): " .. tostring(end_time - start_time))
+        if wadm.emit_timings then
+            r:warn("Apache Injection execution time (us): " .. tostring(end_time - start_time))
+        end
     end
     coroutine.yield(body)
 end

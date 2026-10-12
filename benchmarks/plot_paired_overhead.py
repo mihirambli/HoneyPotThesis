@@ -110,7 +110,7 @@ def finish(fig, path: Path) -> Path:
 def plot_latency_added(summaries: dict[str, Any], rates: list[int], out_dir: Path) -> Path:
     edges = list(summaries)
     fig, axes = plt.subplots(1, len(rates), figsize=(5.2 * len(rates) + 2.6, 8.4),
-                             sharey=True, sharex=True, squeeze=False)
+                             sharey=True, squeeze=False)
     axes = axes[0]
     spacing = 0.17
     offsets = {e: (i - (len(edges) - 1) / 2) * spacing for i, e in enumerate(edges)}
@@ -119,6 +119,17 @@ def plot_latency_added(summaries: dict[str, Any], rates: list[int], out_dir: Pat
     y_of = {m: -(i + (0.8 if i >= len(GET_METRICS) else 0)) for i, (m, _) in enumerate(PROBES)}
 
     for ax, rate in zip(axes, rates):
+        # Each panel is framed on its medians, not on its widest range: one overloaded cell (Apache
+        # at 100/s, ranges to ~27 ms) otherwise flattens every other edge into a single line. A range
+        # running past the frame is clipped and its end marked with an arrowhead.
+        medians = [
+            (summaries[e]["rates"].get(str(rate)) or {}).get("latency_delta_ms", {})
+            .get(m, {}).get("median")
+            for e in edges for m, _ in PROBES
+        ]
+        medians = [v * US_PER_MS for v in medians if v is not None]
+        span = max(max(medians, default=0), -min(medians, default=0), 100.0)
+        lo, hi = min(min(medians, default=0) * 1.3, -0.15 * span), max(medians, default=0) * 1.3
         for edge in edges:
             data = summaries[edge]["rates"].get(str(rate))
             if not data:
@@ -130,12 +141,18 @@ def plot_latency_added(summaries: dict[str, Any], rates: list[int], out_dir: Pat
                     continue
                 y = y_of[metric] + offsets[edge]
                 if d.get("ci_low") is not None:
-                    ax.plot([d["ci_low"] * US_PER_MS, d["ci_high"] * US_PER_MS], [y, y],
+                    a, b = d["ci_low"] * US_PER_MS, d["ci_high"] * US_PER_MS
+                    ax.plot([max(a, lo), min(b, hi)], [y, y],
                             color=color, linewidth=2, solid_capstyle="round", zorder=2)
+                    for end, limit, mark in ((a, lo, "<"), (b, hi, ">")):
+                        if (end < limit) if mark == "<" else (end > limit):
+                            ax.plot(limit, y, marker=mark, markersize=6, color=color, zorder=2,
+                                    clip_on=False)
                 resolved = d.get("significant")
                 ax.plot(d["median"] * US_PER_MS, y, marker="o", markersize=8, zorder=3,
                         color=color, markerfacecolor=color if resolved else "white",
                         markeredgecolor=color, markeredgewidth=2)
+        ax.set_xlim(lo, hi)
         ax.axvline(0, color=INK_MUTED, linewidth=1, zorder=1)
         ax.axhline(-(len(GET_METRICS) - 0.1), color="#d5d4cf", linewidth=0.8, linestyle=":")
         ax.set_title(f"{rate} iteration{'s' if rate != 1 else ''}/s offered "
@@ -162,14 +179,14 @@ def plot_latency_added(summaries: dict[str, Any], rates: list[int], out_dir: Pat
                  fontsize=14, fontweight="bold", color=INK, x=0.01, ha="left")
     fig.text(
         0.01, 0.005,
-        "Dot = median over replicates of (WADM − bare) median latency, each pair measured minutes "
+        "Dot = median over replicates of (silent WADM − bare) median latency, each pair measured minutes "
         "apart. Line = the range of those paired differences, which for five replicates is the\n"
         "distribution-free 93.75% interval for the median. Hollow = the range spans zero. Below "
         "the dotted rule are the SQLi trap's POSTs: OpenResty, Envoy+Lua and Apache answer them\n"
         "without contacting the origin, so WADM REMOVES a round-trip there and the difference is "
         "negative by design; Envoy+WASM cannot answer from the request phase and still pays it.\n"
-        "Apache's POST arms are additionally confounded by connection teardown after its 500 "
-        "responses (probe order is rotated, so each probe always follows the same predecessor).",
+        "Each panel has its own scale; an arrowhead marks a range clipped at the panel edge. Probe "
+        "order is a Williams square, so every probe follows every other equally often.",
         fontsize=7.5, color=INK_MUTED, style="italic", va="bottom", linespacing=1.5,
     )
     fig.tight_layout(rect=[0, 0.12, 1, 0.95])
@@ -317,13 +334,22 @@ def plot_internal_timers(summaries: dict[str, Any], rates: list[int], out_dir: P
 
 # ── Headline table ───────────────────────────────────────────────────────────────────────────
 
+COMPARISON_TEXT = {
+    "silent_minus_bare": "WADM without the benchmark's timing lines (silent) − bare",
+    "wadm_minus_bare": "instrumented WADM − bare (no silent tier in this dataset)",
+}
+
+
 def headline_rows(summaries: dict[str, Any], rates: list[int]) -> list[dict[str, Any]]:
-    def us(d: dict[str, Any]) -> float | None:
-        return None if d.get("median") is None else round(d["median"] * US_PER_MS)
+    def us(d: dict[str, Any] | None) -> int | None:
+        return None if not d or d.get("median") is None else round(d["median"] * US_PER_MS)
+
+    def num(d: dict[str, Any] | None) -> int | None:
+        return None if not d or d.get("median") is None else round(d["median"])
 
     rows = []
     for edge, summary in summaries.items():
-        marginal = summary["cpu_marginal"]["wadm_minus_bare"]
+        marginal = summary["cpu_marginal"]
         for rate in rates:
             data = summary["rates"].get(str(rate))
             if not data:
@@ -333,78 +359,159 @@ def headline_rows(summaries: dict[str, Any], rates: list[int]) -> list[dict[str,
             pct = [p for p in pct if p is not None]
             cov = [c["worst_ratio"] for phases in data["coverage"].values() for c in phases.values()]
             split = data["cpu_delta_split_us_per_request"]
+            probe = (data.get("comparisons") or {}).get("wadm_minus_silent") or {}
+            probe_get = (probe.get("latency_delta_quantiles_ms") or {}).get("per_get") or {}
             rows.append({
                 "edge": EDGES[edge].label,
                 "rate_iter_per_s": rate,
                 "replicates": data["replicates_paired"],
-                "get_p50_added_us": us(per_get.get("med", {})),
-                "get_p95_added_us": us(per_get.get("p95", {})),
+                "comparison": data.get("headline_comparison", "wadm_minus_bare"),
+                "get_p50_added_us": us(per_get.get("med")),
+                "get_p95_added_us": us(per_get.get("p95")),
                 "get_p50_added_pct": round(sum(pct) / len(pct)) if pct else None,
-                "get_p50_resolved": per_get.get("med", {}).get("sign_agreement"),
-                "cpu_added_us_per_req": (
-                    round(data["cpu_delta_us_per_request"]["median"])
-                    if data["cpu_delta_us_per_request"].get("median") is not None else None
-                ),
-                "cpu_user_us": round(split["user"]["median"]) if split["user"].get("n") else None,
-                "cpu_system_us": (
-                    round(split["system"]["median"]) if split["system"].get("n") else None
-                ),
-                "cpu_marginal_added_us": (
-                    round(marginal["median"]) if marginal.get("median") is not None else None
-                ),
+                "get_p50_resolved": (per_get.get("med") or {}).get("sign_agreement"),
+                "cpu_added_us_per_req": num(data["cpu_delta_us_per_request"]),
+                "cpu_user_us": num(split.get("user")),
+                "cpu_system_us": num(split.get("system")),
+                "cpu_marginal_added_us": num(marginal.get("headline")),
+                "probe_effect_get_p50_us": us(probe_get.get("med")),
+                "probe_effect_cpu_us_per_req": num(probe.get("cpu_delta_us_per_request")),
                 "coverage_worst": round(min(cov), 4) if cov else None,
             })
     return rows
 
 
-def write_headline(rows: list[dict[str, Any]], results_dir: Path) -> list[Path]:
-    csv_path = results_dir / "paired_headline.csv"
-    with csv_path.open("w", newline="", encoding="utf-8") as fh:
+def functional_rows(summaries: dict[str, Any], rates: list[int]) -> list[dict[str, Any]]:
+    """One row per edge, rate and tier: what the functional checks in the paired cells found."""
+    rows = []
+    for edge, summary in summaries.items():
+        for rate in rates:
+            data = summary["rates"].get(str(rate)) or {}
+            for tier, f in (data.get("functional") or {}).items():
+                probes = f.get("probes") or {}
+                if not probes:
+                    continue
+                worst = [(v["intact_worst"], n) for n, v in probes.items() if v["intact_worst"] is not None]
+                reconnect = {n: v["new_conn_median"] for n, v in probes.items() if v["new_conn_median"]}
+                alerts = f.get("alerts") or {}
+                rows.append({
+                    "edge": EDGES[edge].label,
+                    "rate_iter_per_s": rate,
+                    "tier": tier,
+                    "worst_intact": min(worst)[0] if worst else None,
+                    "worst_intact_probe": min(worst)[1] if worst and min(worst)[0] < 1 else None,
+                    "reconnecting_probes": ", ".join(
+                        f"{n} {r:.0%}" for n, r in sorted(reconnect.items(), key=lambda kv: -kv[1])
+                    ) or None,
+                    "bare_matches_origin": (
+                        all(v["matches_origin_all"] for v in probes.values())
+                        if tier == "bare" else None
+                    ),
+                    "bait_on_every_proxied_probe": (
+                        all(v["bait_all_present"] for v in probes.values() if v["baited"])
+                        if tier != "bare" else None
+                    ),
+                    "timing_lines": f.get("timing_lines_max"),
+                    "alert_recall": (alerts.get("alert") or {}).get("worst"),
+                    "trap_recall": (alerts.get("trap") or {}).get("worst"),
+                })
+    return rows
+
+
+def _cell(v: Any) -> str:
+    if v is None:
+        return "—"
+    if isinstance(v, bool):
+        return "yes" if v else "**NO**"
+    if isinstance(v, int):
+        return f"{v:+,}"
+    if isinstance(v, float):
+        return f"{v:.4g}"
+    return str(v)
+
+
+def write_csv(rows: list[dict[str, Any]], path: Path) -> Path:
+    with path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
+    return path
 
-    def cell(v: Any) -> str:
-        return "—" if v is None else (f"{v:+,}" if isinstance(v, int) and not isinstance(v, bool)
-                                       else str(v))
 
+def write_headline(rows: list[dict[str, Any]], results_dir: Path) -> list[Path]:
+    comparison = rows[0]["comparison"]
     lines = [
         "# WADM headline figures (paired dataset)",
         "",
-        "Generated by `benchmarks/plot_paired_overhead.py` from `paired_<edge>.json`. Latency is "
-        "per GET probe (the four requests every edge proxies and injects into); CPU is per request "
-        "over the whole 9-request iteration and is therefore **net** of the work the SQLi trap "
-        "saves by not proxying its POSTs, and **includes** the cost of writing WADM's timing log "
-        "lines. Coverage is recorded timing samples ÷ expected (1.0 = every request that should "
-        "have taken the WADM path left a record).",
+        "Generated by `benchmarks/plot_paired_overhead.py` from `paired_<edge>.json`. Every "
+        f"difference is **{COMPARISON_TEXT.get(comparison, comparison)}**, measured as a pair minutes "
+        "apart and summarised over replicates. Latency is per GET probe (the four requests every "
+        "edge proxies and injects into). CPU is per request over the whole 9-request iteration and "
+        "is therefore **net** of the proxy work the SQLi trap saves by answering its POSTs itself. "
+        "The probe-effect columns are what the benchmark's own timing log lines add on top "
+        "(instrumented − silent). Coverage is recorded timing samples ÷ expected.",
         "",
         "| Edge | Rate (iter/s) | Δ p50 per GET (µs) | Δ p50 (% of bare) | Δ p95 per GET (µs) "
-        "| Resolved | CPU added (µs/req) | user | system | Marginal CPU added (µs/req) | "
-        "Coverage (worst) |",
-        "|---|---|---|---|---|---|---|---|---|---|---|",
+        "| Resolved | CPU added (µs/req) | user | system | Marginal CPU added (µs/req) "
+        "| Probe effect: Δ p50 per GET (µs) | Probe effect: CPU (µs/req) | Coverage (worst) |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for r in rows:
         lines.append(
-            f"| {r['edge']} | {r['rate_iter_per_s']} | {cell(r['get_p50_added_us'])} | "
-            f"{cell(r['get_p50_added_pct'])}% | {cell(r['get_p95_added_us'])} | "
-            f"{r['get_p50_resolved'] or '—'} | {cell(r['cpu_added_us_per_req'])} | "
-            f"{cell(r['cpu_user_us'])} | {cell(r['cpu_system_us'])} | "
-            f"{cell(r['cpu_marginal_added_us'])} | {cell(r['coverage_worst'])} |"
+            f"| {r['edge']} | {r['rate_iter_per_s']} | {_cell(r['get_p50_added_us'])} | "
+            f"{_cell(r['get_p50_added_pct'])}% | {_cell(r['get_p95_added_us'])} | "
+            f"{r['get_p50_resolved'] or '—'} | {_cell(r['cpu_added_us_per_req'])} | "
+            f"{_cell(r['cpu_user_us'])} | {_cell(r['cpu_system_us'])} | "
+            f"{_cell(r['cpu_marginal_added_us'])} | {_cell(r['probe_effect_get_p50_us'])} | "
+            f"{_cell(r['probe_effect_cpu_us_per_req'])} | {_cell(r['coverage_worst'])} |"
         )
     lines += [
         "",
         "`user` and `system` are each the median of their own paired differences, so they need "
         "not sum to the total. Marginal CPU is fitted across all three rates (idle cost separated "
-        "from per-request cost), so it is one value per edge, repeated on each row; Apache's fit "
-        "is rejected as unphysical (crash recovery makes its CPU per request climb with rate). "
-        "`Resolved` counts replicates agreeing in sign. Capacity is deliberately "
-        "absent: the current ladder does not record which resource saturated first, and the bare "
-        "tiers appear to be origin-bound (see `docs/BENCHMARK_METHODOLOGY.md` §6).",
+        "from per-request cost), so it is one value per edge, repeated on each row; a fit that "
+        "comes out negative is rejected as unphysical and shown as —. `Resolved` counts replicates "
+        "agreeing in sign. Capacity is in `capacity_summary.md`, functional checks in "
+        "`paired_functional.md`.",
         "",
     ]
     md_path = results_dir / "paired_headline.md"
     md_path.write_text("\n".join(lines), encoding="utf-8")
-    return [csv_path, md_path]
+    return [write_csv(rows, results_dir / "paired_headline.csv"), md_path]
+
+
+def write_functional(rows: list[dict[str, Any]], results_dir: Path) -> list[Path]:
+    if not rows:
+        return []
+    lines = [
+        "# Functional checks under load (paired dataset)",
+        "",
+        "Generated by `benchmarks/plot_paired_overhead.py`. Every measured response is compared "
+        "with the response the same edge returned before the load started (`intact` = status and "
+        "body hash identical). Before the load, each probe is also sent to the origin directly: "
+        "the bare tier must return exactly what the origin returns, and the WADM tiers must carry "
+        "the bait header, cookie and comment on every proxied probe. Alert recall is alert lines "
+        "logged in the measured window ÷ the lines the probes should trigger (7 ALERT and 2 TRAP "
+        "per iteration); on bare it is the raw count, which must be 0. *Timing lines* is the most any "
+        "cell of that tier logged: it must be 0 on bare and silent, which is the check that the "
+        "tier switch did what it says.",
+        "",
+        "| Edge | Rate | Tier | Worst intact | (probe) | Requests that reconnected | "
+        "Bare = origin | Baits present | Alert recall | Trap recall | Timing lines |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for r in rows:
+        intact = "—" if r["worst_intact"] is None else f"{r['worst_intact']:.2%}"
+        lines.append(
+            f"| {r['edge']} | {r['rate_iter_per_s']} | {r['tier']} | {intact} | "
+            f"{r['worst_intact_probe'] or '—'} | {r['reconnecting_probes'] or 'none'} | "
+            f"{_cell(r['bare_matches_origin'])} | {_cell(r['bait_on_every_proxied_probe'])} | "
+            f"{_cell(r['alert_recall'])} | {_cell(r['trap_recall'])} | "
+            f"{r['timing_lines'] if r['timing_lines'] is not None else '—'} |"
+        )
+    md_path = results_dir / "paired_functional.md"
+    md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return [write_csv(rows, results_dir / "paired_functional.csv"), md_path]
 
 
 def main() -> int:
@@ -424,6 +531,7 @@ def main() -> int:
         plot_internal_timers(summaries, rates, out_dir),
     ]
     written += write_headline(headline_rows(summaries, rates), results_dir)
+    written += write_functional(functional_rows(summaries, rates), results_dir)
     for path in written:
         print(f"  wrote {path}")
     return 0

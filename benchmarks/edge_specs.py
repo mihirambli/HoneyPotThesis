@@ -14,8 +14,25 @@ match Apache's and WASM's and silently pool three edges into one distribution.
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# The three tiers a paired cell can run, in the order they are reported.
+#
+#   bare    the edge's WADM-free config: what the server did before WADM existed.
+#   silent  full WADM with the benchmark's timing log lines switched off (`emit_timings: false`):
+#           every detection, injection, alert and clock read, none of the ~39 timing writes per
+#           iteration. This is the WADM a deployment would run, so silent - bare is the headline.
+#   wadm    full WADM with the timing lines on: the only tier the in-edge timers can be read from.
+#           wadm - silent is the cost of the instrumentation itself.
+TIERS = ["bare", "silent", "wadm"]
+WADM_TIERS = ("silent", "wadm")
+
+SILENT_CONFIG_NAME = "config-silent.json"
 
 
 @dataclass(frozen=True)
@@ -42,6 +59,36 @@ class EdgeSpec:
         if self.profile:
             command += ["--profile", self.profile]
         return command
+
+    def tier_env(self, tier: str) -> dict[str, str]:
+        """Compose variables that select this tier: the server config, and the WADM config.json.
+
+        Both are set explicitly for every tier, never left to inherit, so a variable exported in the
+        operator's shell cannot quietly put one tier's config under another tier's name.
+        """
+        if tier not in TIERS:
+            raise ValueError(f"unknown tier {tier!r}; expected one of {TIERS}")
+        env: dict[str, str] = {
+            "WADM_CONFIG_JSON": f"./{SILENT_CONFIG_NAME}" if tier == "silent" else "./config.json",
+        }
+        if self.config_env:
+            config = self.bare_config if tier == "bare" else self.wadm_config
+            if config:
+                env[self.config_env] = config
+        return env
+
+
+def write_silent_config() -> Path:
+    """Generate config-silent.json from config.json, differing only in `emit_timings: false`.
+
+    Generated rather than committed so the two can never drift: every token, signature and trap
+    setting comes from config.json at the moment the run starts.
+    """
+    source = json.loads((REPO_ROOT / "config.json").read_text(encoding="utf-8"))
+    source["emit_timings"] = False
+    target = REPO_ROOT / SILENT_CONFIG_NAME
+    target.write_text(json.dumps(source, indent=2) + "\n", encoding="utf-8")
+    return target
 
 
 def _res(prefix: str) -> tuple[re.Pattern[str], re.Pattern[str]]:

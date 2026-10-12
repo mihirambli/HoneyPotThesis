@@ -16,6 +16,9 @@
 #            milliseconds for work whose median is 5 us. The trade is that a line may be dropped
 #            rather than delivered under extreme burst, which shows up honestly as a lower sample
 #            count instead of as a corrupted sample.
+#   config   WADM_CONFIG_JSON swaps the config.json every edge mounts. The paired runner points it at
+#            a generated copy with `emit_timings: false` for the WADM-silent tier: identical WADM,
+#            minus the benchmark's timing log lines.
 x-wadm-logging: &wadm_logging
   driver: json-file
   options:
@@ -47,7 +50,7 @@ services:
       # Overridable so the baseline suite can mount a WADM-free config into the SAME service —
       # same name, same port, same network path, so only the filter chain differs.
       - ${OPENRESTY_CONF:-./nginx/nginx.conf}:/usr/local/openresty/nginx/conf/nginx.conf:ro
-      - ./config.json:/etc/openresty/config.json:ro
+      - ${WADM_CONFIG_JSON:-./config.json}:/etc/openresty/config.json:ro
     depends_on:
       - backend
     cpuset: ${EDGE_CPUS:-1-2}
@@ -64,7 +67,7 @@ services:
       - "8081:8080"
     volumes:
       - ${ENVOY_CONF:-./envoy/envoy.yaml}:/etc/envoy/envoy.yaml:ro
-      - ./config.json:/etc/envoy/config.json:ro
+      - ${WADM_CONFIG_JSON:-./config.json}:/etc/envoy/config.json:ro
       - ./envoy_scripts:/etc/envoy/scripts:ro
     depends_on:
       - backend
@@ -92,7 +95,7 @@ services:
       - "8082:8080"
     volumes:
       - ${ENVOY_WASM_CONF:-./envoy-wasm/envoy-wasm.yaml}:/etc/envoy/envoy-wasm.yaml:ro
-      - ./config.json:/etc/envoy/config.json:ro
+      - ${WADM_CONFIG_JSON:-./config.json}:/etc/envoy/config.json:ro
       - ./envoy-wasm/entrypoint.sh:/entrypoint.sh:ro
       - wasm_output:/etc/envoy/wasm:ro
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
@@ -115,7 +118,7 @@ services:
       - "8083:80"
     volumes:
       - ./apache_scripts:/usr/local/apache2/scripts/:ro
-      - ./config.json:/usr/local/apache2/conf/config.json:ro
+      - ${WADM_CONFIG_JSON:-./config.json}:/usr/local/apache2/conf/config.json:ro
       - ${HTTPD_CONF:-./httpd.conf}:/usr/local/apache2/conf/httpd.conf:ro
     depends_on:
       - backend
@@ -135,6 +138,9 @@ services:
       - ./benchmarks:/scripts:ro
     environment:
       TARGET: ${TARGET:-http://openresty:80}
+      # The origin, addressed directly by test.js's setup() to record what each probe returns
+      # without any edge in the way — the reference for the functional-integrity checks.
+      ORIGIN: ${ORIGIN:-http://backend:80}
       TRIGGER_KEYWORD: ${TRIGGER_KEYWORD:-internal-admin.example.com}
       # Surfaces for the non-html_comments honeytoken kinds; defaults mirror config.json.
       HEADER_KEYWORD: ${HEADER_KEYWORD:-app-07.internal.example.com}
@@ -161,10 +167,13 @@ services:
       WADM_RATE: ${WADM_RATE:-10}
       WADM_DURATION: ${WADM_DURATION:-30s}
       WADM_START_DELAY: ${WADM_START_DELAY:-5s}
-      WADM_ORDER: ${WADM_ORDER:-rotate}
+      WADM_ORDER: ${WADM_ORDER:-williams}
       WADM_SEED: ${WADM_SEED:-1}
       WADM_PREALLOC_VUS: ${WADM_PREALLOC_VUS:-}
       WADM_MAX_VUS: ${WADM_MAX_VUS:-}
+      WADM_PRIME: ${WADM_PRIME:-1}
+      WADM_MIX: ${WADM_MIX:-all}
+      WADM_CHECKS: ${WADM_CHECKS:-1}
     command: ["run", "/scripts/test.js"]
     # The load generator gets its own cores. Sharing them with the edge made k6's own scheduling
     # delay part of every "edge latency" reading, and at high rates k6 is the hungriest process on

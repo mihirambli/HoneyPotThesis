@@ -1172,3 +1172,112 @@ add, understating — and potentially inverting — the measured bar.
 
 The microsecond plane above is unaffected, because every timed region closes long before the
 round-trip.
+
+---
+
+## 2026-10-07 — Why Apache crashes at 100 iterations/s, and how a run is judged valid
+
+### 1. The crash is driven by request volume, not by rate
+
+Apache+mod_lua is the only edge that crashes under WADM. Its workers segfault (`AH00052: child pid N
+exit signal Segmentation fault (11)`), Apache respawns them, and the request in flight fails.
+The investigation is in `docs/BENCHMARK_METHODOLOGY.md` §4b; the findings are:
+
+- **Component.** The response body filter, `inject.lua` (`LuaOutputFilter`). Under identical load
+  (900 req/s, 20 s), full WADM produced 10 segfaults; WADM with only the body filter removed — detection
+  and the SQLi trap still active — produced 0.
+- **Mechanism.** With `LuaScope thread` and `LuaCodeCache forever`, one Lua state is reused for every
+  request a worker thread serves. The filter runs as a coroutine over Apache's bucket brigade and
+  buffers the whole body, and something in that reused state accumulates per request until the
+  worker segfaults. The exact allocation was not identified (that would need a core dump); the
+  component, the driver and the rate are established.
+- **Driver.** Cumulative requests served, not arrival rate or concurrency. Nothing crashes below
+  roughly 4,000 requests. At a fixed 90 req/s, 909 requests were clean and 8,100 crashed four times.
+  A threshold followed by a steady rate per request is the signature of per-request accumulation,
+  not of a race between concurrent requests.
+
+"Crashes at 100/s" is therefore a consequence of run length. One iteration is 9 requests (one
+unrecorded priming `GET /`, four GET probes, four SQLi POSTs), so each instrumented run serves:
+
+| Offered rate | Requests per run | Segfaults per run |
+|---|---|---|
+| 1 iteration/s (≈9 req/s, 90 s) | ~835 | 0 |
+| 10 iterations/s (≈90 req/s, 45 s) | ~4,070 | 0–2 |
+| 100 iterations/s (≈900 req/s, 30 s) | ~27,000 | 13–16 |
+
+Only the 100/s runs serve far past the ~4,000-request onset.
+
+**Remediation.** `LuaScope conn` (a fresh Lua state per connection) eliminates the crash, but at
+roughly 7–9× the CPU per request; it cannot sustain 100/s, and it makes Apache forget recorded
+attacker IPs when a connection closes, breaking parity with OpenResty's shared dictionary.
+`LuaScope request` also fixes it but placed only two thirds of the offered load. The shipped
+`LuaScope thread` configuration is kept for the main results, with the crash characterised rather
+than configured away; the remediation is reported separately (`apache_remediation.png`,
+methodology §4c).
+
+### 2. How a run is judged valid
+
+Every run (one tier × one rate × one replicate) passes through `assess_run()` in
+`benchmarks/wadm_timings.py`. A run is **rejected** if any of these hold:
+
+| Gate | Threshold | What it catches |
+|---|---|---|
+| HTTP failures | > 0.5% of requests | broken responses |
+| Dropped iterations | > 1% of offered | k6 could not start iterations on time |
+| Achieved rate | < 95% of offered | the edge could not keep up |
+| Origin CPU per request | > 1,000 µs | host contention. The origin container is identical in every run, so a spike there cannot be the edge — a negative control |
+| Host freeze | any | the VM was paused inside the measurement window |
+| Timer tail | > 1% of internal timer samples above 1,000 µs, **and** ≥ 3 such samples | a run whose in-edge timings are contaminated by stalls |
+
+A crash on its own is a **warning**, not a rejection. A crash takes the in-flight request with it,
+which the failure-rate and achieved-rate gates already measure; the original "any crash rejects"
+rule threw away whole rate levels for ~0.03% damage, and discarded exactly the runs where "this
+edge crashes under load" is the finding (methodology §1.6b). The "≥ 3 samples" condition exists
+because at 1/s a kind collects ~90 samples, so a single slow sample would otherwise be 1.1% and
+reject an otherwise clean run. Rejected runs stay in the result JSON with their reasons and are
+excluded from every statistic; `analyze_paired.py --reassess` re-applies changed rules to stored
+data without re-running.
+
+### 3. Why Apache has no timer data at 100/s
+
+The suite runs three tiers: `bare` (no WADM), `silent` (WADM as deployed, no timing-log lines) and
+`wadm` (instrumented). CPU and latency figures use silent − bare; the in-edge timers come only from
+`wadm`.
+
+At 100/s, 4 of Apache's 5 silent runs passed, so its CPU and latency figures exist. **All 5 of its
+instrumented runs failed the timer-tail gate**: 1.1–1.7% of samples above 1 ms (33–51 samples per
+run). Two of them also failed the HTTP-failure gate (0.75% and 0.51%).
+
+The gate's message attributes this to "host preemption", but the evidence says otherwise. Samples
+above 1 ms per instrumented run at 100/s, same host and protocol:
+
+| Edge | Samples > 1 ms per run |
+|---|---|
+| OpenResty | 0–1 |
+| WASM (Envoy) | 1–4 |
+| Envoy+Lua | 1–3 |
+| **Apache+Lua** | **33–51** |
+
+At 1/s and 10/s Apache's count is 0–1 per run, like the others. Preemption by the host would
+affect every edge alike; a tail ten to fifty times larger on one edge, appearing only at the rate
+where that edge crashes 13–16 times per run, is internal to Apache. The likely cause is
+crash-and-respawn churn: worker processes dying and being replaced on two pinned cores while the
+surviving workers' timed regions wait.
+
+**How to state it in the write-up:** the rejection is correct, but the accurate wording is that
+*Apache's in-edge timings at 100/s are contaminated by its own crash recovery*, not by host noise.
+Its CPU figure at that rate should likewise be read as "WADM plus crash recovery", not the cost of
+the deception logic alone (methodology §4b, "How to read Apache's numbers"). Its timings at 1/s and
+10/s are unaffected: a crashed child contributes no samples rather than wrong ones.
+
+### 4. Presentation options (open)
+
+1. Keep Apache at 100/s as "no valid instrumented run" in the figures and explain the cause in
+   the text (current state).
+2. Make the timer-tail gate's message say "edge-internal stalls" instead of "host preemption"
+   when only one edge shows the tail. Label only; the same runs are rejected.
+3. Plot the rejected Apache runs hollow and marked as rejected. The 5%-trimmed mean already drops
+   the slow tail, so the value would still be meaningful, but it would be the only plotted figure
+   drawn from rejected runs.
+
+Recommended: 1 with 2.

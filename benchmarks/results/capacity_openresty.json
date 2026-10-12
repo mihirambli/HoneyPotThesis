@@ -1,10 +1,15 @@
 {
   "metadata": {
-    "generated_at": "2026-09-30T09:31:00.806669+00:00",
+    "generated_at": "2026-10-05T06:18:08.541704+00:00",
     "script": "benchmarks/run_capacity_benchmark.py",
-    "schema": "capacity-v1",
+    "schema": "capacity-v2",
     "edge": "openresty",
     "label": "OpenResty",
+    "tiers": [
+      "bare",
+      "silent",
+      "wadm"
+    ],
     "ladder": [
       100,
       200,
@@ -12,259 +17,5009 @@
       800,
       1600
     ],
+    "bisect": 2,
+    "replicates": 3,
     "step_duration": "20s",
     "slo_ms": 100.0,
-    "note": "offered_rate is ITERATIONS/s; each iteration issues 8 requests, so throughput_rps is the served request rate. cpu_us_per_request is CPU microseconds from cgroup cpu.stat, and is the cost-per-request figure."
+    "slo_metric": "worst p95 over the four GET probes",
+    "cpusets": {
+      "edge": "1-2",
+      "origin": "3",
+      "loadgen": "4-7"
+    },
+    "note": "offered_rate is ITERATIONS/s; each iteration issues 9 requests, so throughput_rps is the served request rate. cpu.*.cpu_us_per_request is CPU microseconds over the measured window. utilisation.binding is the component using the largest share of its cpuset; compare capacities across tiers only when they share a binding resource."
   },
   "steps": [
     {
       "tier": "bare",
       "offered_rate": 100,
+      "replicate": 1,
       "offered_iterations": 2000,
       "duration": "20s",
       "throughput_rps": 900.5,
       "cpu": {
-        "available": true,
-        "http_reqs": 18009,
-        "cpu_usec_total": 2429915,
-        "cpu_us_per_request": 134.928,
-        "user_us_per_request": 18.089,
-        "system_us_per_request": 116.839
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 2714812,
+          "cores_used": 0.1357,
+          "memory_bytes_max": 11264000,
+          "memory_bytes_mean": 10338771,
+          "cpu_us_per_request": 150.748,
+          "requests": 18009,
+          "user_us_per_request": 24.167,
+          "system_us_per_request": 126.581
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 2615239,
+          "cores_used": 0.1308,
+          "memory_bytes_max": 3088384,
+          "memory_bytes_mean": 2875651,
+          "cpu_us_per_request": 145.218,
+          "requests": 18009,
+          "user_us_per_request": 21.084,
+          "system_us_per_request": 124.135
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 10272162,
+          "cores_used": 0.5136,
+          "memory_bytes_max": 126996480,
+          "memory_bytes_mean": 113509907,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.126,
+          "softirq_fraction": 0.025
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.068,
+          "origin": 0.131,
+          "loadgen": 0.128
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.126,
+          "softirq_fraction": 0.025
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        }
       },
       "verdict": {
         "sustained": true,
         "reasons": [],
+        "warnings": [],
         "achieved_ratio": 1.0005,
         "iterations": 2001,
         "dropped_iterations": 0,
         "http_req_failed_rate": 0.0,
-        "p50_ms": 0.54376,
-        "p95_ms": 1.0076015999999974,
-        "p99_ms": 2.5392453999999876
+        "get_p95_ms": 1.206219,
+        "pooled_p50_ms": 0.55731,
+        "pooled_p95_ms": 1.1086757999999985,
+        "pooled_p99_ms": 2.7800741199999766,
+        "origin_cpu_us_per_request": 145.218
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "bare",
+      "offered_rate": 100,
+      "replicate": 2,
+      "offered_iterations": 2000,
+      "duration": "20s",
+      "throughput_rps": 900.5,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 2641211,
+          "cores_used": 0.1321,
+          "memory_bytes_max": 11046912,
+          "memory_bytes_mean": 10461495,
+          "cpu_us_per_request": 146.661,
+          "requests": 18009,
+          "user_us_per_request": 26.716,
+          "system_us_per_request": 119.945
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 2449143,
+          "cores_used": 0.1225,
+          "memory_bytes_max": 3162112,
+          "memory_bytes_mean": 2899864,
+          "cpu_us_per_request": 135.996,
+          "requests": 18009,
+          "user_us_per_request": 19.979,
+          "system_us_per_request": 116.016
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 9927122,
+          "cores_used": 0.4964,
+          "memory_bytes_max": 126111744,
+          "memory_bytes_mean": 112364116,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.119,
+          "softirq_fraction": 0.021
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.066,
+          "origin": 0.122,
+          "loadgen": 0.124
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "loadgen",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.119,
+          "softirq_fraction": 0.021
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0005,
+        "iterations": 2001,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 1.009346,
+        "pooled_p50_ms": 0.552758,
+        "pooled_p95_ms": 0.9782913999999999,
+        "pooled_p99_ms": 2.2292499999999893,
+        "origin_cpu_us_per_request": 135.996
       },
       "compose_exit_code": 0
     },
     {
       "tier": "bare",
       "offered_rate": 200,
+      "replicate": 1,
       "offered_iterations": 4000,
       "duration": "20s",
       "throughput_rps": 1800.5,
       "cpu": {
-        "available": true,
-        "http_reqs": 36009,
-        "cpu_usec_total": 4563433,
-        "cpu_us_per_request": 126.73,
-        "user_us_per_request": 18.688,
-        "system_us_per_request": 108.042
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 5304080,
+          "cores_used": 0.2652,
+          "memory_bytes_max": 13787136,
+          "memory_bytes_mean": 12764069,
+          "cpu_us_per_request": 147.299,
+          "requests": 36009,
+          "user_us_per_request": 18.948,
+          "system_us_per_request": 128.35
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 5784874,
+          "cores_used": 0.2892,
+          "memory_bytes_max": 3788800,
+          "memory_bytes_mean": 3396569,
+          "cpu_us_per_request": 160.651,
+          "requests": 36009,
+          "user_us_per_request": 16.587,
+          "system_us_per_request": 144.064
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 18554200,
+          "cores_used": 0.9277,
+          "memory_bytes_max": 241770496,
+          "memory_bytes_mean": 220294390,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.278,
+          "softirq_fraction": 0.052
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.133,
+          "origin": 0.289,
+          "loadgen": 0.232
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.278,
+          "softirq_fraction": 0.052
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        }
       },
       "verdict": {
         "sustained": true,
         "reasons": [],
+        "warnings": [],
         "achieved_ratio": 1.0003,
         "iterations": 4001,
         "dropped_iterations": 0,
         "http_req_failed_rate": 0.0,
-        "p50_ms": 0.524095,
-        "p95_ms": 1.5269855999999993,
-        "p99_ms": 7.142871599999919
+        "get_p95_ms": 14.045506,
+        "pooled_p50_ms": 0.558818,
+        "pooled_p95_ms": 13.518059799999998,
+        "pooled_p99_ms": 61.39846376000036,
+        "origin_cpu_us_per_request": 160.651
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "bare",
+      "offered_rate": 200,
+      "replicate": 2,
+      "offered_iterations": 4000,
+      "duration": "20s",
+      "throughput_rps": 1800.5,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 5000315,
+          "cores_used": 0.25,
+          "memory_bytes_max": 13594624,
+          "memory_bytes_mean": 12975309,
+          "cpu_us_per_request": 138.863,
+          "requests": 36009,
+          "user_us_per_request": 20.23,
+          "system_us_per_request": 118.633
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 5019862,
+          "cores_used": 0.251,
+          "memory_bytes_max": 3690496,
+          "memory_bytes_mean": 3398451,
+          "cpu_us_per_request": 139.406,
+          "requests": 36009,
+          "user_us_per_request": 15.144,
+          "system_us_per_request": 124.262
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 17976762,
+          "cores_used": 0.8988,
+          "memory_bytes_max": 244072448,
+          "memory_bytes_mean": 214807808,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.246,
+          "softirq_fraction": 0.049
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.125,
+          "origin": 0.251,
+          "loadgen": 0.225
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.246,
+          "softirq_fraction": 0.049
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0003,
+        "iterations": 4001,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 2.587312,
+        "pooled_p50_ms": 0.544145,
+        "pooled_p95_ms": 2.5916651999999982,
+        "pooled_p99_ms": 15.558395600000008,
+        "origin_cpu_us_per_request": 139.406
       },
       "compose_exit_code": 0
     },
     {
       "tier": "bare",
       "offered_rate": 400,
+      "replicate": 1,
       "offered_iterations": 8000,
       "duration": "20s",
       "throughput_rps": 3600.0,
       "cpu": {
-        "available": true,
-        "http_reqs": 72000,
-        "cpu_usec_total": 8886835,
-        "cpu_us_per_request": 123.428,
-        "user_us_per_request": 16.459,
-        "system_us_per_request": 106.97
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 10271635,
+          "cores_used": 0.5136,
+          "memory_bytes_max": 16596992,
+          "memory_bytes_mean": 15704642,
+          "cpu_us_per_request": 142.662,
+          "requests": 72000,
+          "user_us_per_request": 16.767,
+          "system_us_per_request": 125.894
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 10257373,
+          "cores_used": 0.5129,
+          "memory_bytes_max": 4554752,
+          "memory_bytes_mean": 3873031,
+          "cpu_us_per_request": 142.464,
+          "requests": 72000,
+          "user_us_per_request": 11.022,
+          "system_us_per_request": 131.441
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 32305820,
+          "cores_used": 1.6153,
+          "memory_bytes_max": 473571328,
+          "memory_bytes_mean": 440158943,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.533,
+          "softirq_fraction": 0.117
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.257,
+          "origin": 0.513,
+          "loadgen": 0.404
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.533,
+          "softirq_fraction": 0.117
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8000
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8000
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8000
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8000
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8000
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8000
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8000
+        },
+        "sqli_miss_enc": {
+          "rate": 0.00025,
+          "passes": 2,
+          "fails": 7998
+        }
       },
       "verdict": {
         "sustained": true,
         "reasons": [],
+        "warnings": [],
         "achieved_ratio": 1.0,
         "iterations": 8000,
         "dropped_iterations": 0,
         "http_req_failed_rate": 0.0,
-        "p50_ms": 0.641719,
-        "p95_ms": 12.04160535000001,
-        "p99_ms": 57.452958219999864
+        "get_p95_ms": 47.56585799999998,
+        "pooled_p50_ms": 0.9193325,
+        "pooled_p95_ms": 52.250118,
+        "pooled_p99_ms": 105.8795303000001,
+        "origin_cpu_us_per_request": 142.464
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "bare",
+      "offered_rate": 400,
+      "replicate": 2,
+      "offered_iterations": 8000,
+      "duration": "20s",
+      "throughput_rps": 3600.4,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 9342251,
+          "cores_used": 0.4671,
+          "memory_bytes_max": 16338944,
+          "memory_bytes_mean": 15517854,
+          "cpu_us_per_request": 129.737,
+          "requests": 72009,
+          "user_us_per_request": 16.474,
+          "system_us_per_request": 113.263
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 9573970,
+          "cores_used": 0.4787,
+          "memory_bytes_max": 4747264,
+          "memory_bytes_mean": 3659776,
+          "cpu_us_per_request": 132.955,
+          "requests": 72009,
+          "user_us_per_request": 13.663,
+          "system_us_per_request": 119.292
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 31168951,
+          "cores_used": 1.5584,
+          "memory_bytes_max": 489754624,
+          "memory_bytes_mean": 443366794,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.498,
+          "softirq_fraction": 0.107
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.234,
+          "origin": 0.479,
+          "loadgen": 0.39
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.498,
+          "softirq_fraction": 0.107
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0001,
+        "iterations": 8001,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 23.286839,
+        "pooled_p50_ms": 0.785845,
+        "pooled_p95_ms": 25.25885220000001,
+        "pooled_p99_ms": 65.72893299999993,
+        "origin_cpu_us_per_request": 132.955
       },
       "compose_exit_code": 0
     },
     {
       "tier": "bare",
       "offered_rate": 800,
+      "replicate": 1,
       "offered_iterations": 16000,
       "duration": "20s",
-      "throughput_rps": 7018.2,
+      "throughput_rps": 6949.4,
       "cpu": {
-        "available": true,
-        "http_reqs": 140364,
-        "cpu_usec_total": 17797343,
-        "cpu_us_per_request": 126.794,
-        "user_us_per_request": 14.496,
-        "system_us_per_request": 112.298
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 14980991,
+          "cores_used": 0.749,
+          "memory_bytes_max": 31887360,
+          "memory_bytes_mean": 24064315,
+          "cpu_us_per_request": 107.787,
+          "requests": 138987,
+          "user_us_per_request": 13.879,
+          "system_us_per_request": 93.908
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 13320465,
+          "cores_used": 0.666,
+          "memory_bytes_max": 5140480,
+          "memory_bytes_mean": 4297807,
+          "cpu_us_per_request": 95.84,
+          "requests": 138987,
+          "user_us_per_request": 8.155,
+          "system_us_per_request": 87.684
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 45080404,
+          "cores_used": 2.254,
+          "memory_bytes_max": 1038323712,
+          "memory_bytes_mean": 902943928,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.708,
+          "softirq_fraction": 0.133
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.374,
+          "origin": 0.666,
+          "loadgen": 0.564
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.708,
+          "softirq_fraction": 0.133
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 15443
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 15443
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 15443
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 15443
+        },
+        "sqli_hit": {
+          "rate": 6.47542575924367e-05,
+          "passes": 1,
+          "fails": 15442
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 15443
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 15443
+        },
+        "sqli_miss_enc": {
+          "rate": 6.47542575924367e-05,
+          "passes": 1,
+          "fails": 15442
+        }
       },
       "verdict": {
         "sustained": false,
         "reasons": [
-          "dropped 406/16000 iterations",
-          "p95 119.1 ms over the 100 ms SLO"
+          "dropped 557/16000 iterations",
+          "worst GET p95 167.8 ms over the 100 ms SLO"
         ],
-        "achieved_ratio": 0.9748,
-        "iterations": 15596,
-        "dropped_iterations": 406,
+        "warnings": [],
+        "achieved_ratio": 0.9652,
+        "iterations": 15443,
+        "dropped_iterations": 557,
         "http_req_failed_rate": 0.0,
-        "p50_ms": 1.563743,
-        "p95_ms": 119.11964625000006,
-        "p99_ms": 1304.3220049799997
+        "get_p95_ms": 167.7561858999999,
+        "pooled_p50_ms": 3.608446,
+        "pooled_p95_ms": 178.93411699999942,
+        "pooled_p99_ms": 430.88324440000014,
+        "origin_cpu_us_per_request": 95.84
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "bare",
+      "offered_rate": 800,
+      "replicate": 2,
+      "offered_iterations": 16000,
+      "duration": "20s",
+      "throughput_rps": 5813.1,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 19700382,
+          "cores_used": 0.985,
+          "memory_bytes_max": 53424128,
+          "memory_bytes_mean": 39447124,
+          "cpu_us_per_request": 169.448,
+          "requests": 116262,
+          "user_us_per_request": 14.803,
+          "system_us_per_request": 154.646
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 15660767,
+          "cores_used": 0.783,
+          "memory_bytes_max": 6930432,
+          "memory_bytes_mean": 4677114,
+          "cpu_us_per_request": 134.702,
+          "requests": 116262,
+          "user_us_per_request": 8.175,
+          "system_us_per_request": 126.527
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 46147542,
+          "cores_used": 2.3074,
+          "memory_bytes_max": 1272819712,
+          "memory_bytes_mean": 961396321,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.787,
+          "softirq_fraction": 0.103
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.492,
+          "origin": 0.783,
+          "loadgen": 0.577
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.787,
+          "softirq_fraction": 0.103
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 12918
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 12918
+        },
+        "token_tamper": {
+          "rate": 0.00015482272797646694,
+          "passes": 2,
+          "fails": 12916
+        },
+        "token_decoy": {
+          "rate": 7.741136398823347e-05,
+          "passes": 1,
+          "fails": 12917
+        },
+        "sqli_hit": {
+          "rate": 7.741136398823347e-05,
+          "passes": 1,
+          "fails": 12917
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 12918
+        },
+        "sqli_miss": {
+          "rate": 0.00023223409196470042,
+          "passes": 3,
+          "fails": 12915
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 12918
+        }
+      },
+      "verdict": {
+        "sustained": false,
+        "reasons": [
+          "placed only 80.7% of offered iterations",
+          "dropped 3083/16000 iterations",
+          "worst GET p95 921.7 ms over the 100 ms SLO"
+        ],
+        "warnings": [],
+        "achieved_ratio": 0.8074,
+        "iterations": 12918,
+        "dropped_iterations": 3083,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 921.709175499999,
+        "pooled_p50_ms": 30.348135499999998,
+        "pooled_p95_ms": 994.5945561499989,
+        "pooled_p99_ms": 1912.6252324399975,
+        "origin_cpu_us_per_request": 134.702
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "bare",
+      "offered_rate": 566,
+      "replicate": 1,
+      "offered_iterations": 11320,
+      "duration": "20s",
+      "throughput_rps": 5094.4,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 11713632,
+          "cores_used": 0.5857,
+          "memory_bytes_max": 36728832,
+          "memory_bytes_mean": 35357145,
+          "cpu_us_per_request": 114.965,
+          "requests": 101889,
+          "user_us_per_request": 18.516,
+          "system_us_per_request": 96.448
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 11543164,
+          "cores_used": 0.5772,
+          "memory_bytes_max": 4825088,
+          "memory_bytes_mean": 4237207,
+          "cpu_us_per_request": 113.292,
+          "requests": 101889,
+          "user_us_per_request": 9.832,
+          "system_us_per_request": 103.46
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 37855936,
+          "cores_used": 1.8928,
+          "memory_bytes_max": 727203840,
+          "memory_bytes_mean": 642347218,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.627,
+          "softirq_fraction": 0.139
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.293,
+          "origin": 0.577,
+          "loadgen": 0.473
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.627,
+          "softirq_fraction": 0.139
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11321
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11321
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11321
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11321
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11321
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11321
+        },
+        "sqli_miss": {
+          "rate": 8.833141948591114e-05,
+          "passes": 1,
+          "fails": 11320
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11321
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0001,
+        "iterations": 11321,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 40.413523,
+        "pooled_p50_ms": 1.641066,
+        "pooled_p95_ms": 42.385270799999994,
+        "pooled_p99_ms": 104.1428567999998,
+        "origin_cpu_us_per_request": 113.292
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "bare",
+      "offered_rate": 566,
+      "replicate": 2,
+      "offered_iterations": 11320,
+      "duration": "20s",
+      "throughput_rps": 5094.4,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 12057947,
+          "cores_used": 0.6029,
+          "memory_bytes_max": 33460224,
+          "memory_bytes_mean": 31902589,
+          "cpu_us_per_request": 118.344,
+          "requests": 101889,
+          "user_us_per_request": 17.67,
+          "system_us_per_request": 100.674
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 11125795,
+          "cores_used": 0.5563,
+          "memory_bytes_max": 4857856,
+          "memory_bytes_mean": 4147725,
+          "cpu_us_per_request": 109.195,
+          "requests": 101889,
+          "user_us_per_request": 9.679,
+          "system_us_per_request": 99.516
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 38036048,
+          "cores_used": 1.9018,
+          "memory_bytes_max": 692989952,
+          "memory_bytes_mean": 642233790,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.602,
+          "softirq_fraction": 0.13
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.301,
+          "origin": 0.556,
+          "loadgen": 0.475
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.602,
+          "softirq_fraction": 0.13
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11321
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11321
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11321
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11321
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11321
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11321
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11321
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11321
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0001,
+        "iterations": 11321,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 40.787235,
+        "pooled_p50_ms": 1.203732,
+        "pooled_p95_ms": 43.76332259999999,
+        "pooled_p99_ms": 113.22492871999994,
+        "origin_cpu_us_per_request": 109.195
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "bare",
+      "offered_rate": 673,
+      "replicate": 1,
+      "offered_iterations": 13460,
+      "duration": "20s",
+      "throughput_rps": 5922.0,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 16704861,
+          "cores_used": 0.8352,
+          "memory_bytes_max": 38309888,
+          "memory_bytes_mean": 30366414,
+          "cpu_us_per_request": 141.041,
+          "requests": 118440,
+          "user_us_per_request": 16.174,
+          "system_us_per_request": 124.867
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 14330949,
+          "cores_used": 0.7165,
+          "memory_bytes_max": 5455872,
+          "memory_bytes_mean": 4396817,
+          "cpu_us_per_request": 120.998,
+          "requests": 118440,
+          "user_us_per_request": 7.541,
+          "system_us_per_request": 113.457
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 42089896,
+          "cores_used": 2.1045,
+          "memory_bytes_max": 888328192,
+          "memory_bytes_mean": 757593500,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.721,
+          "softirq_fraction": 0.13
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.418,
+          "origin": 0.717,
+          "loadgen": 0.526
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.721,
+          "softirq_fraction": 0.13
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 7.598784194528876e-05,
+          "passes": 1,
+          "fails": 13159
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13160
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13160
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13160
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13160
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13160
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13160
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13160
+        }
+      },
+      "verdict": {
+        "sustained": false,
+        "reasons": [
+          "dropped 301/13460 iterations",
+          "worst GET p95 192.7 ms over the 100 ms SLO"
+        ],
+        "warnings": [],
+        "achieved_ratio": 0.9777,
+        "iterations": 13160,
+        "dropped_iterations": 301,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 192.65282564999953,
+        "pooled_p50_ms": 5.725306,
+        "pooled_p95_ms": 246.51142625,
+        "pooled_p99_ms": 1076.2978444999997,
+        "origin_cpu_us_per_request": 120.998
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "bare",
+      "offered_rate": 673,
+      "replicate": 2,
+      "offered_iterations": 13460,
+      "duration": "20s",
+      "throughput_rps": 6057.0,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 13111512,
+          "cores_used": 0.6556,
+          "memory_bytes_max": 33931264,
+          "memory_bytes_mean": 28270277,
+          "cpu_us_per_request": 108.234,
+          "requests": 121140,
+          "user_us_per_request": 17.328,
+          "system_us_per_request": 90.906
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 11841922,
+          "cores_used": 0.5921,
+          "memory_bytes_max": 5726208,
+          "memory_bytes_mean": 4237575,
+          "cpu_us_per_request": 97.754,
+          "requests": 121140,
+          "user_us_per_request": 8.82,
+          "system_us_per_request": 88.934
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 40081534,
+          "cores_used": 2.0041,
+          "memory_bytes_max": 868483072,
+          "memory_bytes_mean": 752788611,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.648,
+          "softirq_fraction": 0.135
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.328,
+          "origin": 0.592,
+          "loadgen": 0.501
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.648,
+          "softirq_fraction": 0.135
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13460
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13460
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13460
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13460
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13460
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13460
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13460
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13460
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0,
+        "iterations": 13460,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 79.01796289999986,
+        "pooled_p50_ms": 1.5756185,
+        "pooled_p95_ms": 87.37270575,
+        "pooled_p99_ms": 188.92018249999995,
+        "origin_cpu_us_per_request": 97.754
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "bare",
+      "offered_rate": 673,
+      "replicate": 3,
+      "offered_iterations": 13460,
+      "duration": "20s",
+      "throughput_rps": 6057.9,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 13189763,
+          "cores_used": 0.6595,
+          "memory_bytes_max": 30515200,
+          "memory_bytes_mean": 26185991,
+          "cpu_us_per_request": 108.864,
+          "requests": 121158,
+          "user_us_per_request": 15.699,
+          "system_us_per_request": 93.165
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 12297248,
+          "cores_used": 0.6149,
+          "memory_bytes_max": 5218304,
+          "memory_bytes_mean": 4270500,
+          "cpu_us_per_request": 101.498,
+          "requests": 121158,
+          "user_us_per_request": 9.503,
+          "system_us_per_request": 91.995
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 40952453,
+          "cores_used": 2.0476,
+          "memory_bytes_max": 819220480,
+          "memory_bytes_mean": 751799322,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.659,
+          "softirq_fraction": 0.142
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.33,
+          "origin": 0.615,
+          "loadgen": 0.512
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.659,
+          "softirq_fraction": 0.142
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13462
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13462
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13462
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13462
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13462
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13462
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13462
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 13462
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0001,
+        "iterations": 13462,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 58.31760309999974,
+        "pooled_p50_ms": 1.8380275,
+        "pooled_p95_ms": 65.8847323999999,
+        "pooled_p99_ms": 170.89328708000008,
+        "origin_cpu_us_per_request": 101.498
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "silent",
+      "offered_rate": 100,
+      "replicate": 1,
+      "offered_iterations": 2000,
+      "duration": "20s",
+      "throughput_rps": 900.5,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 3225697,
+          "cores_used": 0.1613,
+          "memory_bytes_max": 22421504,
+          "memory_bytes_mean": 20565135,
+          "cpu_us_per_request": 179.116,
+          "requests": 18009,
+          "user_us_per_request": 56.416,
+          "system_us_per_request": 122.7
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 1689951,
+          "cores_used": 0.0845,
+          "memory_bytes_max": 3153920,
+          "memory_bytes_mean": 2879747,
+          "cpu_us_per_request": 93.839,
+          "requests": 18009,
+          "user_us_per_request": 11.996,
+          "system_us_per_request": 81.844
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 10166054,
+          "cores_used": 0.5083,
+          "memory_bytes_max": 128212992,
+          "memory_bytes_mean": 115987158,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.126,
+          "softirq_fraction": 0.02
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.081,
+          "origin": 0.085,
+          "loadgen": 0.127
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "loadgen",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.126,
+          "softirq_fraction": 0.02
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0005,
+        "iterations": 2001,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 1.381092,
+        "pooled_p50_ms": 0.54416,
+        "pooled_p95_ms": 1.0332052,
+        "pooled_p99_ms": 2.6292053199999694,
+        "origin_cpu_us_per_request": 93.839
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "silent",
+      "offered_rate": 100,
+      "replicate": 2,
+      "offered_iterations": 2000,
+      "duration": "20s",
+      "throughput_rps": 900.5,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 3145274,
+          "cores_used": 0.1573,
+          "memory_bytes_max": 22360064,
+          "memory_bytes_mean": 21901727,
+          "cpu_us_per_request": 174.65,
+          "requests": 18009,
+          "user_us_per_request": 55.497,
+          "system_us_per_request": 119.153
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 1647398,
+          "cores_used": 0.0824,
+          "memory_bytes_max": 3145728,
+          "memory_bytes_mean": 2891465,
+          "cpu_us_per_request": 91.476,
+          "requests": 18009,
+          "user_us_per_request": 15.002,
+          "system_us_per_request": 76.474
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 9930843,
+          "cores_used": 0.4965,
+          "memory_bytes_max": 126554112,
+          "memory_bytes_mean": 114539507,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.124,
+          "softirq_fraction": 0.02
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.079,
+          "origin": 0.082,
+          "loadgen": 0.124
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "loadgen",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.124,
+          "softirq_fraction": 0.02
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0005,
+        "iterations": 2001,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 1.383028,
+        "pooled_p50_ms": 0.536953,
+        "pooled_p95_ms": 1.065535,
+        "pooled_p99_ms": 2.60974796,
+        "origin_cpu_us_per_request": 91.476
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "silent",
+      "offered_rate": 200,
+      "replicate": 1,
+      "offered_iterations": 4000,
+      "duration": "20s",
+      "throughput_rps": 1800.0,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 6485330,
+          "cores_used": 0.3243,
+          "memory_bytes_max": 24354816,
+          "memory_bytes_mean": 23539090,
+          "cpu_us_per_request": 180.148,
+          "requests": 36000,
+          "user_us_per_request": 48.19,
+          "system_us_per_request": 131.958
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 3777011,
+          "cores_used": 0.1889,
+          "memory_bytes_max": 3448832,
+          "memory_bytes_mean": 3124107,
+          "cpu_us_per_request": 104.917,
+          "requests": 36000,
+          "user_us_per_request": 10.386,
+          "system_us_per_request": 94.531
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 18666700,
+          "cores_used": 0.9333,
+          "memory_bytes_max": 246337536,
+          "memory_bytes_mean": 218839688,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.266,
+          "softirq_fraction": 0.047
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.162,
+          "origin": 0.189,
+          "loadgen": 0.233
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "loadgen",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.266,
+          "softirq_fraction": 0.047
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4000
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4000
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4000
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4000
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4000
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4000
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4000
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4000
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0,
+        "iterations": 4000,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 3.1697122499999963,
+        "pooled_p50_ms": 0.538086,
+        "pooled_p95_ms": 2.43388225,
+        "pooled_p99_ms": 11.27389439999998,
+        "origin_cpu_us_per_request": 104.917
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "silent",
+      "offered_rate": 200,
+      "replicate": 2,
+      "offered_iterations": 4000,
+      "duration": "20s",
+      "throughput_rps": 1800.5,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 6534308,
+          "cores_used": 0.3267,
+          "memory_bytes_max": 24571904,
+          "memory_bytes_mean": 23803982,
+          "cpu_us_per_request": 181.463,
+          "requests": 36009,
+          "user_us_per_request": 45.686,
+          "system_us_per_request": 135.777
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 4047208,
+          "cores_used": 0.2024,
+          "memory_bytes_max": 3547136,
+          "memory_bytes_mean": 3188347,
+          "cpu_us_per_request": 112.394,
+          "requests": 36009,
+          "user_us_per_request": 12.288,
+          "system_us_per_request": 100.106
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 18993351,
+          "cores_used": 0.9497,
+          "memory_bytes_max": 247042048,
+          "memory_bytes_mean": 219742726,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.281,
+          "softirq_fraction": 0.049
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.163,
+          "origin": 0.202,
+          "loadgen": 0.237
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "loadgen",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.281,
+          "softirq_fraction": 0.049
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0003,
+        "iterations": 4001,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 5.288527,
+        "pooled_p50_ms": 0.540078,
+        "pooled_p95_ms": 3.772328599999992,
+        "pooled_p99_ms": 20.522871720000172,
+        "origin_cpu_us_per_request": 112.394
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "silent",
+      "offered_rate": 400,
+      "replicate": 1,
+      "offered_iterations": 8000,
+      "duration": "20s",
+      "throughput_rps": 3600.4,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 14645979,
+          "cores_used": 0.7323,
+          "memory_bytes_max": 28741632,
+          "memory_bytes_mean": 27381182,
+          "cpu_us_per_request": 203.391,
+          "requests": 72009,
+          "user_us_per_request": 42.375,
+          "system_us_per_request": 161.016
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 8914299,
+          "cores_used": 0.4457,
+          "memory_bytes_max": 4370432,
+          "memory_bytes_mean": 3867044,
+          "cpu_us_per_request": 123.794,
+          "requests": 72009,
+          "user_us_per_request": 7.43,
+          "system_us_per_request": 116.364
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 33611923,
+          "cores_used": 1.6806,
+          "memory_bytes_max": 491794432,
+          "memory_bytes_mean": 456147942,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.612,
+          "softirq_fraction": 0.115
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.366,
+          "origin": 0.446,
+          "loadgen": 0.42
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.612,
+          "softirq_fraction": 0.115
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0001,
+        "iterations": 8001,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 37.585215,
+        "pooled_p50_ms": 1.240161,
+        "pooled_p95_ms": 34.3954702,
+        "pooled_p99_ms": 80.73061103999864,
+        "origin_cpu_us_per_request": 123.794
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "silent",
+      "offered_rate": 400,
+      "replicate": 2,
+      "offered_iterations": 8000,
+      "duration": "20s",
+      "throughput_rps": 3600.4,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 14770109,
+          "cores_used": 0.7385,
+          "memory_bytes_max": 28626944,
+          "memory_bytes_mean": 27661618,
+          "cpu_us_per_request": 205.115,
+          "requests": 72009,
+          "user_us_per_request": 45.961,
+          "system_us_per_request": 159.153
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 8892022,
+          "cores_used": 0.4446,
+          "memory_bytes_max": 4767744,
+          "memory_bytes_mean": 4026102,
+          "cpu_us_per_request": 123.485,
+          "requests": 72009,
+          "user_us_per_request": 7.929,
+          "system_us_per_request": 115.556
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 33849744,
+          "cores_used": 1.6925,
+          "memory_bytes_max": 489295872,
+          "memory_bytes_mean": 441453369,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.619,
+          "softirq_fraction": 0.117
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.369,
+          "origin": 0.445,
+          "loadgen": 0.423
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.619,
+          "softirq_fraction": 0.117
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0001,
+        "iterations": 8001,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 31.31958,
+        "pooled_p50_ms": 1.144604,
+        "pooled_p95_ms": 25.197887200000004,
+        "pooled_p99_ms": 69.46628359999994,
+        "origin_cpu_us_per_request": 123.485
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "silent",
+      "offered_rate": 800,
+      "replicate": 1,
+      "offered_iterations": 16000,
+      "duration": "20s",
+      "throughput_rps": 5068.8,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 23136456,
+          "cores_used": 1.1568,
+          "memory_bytes_max": 54452224,
+          "memory_bytes_mean": 43660594,
+          "cpu_us_per_request": 228.224,
+          "requests": 101376,
+          "user_us_per_request": 34.902,
+          "system_us_per_request": 193.322
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 13753041,
+          "cores_used": 0.6877,
+          "memory_bytes_max": 6787072,
+          "memory_bytes_mean": 4831897,
+          "cpu_us_per_request": 135.664,
+          "requests": 101376,
+          "user_us_per_request": 5.306,
+          "system_us_per_request": 130.358
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 41577533,
+          "cores_used": 2.0789,
+          "memory_bytes_max": 1175879680,
+          "memory_bytes_mean": 908389230,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.861,
+          "softirq_fraction": 0.118
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.578,
+          "origin": 0.688,
+          "loadgen": 0.52
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.861,
+          "softirq_fraction": 0.118
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0.0001775568181818182,
+          "passes": 2,
+          "fails": 11262
+        },
+        "detect_query": {
+          "rate": 8.87784090909091e-05,
+          "passes": 1,
+          "fails": 11263
+        },
+        "token_tamper": {
+          "rate": 0.0001775568181818182,
+          "passes": 2,
+          "fails": 11262
+        },
+        "token_decoy": {
+          "rate": 0.0001775568181818182,
+          "passes": 2,
+          "fails": 11262
+        },
+        "sqli_hit": {
+          "rate": 8.87784090909091e-05,
+          "passes": 1,
+          "fails": 11263
+        },
+        "sqli_hit_enc": {
+          "rate": 0.0001775568181818182,
+          "passes": 2,
+          "fails": 11262
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11264
+        },
+        "sqli_miss_enc": {
+          "rate": 0.0006214488636363636,
+          "passes": 7,
+          "fails": 11257
+        }
+      },
+      "verdict": {
+        "sustained": false,
+        "reasons": [
+          "placed only 70.4% of offered iterations",
+          "dropped 4679/16000 iterations",
+          "worst GET p95 1208.1 ms over the 100 ms SLO"
+        ],
+        "warnings": [],
+        "achieved_ratio": 0.704,
+        "iterations": 11264,
+        "dropped_iterations": 4679,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 1208.0840822000005,
+        "pooled_p50_ms": 82.93526650000001,
+        "pooled_p95_ms": 908.0073943499999,
+        "pooled_p99_ms": 1888.049473299995,
+        "origin_cpu_us_per_request": 135.664
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "silent",
+      "offered_rate": 800,
+      "replicate": 2,
+      "offered_iterations": 16000,
+      "duration": "20s",
+      "throughput_rps": 4149.9,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 20865421,
+          "cores_used": 1.0433,
+          "memory_bytes_max": 56438784,
+          "memory_bytes_mean": 48686772,
+          "cpu_us_per_request": 251.397,
+          "requests": 82998,
+          "user_us_per_request": 36.218,
+          "system_us_per_request": 215.178
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 14462608,
+          "cores_used": 0.7231,
+          "memory_bytes_max": 7409664,
+          "memory_bytes_mean": 4837542,
+          "cpu_us_per_request": 174.252,
+          "requests": 82998,
+          "user_us_per_request": 4.786,
+          "system_us_per_request": 169.466
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 37698407,
+          "cores_used": 1.8849,
+          "memory_bytes_max": 1116332032,
+          "memory_bytes_mean": 884409206,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.873,
+          "softirq_fraction": 0.11
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.522,
+          "origin": 0.723,
+          "loadgen": 0.471
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.873,
+          "softirq_fraction": 0.11
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9222
+        },
+        "detect_query": {
+          "rate": 0.00032530904359141186,
+          "passes": 3,
+          "fails": 9219
+        },
+        "token_tamper": {
+          "rate": 0.00021687269572760788,
+          "passes": 2,
+          "fails": 9220
+        },
+        "token_decoy": {
+          "rate": 0.00043374539145521576,
+          "passes": 4,
+          "fails": 9218
+        },
+        "sqli_hit": {
+          "rate": 0.00021687269572760788,
+          "passes": 2,
+          "fails": 9220
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9222
+        },
+        "sqli_miss": {
+          "rate": 0.00021687269572760788,
+          "passes": 2,
+          "fails": 9220
+        },
+        "sqli_miss_enc": {
+          "rate": 0.00021687269572760788,
+          "passes": 2,
+          "fails": 9220
+        }
+      },
+      "verdict": {
+        "sustained": false,
+        "reasons": [
+          "placed only 57.6% of offered iterations",
+          "dropped 6779/16000 iterations",
+          "worst GET p95 1993.9 ms over the 100 ms SLO"
+        ],
+        "warnings": [],
+        "achieved_ratio": 0.5764,
+        "iterations": 9222,
+        "dropped_iterations": 6779,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 1993.8889841499993,
+        "pooled_p50_ms": 111.58426800000001,
+        "pooled_p95_ms": 1463.8512194499965,
+        "pooled_p99_ms": 2774.5920752499937,
+        "origin_cpu_us_per_request": 174.252
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "silent",
+      "offered_rate": 566,
+      "replicate": 1,
+      "offered_iterations": 11320,
+      "duration": "20s",
+      "throughput_rps": 4602.1,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 18349468,
+          "cores_used": 0.9175,
+          "memory_bytes_max": 51032064,
+          "memory_bytes_mean": 45162712,
+          "cpu_us_per_request": 199.358,
+          "requests": 92043,
+          "user_us_per_request": 39.919,
+          "system_us_per_request": 159.438
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 11125989,
+          "cores_used": 0.5563,
+          "memory_bytes_max": 5693440,
+          "memory_bytes_mean": 4505816,
+          "cpu_us_per_request": 120.878,
+          "requests": 92043,
+          "user_us_per_request": 6.023,
+          "system_us_per_request": 114.855
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 38305007,
+          "cores_used": 1.9153,
+          "memory_bytes_max": 764043264,
+          "memory_bytes_mean": 653323426,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.784,
+          "softirq_fraction": 0.13
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.459,
+          "origin": 0.556,
+          "loadgen": 0.479
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.784,
+          "softirq_fraction": 0.13
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 10227
+        },
+        "detect_query": {
+          "rate": 9.77803852547179e-05,
+          "passes": 1,
+          "fails": 10226
+        },
+        "token_tamper": {
+          "rate": 0.0002933411557641537,
+          "passes": 3,
+          "fails": 10224
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 10227
+        },
+        "sqli_hit": {
+          "rate": 9.77803852547179e-05,
+          "passes": 1,
+          "fails": 10226
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 10227
+        },
+        "sqli_miss": {
+          "rate": 9.77803852547179e-05,
+          "passes": 1,
+          "fails": 10226
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 10227
+        }
+      },
+      "verdict": {
+        "sustained": false,
+        "reasons": [
+          "placed only 90.3% of offered iterations",
+          "dropped 1094/11320 iterations",
+          "worst GET p95 439.1 ms over the 100 ms SLO"
+        ],
+        "warnings": [],
+        "achieved_ratio": 0.9034,
+        "iterations": 10227,
+        "dropped_iterations": 1094,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 439.1396497999982,
+        "pooled_p50_ms": 18.719574,
+        "pooled_p95_ms": 385.65544659999966,
+        "pooled_p99_ms": 1094.6328760599986,
+        "origin_cpu_us_per_request": 120.878
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "silent",
+      "offered_rate": 566,
+      "replicate": 2,
+      "offered_iterations": 11320,
+      "duration": "20s",
+      "throughput_rps": 5095.4,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 17896113,
+          "cores_used": 0.8948,
+          "memory_bytes_max": 42987520,
+          "memory_bytes_mean": 40066008,
+          "cpu_us_per_request": 175.612,
+          "requests": 101907,
+          "user_us_per_request": 44.655,
+          "system_us_per_request": 130.958
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 10298882,
+          "cores_used": 0.5149,
+          "memory_bytes_max": 5062656,
+          "memory_bytes_mean": 4321759,
+          "cpu_us_per_request": 101.062,
+          "requests": 101907,
+          "user_us_per_request": 7.337,
+          "system_us_per_request": 93.724
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 38991159,
+          "cores_used": 1.9496,
+          "memory_bytes_max": 724459520,
+          "memory_bytes_mean": 651038720,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.712,
+          "softirq_fraction": 0.123
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.447,
+          "origin": 0.515,
+          "loadgen": 0.487
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.712,
+          "softirq_fraction": 0.123
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11323
+        },
+        "detect_query": {
+          "rate": 8.831581736288969e-05,
+          "passes": 1,
+          "fails": 11322
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11323
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11323
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11323
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11323
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11323
+        },
+        "sqli_miss_enc": {
+          "rate": 8.831581736288969e-05,
+          "passes": 1,
+          "fails": 11322
+        }
+      },
+      "verdict": {
+        "sustained": false,
+        "reasons": [
+          "worst GET p95 100.9 ms over the 100 ms SLO"
+        ],
+        "warnings": [],
+        "achieved_ratio": 1.0003,
+        "iterations": 11323,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 100.87005169999993,
+        "pooled_p50_ms": 3.349888,
+        "pooled_p95_ms": 91.02443429999997,
+        "pooled_p99_ms": 243.83891551999997,
+        "origin_cpu_us_per_request": 101.062
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "silent",
+      "offered_rate": 476,
+      "replicate": 1,
+      "offered_iterations": 9520,
+      "duration": "20s",
+      "throughput_rps": 4284.4,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 17039782,
+          "cores_used": 0.852,
+          "memory_bytes_max": 39694336,
+          "memory_bytes_mean": 36861766,
+          "cpu_us_per_request": 198.856,
+          "requests": 85689,
+          "user_us_per_request": 45.072,
+          "system_us_per_request": 153.784
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 9696841,
+          "cores_used": 0.4848,
+          "memory_bytes_max": 5046272,
+          "memory_bytes_mean": 4245584,
+          "cpu_us_per_request": 113.163,
+          "requests": 85689,
+          "user_us_per_request": 7.631,
+          "system_us_per_request": 105.532
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 36618923,
+          "cores_used": 1.8309,
+          "memory_bytes_max": 616153088,
+          "memory_bytes_mean": 543321793,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.672,
+          "softirq_fraction": 0.117
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.426,
+          "origin": 0.485,
+          "loadgen": 0.458
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.672,
+          "softirq_fraction": 0.117
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0001,
+        "iterations": 9521,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 76.148882,
+        "pooled_p50_ms": 1.999164,
+        "pooled_p95_ms": 71.3180102000001,
+        "pooled_p99_ms": 267.55958760000027,
+        "origin_cpu_us_per_request": 113.163
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "silent",
+      "offered_rate": 476,
+      "replicate": 2,
+      "offered_iterations": 9520,
+      "duration": "20s",
+      "throughput_rps": 4284.4,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 16008469,
+          "cores_used": 0.8004,
+          "memory_bytes_max": 37355520,
+          "memory_bytes_mean": 36438541,
+          "cpu_us_per_request": 186.821,
+          "requests": 85689,
+          "user_us_per_request": 45.476,
+          "system_us_per_request": 141.345
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 9421525,
+          "cores_used": 0.4711,
+          "memory_bytes_max": 4558848,
+          "memory_bytes_mean": 4181071,
+          "cpu_us_per_request": 109.95,
+          "requests": 85689,
+          "user_us_per_request": 7.367,
+          "system_us_per_request": 102.583
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 36900085,
+          "cores_used": 1.845,
+          "memory_bytes_max": 590413824,
+          "memory_bytes_mean": 541138471,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.661,
+          "softirq_fraction": 0.126
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.4,
+          "origin": 0.471,
+          "loadgen": 0.461
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.661,
+          "softirq_fraction": 0.126
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0001,
+        "iterations": 9521,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 30.566495,
+        "pooled_p50_ms": 1.388952,
+        "pooled_p95_ms": 25.666862599999998,
+        "pooled_p99_ms": 76.31378032000002,
+        "origin_cpu_us_per_request": 109.95
       },
       "compose_exit_code": 0
     },
     {
       "tier": "wadm",
       "offered_rate": 100,
+      "replicate": 1,
       "offered_iterations": 2000,
       "duration": "20s",
-      "throughput_rps": 900.9,
+      "throughput_rps": 900.5,
       "cpu": {
-        "available": true,
-        "http_reqs": 18018,
-        "cpu_usec_total": 4336024,
-        "cpu_us_per_request": 240.65,
-        "user_us_per_request": 56.004,
-        "system_us_per_request": 184.645
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 4495282,
+          "cores_used": 0.2248,
+          "memory_bytes_max": 21708800,
+          "memory_bytes_mean": 20473778,
+          "cpu_us_per_request": 249.613,
+          "requests": 18009,
+          "user_us_per_request": 71.313,
+          "system_us_per_request": 178.301
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 2469428,
+          "cores_used": 0.1235,
+          "memory_bytes_max": 3301376,
+          "memory_bytes_mean": 3038817,
+          "cpu_us_per_request": 137.122,
+          "requests": 18009,
+          "user_us_per_request": 11.94,
+          "system_us_per_request": 125.182
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 10956758,
+          "cores_used": 0.5478,
+          "memory_bytes_max": 127578112,
+          "memory_bytes_mean": 115072039,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.174,
+          "softirq_fraction": 0.026
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.112,
+          "origin": 0.123,
+          "loadgen": 0.137
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "loadgen",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.174,
+          "softirq_fraction": 0.026
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2001
+        }
       },
       "verdict": {
         "sustained": true,
         "reasons": [],
-        "achieved_ratio": 1.001,
-        "iterations": 2002,
+        "warnings": [],
+        "achieved_ratio": 1.0005,
+        "iterations": 2001,
         "dropped_iterations": 0,
         "http_req_failed_rate": 0.0,
-        "p50_ms": 0.5996509999999999,
-        "p95_ms": 5.833331699999995,
-        "p99_ms": 30.14204766999986
+        "get_p95_ms": 5.79708,
+        "pooled_p50_ms": 0.606986,
+        "pooled_p95_ms": 2.8509355999999983,
+        "pooled_p99_ms": 34.830275839999715,
+        "origin_cpu_us_per_request": 137.122
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "wadm",
+      "offered_rate": 100,
+      "replicate": 2,
+      "offered_iterations": 2000,
+      "duration": "20s",
+      "throughput_rps": 900.0,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 3930759,
+          "cores_used": 0.1965,
+          "memory_bytes_max": 22171648,
+          "memory_bytes_mean": 21490208,
+          "cpu_us_per_request": 218.375,
+          "requests": 18000,
+          "user_us_per_request": 57.688,
+          "system_us_per_request": 160.688
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 1923737,
+          "cores_used": 0.0962,
+          "memory_bytes_max": 3305472,
+          "memory_bytes_mean": 3054320,
+          "cpu_us_per_request": 106.874,
+          "requests": 18000,
+          "user_us_per_request": 11.665,
+          "system_us_per_request": 95.209
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 10601637,
+          "cores_used": 0.5301,
+          "memory_bytes_max": 127414272,
+          "memory_bytes_mean": 114734871,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.153,
+          "softirq_fraction": 0.023
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.098,
+          "origin": 0.096,
+          "loadgen": 0.133
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "loadgen",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.153,
+          "softirq_fraction": 0.023
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2000
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2000
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2000
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2000
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2000
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2000
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2000
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 2000
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0,
+        "iterations": 2000,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 2.1675278,
+        "pooled_p50_ms": 0.592191,
+        "pooled_p95_ms": 1.531887,
+        "pooled_p99_ms": 6.78428444999999,
+        "origin_cpu_us_per_request": 106.874
       },
       "compose_exit_code": 0
     },
     {
       "tier": "wadm",
       "offered_rate": 200,
+      "replicate": 1,
       "offered_iterations": 4000,
       "duration": "20s",
-      "throughput_rps": 1800.0,
+      "throughput_rps": 1800.5,
       "cpu": {
-        "available": true,
-        "http_reqs": 36000,
-        "cpu_usec_total": 7764138,
-        "cpu_us_per_request": 215.671,
-        "user_us_per_request": 50.209,
-        "system_us_per_request": 165.461
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 8225471,
+          "cores_used": 0.4113,
+          "memory_bytes_max": 23044096,
+          "memory_bytes_mean": 22523484,
+          "cpu_us_per_request": 228.428,
+          "requests": 36009,
+          "user_us_per_request": 54.22,
+          "system_us_per_request": 174.208
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 4311949,
+          "cores_used": 0.2156,
+          "memory_bytes_max": 3391488,
+          "memory_bytes_mean": 3087124,
+          "cpu_us_per_request": 119.746,
+          "requests": 36009,
+          "user_us_per_request": 10.221,
+          "system_us_per_request": 109.526
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 19766543,
+          "cores_used": 0.9883,
+          "memory_bytes_max": 241115136,
+          "memory_bytes_mean": 219620641,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.332,
+          "softirq_fraction": 0.053
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.206,
+          "origin": 0.216,
+          "loadgen": 0.247
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "loadgen",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.332,
+          "softirq_fraction": 0.053
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4001
+        }
       },
       "verdict": {
         "sustained": true,
         "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0003,
+        "iterations": 4001,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 6.088365,
+        "pooled_p50_ms": 0.622499,
+        "pooled_p95_ms": 4.931246599999991,
+        "pooled_p99_ms": 17.929648400000133,
+        "origin_cpu_us_per_request": 119.746
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "wadm",
+      "offered_rate": 200,
+      "replicate": 2,
+      "offered_iterations": 4000,
+      "duration": "20s",
+      "throughput_rps": 1800.0,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 10146753,
+          "cores_used": 0.5073,
+          "memory_bytes_max": 23695360,
+          "memory_bytes_mean": 22972258,
+          "cpu_us_per_request": 281.854,
+          "requests": 36000,
+          "user_us_per_request": 64.168,
+          "system_us_per_request": 217.687
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 6397909,
+          "cores_used": 0.3199,
+          "memory_bytes_max": 3526656,
+          "memory_bytes_mean": 3269291,
+          "cpu_us_per_request": 177.72,
+          "requests": 36000,
+          "user_us_per_request": 8.663,
+          "system_us_per_request": 169.056
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 22667208,
+          "cores_used": 1.1334,
+          "memory_bytes_max": 253812736,
+          "memory_bytes_mean": 228686034,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.429,
+          "softirq_fraction": 0.07
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.254,
+          "origin": 0.32,
+          "loadgen": 0.283
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.429,
+          "softirq_fraction": 0.07
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4000
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4000
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4000
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4000
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4000
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4000
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4000
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 4000
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
         "achieved_ratio": 1.0,
         "iterations": 4000,
         "dropped_iterations": 0,
         "http_req_failed_rate": 0.0,
-        "p50_ms": 0.5759055,
-        "p95_ms": 4.119060899999989,
-        "p99_ms": 16.93271818000022
+        "get_p95_ms": 46.73448704999999,
+        "pooled_p50_ms": 0.720113,
+        "pooled_p95_ms": 35.2404485,
+        "pooled_p99_ms": 102.15288299999995,
+        "origin_cpu_us_per_request": 177.72
       },
       "compose_exit_code": 0
     },
     {
       "tier": "wadm",
       "offered_rate": 400,
+      "replicate": 1,
       "offered_iterations": 8000,
       "duration": "20s",
       "throughput_rps": 3600.4,
       "cpu": {
-        "available": true,
-        "http_reqs": 72009,
-        "cpu_usec_total": 16014937,
-        "cpu_us_per_request": 222.402,
-        "user_us_per_request": 46.473,
-        "system_us_per_request": 175.929
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 16473043,
+          "cores_used": 0.8237,
+          "memory_bytes_max": 27676672,
+          "memory_bytes_mean": 26446612,
+          "cpu_us_per_request": 228.764,
+          "requests": 72009,
+          "user_us_per_request": 49.371,
+          "system_us_per_request": 179.393
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 9544399,
+          "cores_used": 0.4772,
+          "memory_bytes_max": 4513792,
+          "memory_bytes_mean": 3875026,
+          "cpu_us_per_request": 132.545,
+          "requests": 72009,
+          "user_us_per_request": 7.119,
+          "system_us_per_request": 125.426
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 34096257,
+          "cores_used": 1.7048,
+          "memory_bytes_max": 482631680,
+          "memory_bytes_mean": 451519672,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.661,
+          "softirq_fraction": 0.113
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.412,
+          "origin": 0.477,
+          "loadgen": 0.426
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.661,
+          "softirq_fraction": 0.113
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        }
       },
       "verdict": {
         "sustained": true,
         "reasons": [],
+        "warnings": [],
         "achieved_ratio": 1.0001,
         "iterations": 8001,
         "dropped_iterations": 0,
         "http_req_failed_rate": 0.0,
-        "p50_ms": 1.036711,
-        "p95_ms": 29.62278059999985,
-        "p99_ms": 108.63302675999914
+        "get_p95_ms": 59.314533,
+        "pooled_p50_ms": 1.779445,
+        "pooled_p95_ms": 50.79876540000005,
+        "pooled_p99_ms": 172.21176575999928,
+        "origin_cpu_us_per_request": 132.545
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "wadm",
+      "offered_rate": 400,
+      "replicate": 2,
+      "offered_iterations": 8000,
+      "duration": "20s",
+      "throughput_rps": 3600.4,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 16804373,
+          "cores_used": 0.8402,
+          "memory_bytes_max": 28135424,
+          "memory_bytes_mean": 26790466,
+          "cpu_us_per_request": 233.365,
+          "requests": 72009,
+          "user_us_per_request": 55.3,
+          "system_us_per_request": 178.065
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 9214064,
+          "cores_used": 0.4607,
+          "memory_bytes_max": 4284416,
+          "memory_bytes_mean": 3962512,
+          "cpu_us_per_request": 127.957,
+          "requests": 72009,
+          "user_us_per_request": 7.745,
+          "system_us_per_request": 120.212
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 33706331,
+          "cores_used": 1.6853,
+          "memory_bytes_max": 483483648,
+          "memory_bytes_mean": 453752990,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.658,
+          "softirq_fraction": 0.115
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.42,
+          "origin": 0.461,
+          "loadgen": 0.421
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.658,
+          "softirq_fraction": 0.115
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 8001
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0001,
+        "iterations": 8001,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 40.090982,
+        "pooled_p50_ms": 1.600749,
+        "pooled_p95_ms": 33.62697220000007,
+        "pooled_p99_ms": 85.75542895999996,
+        "origin_cpu_us_per_request": 127.957
       },
       "compose_exit_code": 0
     },
     {
       "tier": "wadm",
       "offered_rate": 800,
+      "replicate": 1,
       "offered_iterations": 16000,
       "duration": "20s",
-      "throughput_rps": 4736.7,
+      "throughput_rps": 6604.6,
       "cpu": {
-        "available": true,
-        "http_reqs": 94734,
-        "cpu_usec_total": 39485806,
-        "cpu_us_per_request": 416.807,
-        "user_us_per_request": 37.052,
-        "system_us_per_request": 379.755
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 23895359,
+          "cores_used": 1.1948,
+          "memory_bytes_max": 50708480,
+          "memory_bytes_mean": 41376303,
+          "cpu_us_per_request": 180.898,
+          "requests": 132093,
+          "user_us_per_request": 38.739,
+          "system_us_per_request": 142.159
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 12383798,
+          "cores_used": 0.6192,
+          "memory_bytes_max": 7081984,
+          "memory_bytes_mean": 4712528,
+          "cpu_us_per_request": 93.751,
+          "requests": 132093,
+          "user_us_per_request": 6.789,
+          "system_us_per_request": 86.962
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 45027624,
+          "cores_used": 2.2514,
+          "memory_bytes_max": 1145331712,
+          "memory_bytes_mean": 957891518,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.806,
+          "softirq_fraction": 0.092
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.597,
+          "origin": 0.619,
+          "loadgen": 0.563
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.806,
+          "softirq_fraction": 0.092
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 14677
+        },
+        "detect_query": {
+          "rate": 6.813381481229134e-05,
+          "passes": 1,
+          "fails": 14676
+        },
+        "token_tamper": {
+          "rate": 6.813381481229134e-05,
+          "passes": 1,
+          "fails": 14676
+        },
+        "token_decoy": {
+          "rate": 6.813381481229134e-05,
+          "passes": 1,
+          "fails": 14676
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 14677
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 14677
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 14677
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 14677
+        }
       },
       "verdict": {
         "sustained": false,
         "reasons": [
-          "placed only 65.8% of offered iterations",
-          "dropped 5485/16000 iterations",
-          "p95 1688.2 ms over the 100 ms SLO"
+          "placed only 91.7% of offered iterations",
+          "dropped 1324/16000 iterations",
+          "worst GET p95 552.6 ms over the 100 ms SLO"
         ],
-        "achieved_ratio": 0.6579,
-        "iterations": 10526,
-        "dropped_iterations": 5485,
-        "http_req_failed_rate": 0.0015939367069900986,
-        "p50_ms": 243.646475,
-        "p95_ms": 1688.1896041499974,
-        "p99_ms": 4299.67544135
+        "warnings": [],
+        "achieved_ratio": 0.9173,
+        "iterations": 14677,
+        "dropped_iterations": 1324,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 552.6235031999995,
+        "pooled_p50_ms": 24.49465,
+        "pooled_p95_ms": 402.78161959999926,
+        "pooled_p99_ms": 906.6450078799999,
+        "origin_cpu_us_per_request": 93.751
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "wadm",
+      "offered_rate": 800,
+      "replicate": 2,
+      "offered_iterations": 16000,
+      "duration": "20s",
+      "throughput_rps": 7029.0,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 22471789,
+          "cores_used": 1.1236,
+          "memory_bytes_max": 49340416,
+          "memory_bytes_mean": 43226651,
+          "cpu_us_per_request": 159.851,
+          "requests": 140580,
+          "user_us_per_request": 36.706,
+          "system_us_per_request": 123.145
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 11462835,
+          "cores_used": 0.5731,
+          "memory_bytes_max": 7254016,
+          "memory_bytes_mean": 4716490,
+          "cpu_us_per_request": 81.54,
+          "requests": 140580,
+          "user_us_per_request": 6.301,
+          "system_us_per_request": 75.238
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 43823007,
+          "cores_used": 2.1912,
+          "memory_bytes_max": 1060773888,
+          "memory_bytes_mean": 923814104,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.776,
+          "softirq_fraction": 0.098
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.562,
+          "origin": 0.573,
+          "loadgen": 0.548
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.776,
+          "softirq_fraction": 0.098
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 15620
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 15620
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 15620
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 15620
+        },
+        "sqli_hit": {
+          "rate": 6.402048655569782e-05,
+          "passes": 1,
+          "fails": 15619
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 15620
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 15620
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 15620
+        }
+      },
+      "verdict": {
+        "sustained": false,
+        "reasons": [
+          "dropped 378/16000 iterations",
+          "worst GET p95 305.0 ms over the 100 ms SLO"
+        ],
+        "warnings": [],
+        "achieved_ratio": 0.9762,
+        "iterations": 15620,
+        "dropped_iterations": 378,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 305.0156832499999,
+        "pooled_p50_ms": 8.965462,
+        "pooled_p95_ms": 259.8050705,
+        "pooled_p99_ms": 586.2113746499954,
+        "origin_cpu_us_per_request": 81.54
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "wadm",
+      "offered_rate": 566,
+      "replicate": 1,
+      "offered_iterations": 11320,
+      "duration": "20s",
+      "throughput_rps": 4961.2,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 18940880,
+          "cores_used": 0.947,
+          "memory_bytes_max": 43458560,
+          "memory_bytes_mean": 38289674,
+          "cpu_us_per_request": 190.888,
+          "requests": 99225,
+          "user_us_per_request": 48.913,
+          "system_us_per_request": 141.975
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 9924177,
+          "cores_used": 0.4962,
+          "memory_bytes_max": 5189632,
+          "memory_bytes_mean": 4373836,
+          "cpu_us_per_request": 100.017,
+          "requests": 99225,
+          "user_us_per_request": 6.647,
+          "system_us_per_request": 93.37
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 40032189,
+          "cores_used": 2.0016,
+          "memory_bytes_max": 737296384,
+          "memory_bytes_mean": 651148514,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.734,
+          "softirq_fraction": 0.113
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.473,
+          "origin": 0.496,
+          "loadgen": 0.5
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "loadgen",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.734,
+          "softirq_fraction": 0.113
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 9.070294784580499e-05,
+          "passes": 1,
+          "fails": 11024
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11025
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11025
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11025
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11025
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11025
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11025
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 11025
+        }
+      },
+      "verdict": {
+        "sustained": false,
+        "reasons": [
+          "dropped 296/11320 iterations",
+          "worst GET p95 189.7 ms over the 100 ms SLO"
+        ],
+        "warnings": [],
+        "achieved_ratio": 0.9739,
+        "iterations": 11025,
+        "dropped_iterations": 296,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 189.74745999999996,
+        "pooled_p50_ms": 3.71194,
+        "pooled_p95_ms": 169.523908,
+        "pooled_p99_ms": 297.4837610000001,
+        "origin_cpu_us_per_request": 100.017
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "wadm",
+      "offered_rate": 566,
+      "replicate": 2,
+      "offered_iterations": 11320,
+      "duration": "20s",
+      "throughput_rps": 4923.0,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 19111340,
+          "cores_used": 0.9556,
+          "memory_bytes_max": 41345024,
+          "memory_bytes_mean": 37157619,
+          "cpu_us_per_request": 194.103,
+          "requests": 98460,
+          "user_us_per_request": 45.781,
+          "system_us_per_request": 148.322
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 10157230,
+          "cores_used": 0.5079,
+          "memory_bytes_max": 5251072,
+          "memory_bytes_mean": 4357659,
+          "cpu_us_per_request": 103.161,
+          "requests": 98460,
+          "user_us_per_request": 6.368,
+          "system_us_per_request": 96.793
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 38053198,
+          "cores_used": 1.9027,
+          "memory_bytes_max": 690139136,
+          "memory_bytes_mean": 636462511,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.718,
+          "softirq_fraction": 0.11
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.478,
+          "origin": 0.508,
+          "loadgen": 0.476
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.718,
+          "softirq_fraction": 0.11
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 10940
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 10940
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 10940
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 10940
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 10940
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 10940
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 10940
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 10940
+        }
+      },
+      "verdict": {
+        "sustained": false,
+        "reasons": [
+          "dropped 380/11320 iterations",
+          "worst GET p95 170.3 ms over the 100 ms SLO"
+        ],
+        "warnings": [],
+        "achieved_ratio": 0.9664,
+        "iterations": 10940,
+        "dropped_iterations": 380,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 170.3144737499999,
+        "pooled_p50_ms": 3.241985,
+        "pooled_p95_ms": 165.048994,
+        "pooled_p99_ms": 306.10246625,
+        "origin_cpu_us_per_request": 103.161
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "wadm",
+      "offered_rate": 476,
+      "replicate": 1,
+      "offered_iterations": 9520,
+      "duration": "20s",
+      "throughput_rps": 4200.3,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 18732363,
+          "cores_used": 0.9366,
+          "memory_bytes_max": 41549824,
+          "memory_bytes_mean": 37250194,
+          "cpu_us_per_request": 222.988,
+          "requests": 84006,
+          "user_us_per_request": 50.551,
+          "system_us_per_request": 172.438
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 10069212,
+          "cores_used": 0.5035,
+          "memory_bytes_max": 6033408,
+          "memory_bytes_mean": 4353888,
+          "cpu_us_per_request": 119.863,
+          "requests": 84006,
+          "user_us_per_request": 6.659,
+          "system_us_per_request": 113.204
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 35828847,
+          "cores_used": 1.7914,
+          "memory_bytes_max": 621838336,
+          "memory_bytes_mean": 565171612,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.718,
+          "softirq_fraction": 0.115
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.468,
+          "origin": 0.503,
+          "loadgen": 0.448
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.718,
+          "softirq_fraction": 0.115
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9334
+        },
+        "detect_query": {
+          "rate": 0.00010713520462824084,
+          "passes": 1,
+          "fails": 9333
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9334
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9334
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9334
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9334
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9334
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9334
+        }
+      },
+      "verdict": {
+        "sustained": false,
+        "reasons": [
+          "dropped 187/9520 iterations",
+          "worst GET p95 163.5 ms over the 100 ms SLO"
+        ],
+        "warnings": [],
+        "achieved_ratio": 0.9805,
+        "iterations": 9334,
+        "dropped_iterations": 187,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 163.47388695000018,
+        "pooled_p50_ms": 2.945339,
+        "pooled_p95_ms": 132.5374828999998,
+        "pooled_p99_ms": 535.089493529998,
+        "origin_cpu_us_per_request": 119.863
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "wadm",
+      "offered_rate": 476,
+      "replicate": 2,
+      "offered_iterations": 9520,
+      "duration": "20s",
+      "throughput_rps": 4284.0,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 18240644,
+          "cores_used": 0.912,
+          "memory_bytes_max": 38297600,
+          "memory_bytes_mean": 36817986,
+          "cpu_us_per_request": 212.893,
+          "requests": 85680,
+          "user_us_per_request": 49.95,
+          "system_us_per_request": 162.943
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 10199607,
+          "cores_used": 0.51,
+          "memory_bytes_max": 5136384,
+          "memory_bytes_mean": 4308088,
+          "cpu_us_per_request": 119.043,
+          "requests": 85680,
+          "user_us_per_request": 7.601,
+          "system_us_per_request": 111.442
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 37402957,
+          "cores_used": 1.8701,
+          "memory_bytes_max": 618795008,
+          "memory_bytes_mean": 548149647,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.708,
+          "softirq_fraction": 0.119
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.456,
+          "origin": 0.51,
+          "loadgen": 0.468
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.708,
+          "softirq_fraction": 0.119
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9520
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9520
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9520
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9520
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9520
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9520
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9520
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9520
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0,
+        "iterations": 9520,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 76.01300744999995,
+        "pooled_p50_ms": 2.738022,
+        "pooled_p95_ms": 62.932308750000004,
+        "pooled_p99_ms": 164.9701107000004,
+        "origin_cpu_us_per_request": 119.043
+      },
+      "compose_exit_code": 0
+    },
+    {
+      "tier": "wadm",
+      "offered_rate": 476,
+      "replicate": 3,
+      "offered_iterations": 9520,
+      "duration": "20s",
+      "throughput_rps": 4284.4,
+      "cpu": {
+        "edge": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 18528288,
+          "cores_used": 0.9264,
+          "memory_bytes_max": 38727680,
+          "memory_bytes_mean": 36621591,
+          "cpu_us_per_request": 216.227,
+          "requests": 85689,
+          "user_us_per_request": 49.191,
+          "system_us_per_request": 167.036
+        },
+        "origin": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 9793850,
+          "cores_used": 0.4897,
+          "memory_bytes_max": 5496832,
+          "memory_bytes_mean": 4295002,
+          "cpu_us_per_request": 114.295,
+          "requests": 85689,
+          "user_us_per_request": 7.082,
+          "system_us_per_request": 107.214
+        },
+        "loadgen": {
+          "available": true,
+          "source": "host cgroup sampler, measured window only",
+          "window_s": 20.0,
+          "cpu_usec_total": 36783939,
+          "cores_used": 1.8392,
+          "memory_bytes_max": 580308992,
+          "memory_bytes_mean": 539211271,
+          "cpu_us_per_request": null
+        },
+        "host": {
+          "available": true,
+          "busy_fraction": 0.709,
+          "softirq_fraction": 0.122
+        }
+      },
+      "utilisation": {
+        "fraction_of_cpuset": {
+          "edge": 0.463,
+          "origin": 0.49,
+          "loadgen": 0.46
+        },
+        "cpusets": {
+          "edge": "1-2",
+          "origin": "3",
+          "loadgen": "4-7"
+        },
+        "binding": "origin",
+        "saturated": false,
+        "host": {
+          "available": true,
+          "busy_fraction": 0.709,
+          "softirq_fraction": 0.122
+        }
+      },
+      "worst_intact_rate": 1,
+      "new_conn": {
+        "inject_get": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "detect_query": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "token_tamper": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "token_decoy": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "sqli_hit": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "sqli_hit_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "sqli_miss": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        },
+        "sqli_miss_enc": {
+          "rate": 0,
+          "passes": 0,
+          "fails": 9521
+        }
+      },
+      "verdict": {
+        "sustained": true,
+        "reasons": [],
+        "warnings": [],
+        "achieved_ratio": 1.0001,
+        "iterations": 9521,
+        "dropped_iterations": 0,
+        "http_req_failed_rate": 0.0,
+        "get_p95_ms": 55.524605,
+        "pooled_p50_ms": 3.210304,
+        "pooled_p95_ms": 50.221655,
+        "pooled_p99_ms": 152.17951864000065,
+        "origin_cpu_us_per_request": 114.295
       },
       "compose_exit_code": 0
     }
   ],
   "capacity": {
     "bare": {
-      "max_sustained_offered_rate": 400,
-      "max_sustained_rps": 3600.0,
+      "max_sustained_offered_rate": 673,
+      "max_sustained_rps": 6057.45,
       "first_failure": {
         "offered_rate": 800,
         "reasons": [
-          "dropped 406/16000 iterations",
-          "p95 119.1 ms over the 100 ms SLO"
-        ]
-      }
+          "dropped 3083/16000 iterations",
+          "dropped 557/16000 iterations",
+          "placed only 80.7% of offered iterations",
+          "worst GET p95 167.8 ms over the 100 ms SLO",
+          "worst GET p95 921.7 ms over the 100 ms SLO"
+        ],
+        "binding_resource": "origin",
+        "binding_saturated": false,
+        "fraction_of_cpuset": {
+          "edge": 0.433,
+          "origin": 0.7245,
+          "loadgen": 0.5705
+        }
+      },
+      "edge_cpu_us_per_request": 108.549,
+      "edge_bound_rps_at_measured_cost": 18424.9
+    },
+    "silent": {
+      "max_sustained_offered_rate": 476,
+      "max_sustained_rps": 4284.4,
+      "first_failure": {
+        "offered_rate": 566,
+        "reasons": [
+          "dropped 1094/11320 iterations",
+          "placed only 90.3% of offered iterations",
+          "worst GET p95 100.9 ms over the 100 ms SLO",
+          "worst GET p95 439.1 ms over the 100 ms SLO"
+        ],
+        "binding_resource": "origin",
+        "binding_saturated": false,
+        "fraction_of_cpuset": {
+          "edge": 0.453,
+          "origin": 0.5355000000000001,
+          "loadgen": 0.483
+        }
+      },
+      "edge_cpu_us_per_request": 192.8385,
+      "edge_bound_rps_at_measured_cost": 10371.4
     },
     "wadm": {
-      "max_sustained_offered_rate": 400,
-      "max_sustained_rps": 3600.4,
+      "max_sustained_offered_rate": 476,
+      "max_sustained_rps": 4284.2,
       "first_failure": {
-        "offered_rate": 800,
+        "offered_rate": 566,
         "reasons": [
-          "placed only 65.8% of offered iterations",
-          "dropped 5485/16000 iterations",
-          "p95 1688.2 ms over the 100 ms SLO"
-        ]
-      }
+          "dropped 296/11320 iterations",
+          "dropped 380/11320 iterations",
+          "worst GET p95 170.3 ms over the 100 ms SLO",
+          "worst GET p95 189.7 ms over the 100 ms SLO"
+        ],
+        "binding_resource": "loadgen",
+        "binding_saturated": false,
+        "fraction_of_cpuset": {
+          "edge": 0.4755,
+          "origin": 0.502,
+          "loadgen": 0.488
+        }
+      },
+      "edge_cpu_us_per_request": 214.56,
+      "edge_bound_rps_at_measured_cost": 9321.4
     },
-    "wadm_throughput_retained": 1.0001
+    "silent_vs_bare": {
+      "throughput_retained": 0.7073,
+      "same_binding_resource": true,
+      "binding": {
+        "bare": "origin",
+        "silent": "origin"
+      },
+      "edge_capacity_retained_at_measured_cost": 0.5629
+    },
+    "wadm_vs_bare": {
+      "throughput_retained": 0.7073,
+      "same_binding_resource": false,
+      "binding": {
+        "bare": "origin",
+        "wadm": "loadgen"
+      },
+      "edge_capacity_retained_at_measured_cost": 0.5059
+    }
   }
 }

@@ -1,13 +1,13 @@
-edge,rate_iter_per_s,replicates,get_p50_added_us,get_p95_added_us,get_p50_added_pct,get_p50_resolved,cpu_added_us_per_req,cpu_user_us,cpu_system_us,cpu_marginal_added_us,coverage_worst
-OpenResty,1,5,219,713,27,5/5,80,50,30,56,1.0
-OpenResty,10,5,203,618,23,5/5,74,45,21,56,1.0
-OpenResty,100,5,163,419,31,5/5,57,32,24,56,1.0
-WASM (Envoy),1,5,250,591,27,5/5,130,117,13,134,1.0
-WASM (Envoy),10,5,202,651,22,5/5,146,84,52,134,1.0
-WASM (Envoy),100,5,184,457,28,5/5,134,69,66,134,1.0
-Apache+Lua,1,5,323,1355,36,5/5,143,170,61,,1.0
-Apache+Lua,10,5,261,1004,28,5/5,217,111,97,,0.9978
-Apache+Lua,100,5,364,49960,59,5/5,547,155,385,,0.9957
-Envoy+Lua,1,5,282,718,30,5/5,82,84,-11,75,1.0
-Envoy+Lua,10,5,240,607,24,5/5,80,62,17,75,1.0
-Envoy+Lua,100,5,210,380,32,5/5,75,48,30,75,1.0
+edge,rate_iter_per_s,replicates,comparison,get_p50_added_us,get_p95_added_us,get_p50_added_pct,get_p50_resolved,cpu_added_us_per_req,cpu_user_us,cpu_system_us,cpu_marginal_added_us,probe_effect_get_p50_us,probe_effect_cpu_us_per_req,coverage_worst
+OpenResty,1,5,silent_minus_bare,166,591,19,5/5,41,39,-10,33,103,63,1.0
+OpenResty,10,5,silent_minus_bare,114,192,13,5/5,24,29,-12,33,85,38,1.0
+OpenResty,100,5,silent_minus_bare,109,422,20,5/5,33,25,8,33,56,44,1.0
+WASM (Envoy),1,5,silent_minus_bare,149,242,13,5/5,136,185,-17,123,144,56,1.0
+WASM (Envoy),10,5,silent_minus_bare,144,866,14,5/5,133,94,39,123,67,15,1.0
+WASM (Envoy),100,5,silent_minus_bare,134,1067,20,5/5,123,69,54,123,100,63,1.0
+Apache+Lua,1,5,silent_minus_bare,218,507,23,5/5,113,98,24,200,178,57,1.0
+Apache+Lua,10,5,silent_minus_bare,162,320,17,5/5,139,103,33,200,104,28,1.0
+Apache+Lua,100,4,silent_minus_bare,2174,158377,334,4/4,881,154,727,200,,,
+Envoy+Lua,1,5,silent_minus_bare,208,478,20,5/5,88,119,16,41,120,-7,1.0
+Envoy+Lua,10,5,silent_minus_bare,163,466,16,5/5,42,28,14,41,71,41,1.0
+Envoy+Lua,100,5,silent_minus_bare,136,351,21,5/5,42,27,11,41,94,52,1.0

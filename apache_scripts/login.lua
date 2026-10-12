@@ -70,7 +70,9 @@ function handle_login(r)
         r:warn("WADM TRAP: " .. ip .. " " .. method .. " " .. path
             .. " answered locally with " .. status .. " (no signature matched)")
     end
-    r:warn("WADM TOKEN " .. kind .. " detect (us): " .. tostring(delta))
+    if wadm.emit_timings then
+        r:warn("WADM TOKEN " .. kind .. " detect (us): " .. tostring(delta))
+    end
 
     -- r.status must be assigned before the first r:puts, and the handler must return OK rather
     -- than the numeric status — returning a status code makes Apache discard this body and

@@ -765,3 +765,44 @@ full pool in **both** `httpd.conf` and `httpd-baseline.conf` (for example `Start
   (`detect` = iterations, `inject` = 4× / 1×), and every plot rendered.
 - Builds: `cargo build --locked --release` with no warnings; `openresty -t`, `httpd -t` and
   `envoy --mode validate` pass for every WADM and baseline config; every Lua file parses.
+
+## Instrumentation switch and timer semantics (2026-10-03)
+
+Two code-level changes, both applied identically to all four edges and both governed by this
+register because they change what the edges do.
+
+### `emit_timings`: the timing lines can now be switched off
+
+The section above records that the per-region timing lines were left in deliberately, and that the
+end-to-end WADM tier pays for them. The measurement review (`BENCHMARK_METHODOLOGY.md` §6.3) found
+that this payment is not small — about 39 `write()`s per iteration, with kernel time 30–45% of
+WADM's CPU delta — so it can no longer be left inside "the cost of WADM". Every edge now reads a
+top-level `emit_timings` key from `config.json` (absent or `true` = on, the previous behaviour):
+
+| Edge | Where it is read | What it gates |
+|---|---|---|
+| OpenResty | `nginx/nginx.conf`, `local emit_timings` + `log_timing(...)` | the seven `(us)` lines |
+| Envoy+Lua | `envoy_scripts/injection.lua`, `local emit_timings` | the seven `(us)` lines |
+| Envoy+WASM | `wasm-filter/src/lib.rs`, `Config.emit_timings` → `Compiled.emit_timings` | the seven `warn!` `(us)` lines |
+| Apache | `apache_scripts/wadm.lua`, `M.emit_timings` | the seven `r:warn` `(us)` lines |
+
+What stays identical under `false`: every clock read (so the instrumented and silent builds differ
+only by the emission), every alert and `WADM TRAP` line, every detection, injection and trap. Two
+Envoy+Lua sites and two Apache sites previously took their end timestamp inside the log call; that
+read was hoisted out of the call so it still happens when the line is suppressed. The line format
+is unchanged, so every scraper keeps working.
+
+The paired harness generates `config-silent.json` from `config.json` at run time (`emit_timings:
+false`, nothing else changed; gitignored) and mounts it through `WADM_CONFIG_JSON` for the
+**silent** tier. silent − bare is WADM as a deployment would run it; wadm − silent is the
+instrumentation's own cost.
+
+### Envoy+WASM timer semantics now match the other edges
+
+OpenResty and Envoy+Lua (FFI `gettimeofday`) and Apache (`r:clock()`) log the difference of two
+whole-microsecond timestamps, `floor(t_end) − floor(t_start)`, which is unbiased on average.
+Envoy+WASM read a nanosecond host clock and logged `floor(t_end − t_start)`, which reads about
+0.5 µs low on average — 15–50% of a 1–3 µs region, enough to rank WASM falsely cheap in the
+internal-timer comparison. `elapsed_us` in `lib.rs` now subtracts the two timestamps after
+truncating each to whole microseconds, the same quantity the other three log. Timer results from
+before this change (everything up to the 2026-09-30 paired dataset) carry the old WASM bias.

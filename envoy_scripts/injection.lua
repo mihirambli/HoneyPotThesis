@@ -15,6 +15,11 @@ file:close()
 local ht = config.honeytokens or {}
 local post_body_inspection = config.post_body_inspection == true
 
+-- Benchmark instrumentation switch, mirroring nginx.conf's. The timing lines are not part of WADM;
+-- `false` (config-silent.json) keeps every clock read and every alert but skips these lines, so the
+-- difference between the two settings is the cost of emitting them.
+local emit_timings = config.emit_timings ~= false
+
 -- Wall-clock microsecond timer via LuaJIT FFI gettimeofday, mirroring OpenResty's, so Envoy+Lua
 -- measures the same quantity as the other three edges. A uniquely named struct avoids clashing
 -- with any pre-existing `struct timeval` cdef. Each Envoy worker thread has its own Lua state, so
@@ -491,7 +496,9 @@ local function sqli_respond(request_handle, ip, method, path)
     request_handle:logWarn("WADM TRAP: " .. ip .. " " .. method .. " " .. path
       .. " answered locally with " .. status .. " (no signature matched)")
   end
-  request_handle:logWarn("WADM TOKEN " .. kind .. " detect (us): " .. sqli_delta)
+  if emit_timings then
+    request_handle:logWarn("WADM TOKEN " .. kind .. " detect (us): " .. sqli_delta)
+  end
 
   -- sendLocalReply re-enters the whole encoder chain, this filter included, so
   -- envoy_on_response would otherwise stamp the trap page with honeytokens.
@@ -521,7 +528,9 @@ local function detect_kinds(request_handle, ctx)
         request_handle:logWarn(format_alert(ip, hits[j]))
       end
       -- Timed only on a hit, so every edge samples the same population.
-      request_handle:logWarn("WADM TOKEN " .. k.name .. " detect (us): " .. kind_delta)
+      if emit_timings then
+        request_handle:logWarn("WADM TOKEN " .. k.name .. " detect (us): " .. kind_delta)
+      end
     end
   end
 end
@@ -583,7 +592,9 @@ local function detect_comments(request_handle, headers, ctx)
       request_handle:logWarn(format_alert(ip, hits[j]))
     end
     -- Only trigger-bearing requests are timed so all edges sample the same population.
-    request_handle:logWarn("Envoy Lua Detection execution time (us): " .. detection_delta)
+    if emit_timings then
+      request_handle:logWarn("Envoy Lua Detection execution time (us): " .. detection_delta)
+    end
   end
 end
 
@@ -660,7 +671,10 @@ function envoy_on_response(response_handle)
       -- same name must not survive alongside it.
       headers:replace(hdrs[i].name, hdrs[i].value)
     end
-    response_handle:logWarn("WADM TOKEN http_headers inject (us): " .. (now_us() - hstart))
+    local headers_delta = now_us() - hstart
+    if emit_timings then
+      response_handle:logWarn("WADM TOKEN http_headers inject (us): " .. headers_delta)
+    end
   end
 
   local cookies = plan.cookies
@@ -669,7 +683,10 @@ function envoy_on_response(response_handle)
     for i = 1, #cookies do
       headers:add("set-cookie", cookies[i])
     end
-    response_handle:logWarn("WADM TOKEN cookies inject (us): " .. (now_us() - cstart))
+    local cookies_delta = now_us() - cstart
+    if emit_timings then
+      response_handle:logWarn("WADM TOKEN cookies inject (us): " .. cookies_delta)
+    end
   end
 
   if not plan.has_body then
@@ -693,7 +710,9 @@ function envoy_on_response(response_handle)
     local nb = splice_before(body, p.anchor, p.markup)
     local extra_delta = now_us() - extra_start
     if nb then body = nb end
-    response_handle:logWarn("WADM TOKEN " .. p.kind .. " inject (us): " .. extra_delta)
+    if emit_timings then
+      response_handle:logWarn("WADM TOKEN " .. p.kind .. " inject (us): " .. extra_delta)
+    end
   end
 
   -- setBytes also rewrites Content-Length, so no separate header update is needed.
@@ -702,9 +721,11 @@ function envoy_on_response(response_handle)
     local injection_start = now_us()
     body_handle:setBytes(splice_before(body, "</body>", injection) or (body .. injection))
     local injection_end = now_us()
-    response_handle:logWarn(
-      "Envoy Lua Injection execution time (us): " .. (injection_end - injection_start)
-    )
+    if emit_timings then
+      response_handle:logWarn(
+        "Envoy Lua Injection execution time (us): " .. (injection_end - injection_start)
+      )
+    end
   else
     body_handle:setBytes(body)
   end

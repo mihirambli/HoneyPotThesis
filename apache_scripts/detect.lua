@@ -35,7 +35,9 @@ local function detect_kinds(r, ctx)
                 r:warn(format_alert(ip, hits[j]))
             end
             -- Timed only on a hit, so every edge samples the same population.
-            r:warn("WADM TOKEN " .. k.name .. " detect (us): " .. tostring(kind_end - kind_start))
+            if wadm.emit_timings then
+                r:warn("WADM TOKEN " .. k.name .. " detect (us): " .. tostring(kind_end - kind_start))
+            end
         end
     end
 end
@@ -64,7 +66,9 @@ local function detect_comments(r, ctx)
             r:warn(format_alert(ip, hits[j]))
         end
         -- Only trigger-bearing requests are timed so all edges sample the same population.
-        r:warn("Apache Detection execution time (us): " .. tostring(end_time - start_time))
+        if wadm.emit_timings then
+            r:warn("Apache Detection execution time (us): " .. tostring(end_time - start_time))
+        end
     end
 end
 
@@ -82,7 +86,10 @@ local function stage_headers(r, plan)
         for i = 1, #hdrs do
             eho[hdrs[i].name] = hdrs[i].value
         end
-        r:warn("WADM TOKEN http_headers inject (us): " .. tostring(r:clock() - hstart))
+        local headers_delta = r:clock() - hstart
+        if wadm.emit_timings then
+            r:warn("WADM TOKEN http_headers inject (us): " .. tostring(headers_delta))
+        end
     end
 
     if #cookies > 0 then
@@ -92,7 +99,10 @@ local function stage_headers(r, plan)
             -- would overwrite each other; the shipped config plants one.
             eho["Set-Cookie"] = cookies[i]
         end
-        r:warn("WADM TOKEN cookies inject (us): " .. tostring(r:clock() - cstart))
+        local cookies_delta = r:clock() - cstart
+        if wadm.emit_timings then
+            r:warn("WADM TOKEN cookies inject (us): " .. tostring(cookies_delta))
+        end
     end
 end
 

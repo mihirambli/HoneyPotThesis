@@ -72,16 +72,11 @@ POST_METRICS = [
     "sqli_miss_enc_duration",
 ]
 
-# Lightest to darkest within one edge's hue. The scopes are ordered — each is a wider accounting
-# boundary than the last — so this is a sequential encoding, one hue light to dark, rather than
-# four categorical colours that would compete with the edge hue carrying identity across figures.
-SCOPE_TINTS = [0.55, 0.28, 0.0]
-SCOPE_LABELS = [
-    "Instrumented\ndetect + inject timers",
-    "Edge CPU added\n(marginal, cgroup cpu.stat)",
-    "End-to-end added\n(4 GET probes, wall clock)",
-]
-
+# Bars are tinted lightest to darkest within one edge's hue (see bars_for). The scopes are ordered —
+# each is a wider accounting boundary than the last — so this is a sequential encoding, one hue
+# light to dark, rather than categorical colours that would compete with the edge hue carrying
+# identity across figures.
+#
 # Instrumented time and CPU time are both measures of WORK, and they nest: every timed region is
 # CPU the container spent, so instrumented / CPU is a true subset ratio and is the headline.
 #
@@ -90,7 +85,6 @@ SCOPE_LABELS = [
 # elapsed time — measured here, Apache added 4,835 us of CPU while adding 1,565 us of latency.
 # Drawing it as a third nested scope would assert a containment that parallelism makes false, so
 # it is drawn as a separate instrument and labelled as one.
-WORK_SCOPES = 2
 
 # Edges whose SQLi trap cannot answer from the request phase and so still sends the trap's requests
 # to the origin (proxy-wasm rejects a local reply there; see docs/EDGE_LEVELING.md).
@@ -145,9 +139,11 @@ def instrumented_us_per_iteration(cell: dict[str, Any]) -> float | None:
 
 def reqs_per_iteration(cell: dict[str, Any]) -> float | None:
     k6 = cell.get("k6") or {}
-    if not k6.get("iterations") or not k6.get("http_reqs"):
+    # edge_requests excludes test.js setup()'s reference requests, half of which bypass the edge.
+    requests = k6.get("edge_requests") or k6.get("http_reqs")
+    if not k6.get("iterations") or not requests:
         return None
-    return k6["http_reqs"] / k6["iterations"]
+    return requests / k6["iterations"]
 
 
 def trend_med(cell: dict[str, Any], metric: str) -> float | None:
@@ -155,70 +151,118 @@ def trend_med(cell: dict[str, Any], metric: str) -> float | None:
     return stats.get("med") if stats and stats.get("count") else None
 
 
+def cpu_delta_per_iteration(low: dict[str, Any], high: dict[str, Any]) -> float | None:
+    per_iter = reqs_per_iteration(high)
+    a = ((low.get("cpu") or {}).get("edge") or {}).get("cpu_us_per_request")
+    b = ((high.get("cpu") or {}).get("edge") or {}).get("cpu_us_per_request")
+    if per_iter is None or a is None or b is None:
+        return None
+    return (b - a) * per_iter
+
+
+def e2e_delta(low: dict[str, Any], high: dict[str, Any], metrics: list[str]) -> float | None:
+    """Sum over `metrics` of (high - low) median latency, in microseconds per iteration."""
+    deltas = [
+        trend_med(high, m) - trend_med(low, m)
+        for m in metrics
+        if trend_med(high, m) is not None and trend_med(low, m) is not None
+    ]
+    return sum(deltas) * 1000.0 if len(deltas) == len(metrics) else None
+
+
 def scopes_for(doc: dict[str, Any], rate: int) -> dict[str, Any] | None:
-    """The four scopes at one rate, each as a paired-delta summary in microseconds per iteration."""
-    bare, wadm = valid(doc, "bare", rate), valid(doc, "wadm", rate)
-    shared = sorted(set(bare) & set(wadm))
+    """Every scope at one rate, each as a paired-delta summary in microseconds per iteration.
+
+    With a silent tier, "what WADM costs" is silent - bare (the deployable build) and the timers'
+    coverage is measured against that; wadm - silent is the instrumentation's own cost. Without
+    one, the instrumented build is the only WADM tier and stands in for both.
+    """
+    tiers = {c["tier"] for c in doc["cells"]}
+    deployed = "silent" if "silent" in tiers else "wadm"
+    cells = {t: valid(doc, t, rate) for t in ("bare", "silent", "wadm")}
+    shared = sorted(set(cells["bare"]) & set(cells["wadm"]) & set(cells[deployed]))
     if not shared:
         return None
 
-    instrumented, edge_cpu, origin_cpu, e2e_get, e2e_post, coverage = [], [], [], [], [], []
-    for replicate in shared:
-        b, w = bare[replicate], wadm[replicate]
+    series: dict[str, list[float]] = {
+        k: [] for k in ("timers", "cpu_deployed", "cpu_instrumented", "cpu_probe",
+                        "e2e_get", "e2e_post", "origin", "coverage")
+    }
 
-        value = instrumented_us_per_iteration(w)
+    def add(key: str, value: float | None) -> None:
         if value is not None:
-            instrumented.append(value)
+            series[key].append(value)
 
-        per_iter = reqs_per_iteration(w)
-        if per_iter:
-            b_edge = ((b.get("cpu") or {}).get("edge") or {}).get("cpu_us_per_request")
-            w_edge = ((w.get("cpu") or {}).get("edge") or {}).get("cpu_us_per_request")
-            if b_edge is not None and w_edge is not None:
-                edge_cpu.append((w_edge - b_edge) * per_iter)
-                if value is not None and w_edge > b_edge:
-                    coverage.append(100.0 * value / ((w_edge - b_edge) * per_iter))
-            b_org = ((b.get("cpu") or {}).get("origin") or {}).get("cpu_us_per_request")
-            w_org = ((w.get("cpu") or {}).get("origin") or {}).get("cpu_us_per_request")
-            if b_org is not None and w_org is not None:
-                origin_cpu.append((w_org - b_org) * per_iter)
-
-        for metrics, sink in ((GET_METRICS, e2e_get), (POST_METRICS, e2e_post)):
-            deltas = [
-                trend_med(w, m) - trend_med(b, m)
-                for m in metrics
-                if trend_med(w, m) is not None and trend_med(b, m) is not None
-            ]
-            if len(deltas) == len(metrics):
-                sink.append(sum(deltas) * 1000.0)
+    for rep in shared:
+        b, d, w = cells["bare"][rep], cells[deployed][rep], cells["wadm"][rep]
+        timers = instrumented_us_per_iteration(w)
+        add("timers", timers)
+        deployed_cpu = cpu_delta_per_iteration(b, d)
+        add("cpu_deployed", deployed_cpu)
+        add("cpu_instrumented", cpu_delta_per_iteration(b, w))
+        if deployed == "silent":
+            add("cpu_probe", cpu_delta_per_iteration(d, w))
+        if timers is not None and deployed_cpu and deployed_cpu > 0:
+            add("coverage", 100.0 * timers / deployed_cpu)
+        add("e2e_get", e2e_delta(b, d, GET_METRICS))
+        add("e2e_post", e2e_delta(b, d, POST_METRICS))
+        per_iter = reqs_per_iteration(d)
+        b_org = ((b.get("cpu") or {}).get("origin") or {}).get("cpu_us_per_request")
+        d_org = ((d.get("cpu") or {}).get("origin") or {}).get("cpu_us_per_request")
+        if per_iter and b_org is not None and d_org is not None:
+            add("origin", (d_org - b_org) * per_iter)
 
     return {
-        "scopes": [
-            paired_delta(instrumented),
-            paired_delta(edge_cpu),
-            paired_delta(e2e_get),
-        ],
-        "origin_cpu": paired_delta(origin_cpu),
-        "post": paired_delta(e2e_post),
-        "coverage_pct": paired_delta(coverage),
+        "deployed_tier": deployed,
+        "series": {k: paired_delta(v) for k, v in series.items()},
         "reqs_per_iteration": statistics.median(
-            [r for r in (reqs_per_iteration(wadm[rep]) for rep in shared) if r]
+            [r for r in (reqs_per_iteration(cells["wadm"][rep]) for rep in shared) if r]
         ),
         "replicates": len(shared),
+        "cpu_marginal": False,
     }
 
 
-def with_marginal_cpu(entry: dict[str, Any], marginal: dict[str, Any]) -> dict[str, Any]:
-    """Swap the per-rate CPU scope for the marginal fit, scaled to one iteration.
+def with_marginal_cpu(entry: dict[str, Any], marginal: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Swap the per-rate CPU scopes for marginal fits, scaled to one iteration.
 
     A per-rate CPU-per-request divides the edge's whole consumption, idle timers included, by the
     requests served, so at low rates it is mostly idle cost and its range spans hundreds of µs. The
     marginal fit separates idle from per-request cost across every rate within each replicate,
-    which is the figure that answers "what does one more request cost".
+    which is the figure that answers "what does one more request cost". `marginal` maps a series
+    name to the paired marginal fit for that comparison.
     """
     scale = entry["reqs_per_iteration"]
-    scaled = paired_delta([v * scale for v in marginal.get("samples") or []])
-    return {**entry, "scopes": [entry["scopes"][0], scaled, entry["scopes"][2]], "cpu_marginal": True}
+    series = dict(entry["series"])
+    for key, fit in marginal.items():
+        if fit.get("samples"):
+            series[key] = paired_delta([v * scale for v in fit["samples"]])
+    return {**entry, "series": series, "cpu_marginal": True}
+
+
+def bars_for(entry: dict[str, Any]) -> list[dict[str, Any]]:
+    """The bars one panel draws, top to bottom: timers, then CPU scopes, then latency."""
+    s = entry["series"]
+    cpu_kind = "marginal" if entry["cpu_marginal"] else "per-rate"
+    if entry["deployed_tier"] == "silent":
+        return [
+            {"label": "Instrumented\ndetect + inject timers", "delta": s["timers"], "tint": 0.6},
+            {"label": f"CPU added by WADM as deployed\n(silent − bare, {cpu_kind})",
+             "delta": s["cpu_deployed"], "tint": 0.3},
+            {"label": f"CPU added by the timing lines\n(instrumented − silent, {cpu_kind})",
+             "delta": s["cpu_probe"], "tint": 0.3, "hatch": ".."},
+            {"label": f"CPU added, instrumented build\n(instrumented − bare, {cpu_kind})",
+             "delta": s["cpu_instrumented"], "tint": 0.0},
+            {"label": "End-to-end added, as deployed\n(4 GET probes, wall clock)",
+             "delta": s["e2e_get"], "latency": True},
+        ]
+    return [
+        {"label": "Instrumented\ndetect + inject timers", "delta": s["timers"], "tint": 0.55},
+        {"label": f"Edge CPU added\n({cpu_kind}, cgroup cpu.stat)",
+         "delta": s["cpu_instrumented"], "tint": 0.28},
+        {"label": "End-to-end added\n(4 GET probes, wall clock)", "delta": s["e2e_get"],
+         "latency": True},
+    ]
 
 
 def err_from(delta: dict[str, Any]) -> tuple[float, float] | None:
@@ -236,12 +280,16 @@ def plot_attribution(rate: int, data: dict[str, Any], out_dir: Path) -> Path | N
 
     cols = min(2, len(present))
     rows = (len(present) + cols - 1) // cols
-    fig, axes = plt.subplots(rows, cols, figsize=(7.6 * cols, 4.9 * rows), squeeze=False)
+    n_bars = max(len(bars_for(data[e][str(rate)])) for e in present)
+    fig, axes = plt.subplots(
+        rows, cols, figsize=(7.8 * cols, (1.0 + 0.8 * n_bars) * rows + 0.6), squeeze=False
+    )
 
     for index, edge in enumerate(present):
         ax = axes[index // cols][index % cols]
         entry = data[edge][str(rate)]
-        scopes = entry["scopes"]
+        bars = bars_for(entry)
+        scopes = [b["delta"] for b in bars]
         base = COLORS[EDGES[edge].label]
 
         positions = list(range(len(scopes)))[::-1]
@@ -254,18 +302,18 @@ def plot_attribution(rate: int, data: dict[str, Any], out_dir: Path) -> Path | N
         ]
         widest = max(uppers) if max(uppers) > 0 else 1.0
 
-        for slot, (pos, value, scope, amount) in enumerate(
-            zip(positions, values, scopes, SCOPE_TINTS)
-        ):
+        for slot, (pos, value, scope, bar) in enumerate(zip(positions, values, scopes, bars)):
             err = err_from(scope)
-            is_work = slot < WORK_SCOPES
+            is_work = not bar.get("latency")
             ax.barh(
                 pos, value, height=0.58,
                 # Hollow for the latency bar: it is a different instrument, not a wider scope, and
-                # the fill difference says so without spending a second hue.
-                color=tint(base, amount) if is_work else "white",
-                edgecolor="white" if is_work else base,
-                linewidth=2, hatch=None if is_work else "///", zorder=2,
+                # the fill difference says so without spending a second hue. The timing-line bar is
+                # dotted: it is the difference between two of the solid scopes, not a scope itself.
+                color=tint(base, bar.get("tint", 0.0)) if is_work else "white",
+                edgecolor=(INK_MUTED if bar.get("hatch") else "white") if is_work else base,
+                linewidth=2 if not bar.get("hatch") else 0.6,
+                hatch=bar.get("hatch") if is_work else "///", zorder=2,
                 xerr=[[err[0]], [err[1]]] if err else None,
                 error_kw={"ecolor": INK_MUTED, "elinewidth": 1.2, "capsize": 3},
             )
@@ -277,24 +325,24 @@ def plot_attribution(rate: int, data: dict[str, Any], out_dir: Path) -> Path | N
             )
 
         ax.set_yticks(positions)
-        labels = list(SCOPE_LABELS)
-        if not entry.get("cpu_marginal"):
-            labels[1] = "Edge CPU added\n(per-rate, cgroup cpu.stat)"
-        ax.set_yticklabels(labels, fontsize=8.5)
+        ax.set_yticklabels([b["label"] for b in bars], fontsize=8.5)
         ax.set_xlim(0, widest * 1.32)
         ax.set_ylim(-0.6, len(scopes) - 0.4)
         ax.set_xlabel("microseconds per iteration", fontsize=9, color=INK_MUTED)
 
+        # Coverage is timers / the CPU of WADM as deployed: the timed regions run in the deployable
+        # build too, so that is the cost they are a share of.
         instrumented, cpu = values[0], values[1]
         coverage = f"{100 * instrumented / cpu:.0f}%" if cpu > 0 else "n/a"
         ax.set_title(
-            f"{EDGES[edge].label}\ntimers see {coverage} of the CPU WADM burns",
+            f"{EDGES[edge].label}\ntimers see {coverage} of the CPU WADM adds"
+            + (" as deployed" if entry["deployed_tier"] == "silent" else ""),
             fontsize=11.5, color=INK, loc="left", pad=8,
         )
 
         # Below the axis, where nothing competes with the bars or their value labels.
         notes = []
-        origin = entry.get("origin_cpu")
+        origin = entry["series"].get("origin")
         if origin and origin.get("median") is not None:
             # Explained by the edge's trap mechanism, not by the sign. Envoy+WASM cannot answer from
             # the request phase and still proxies the trap's requests; the other three answer them
@@ -307,7 +355,7 @@ def plot_attribution(rate: int, data: dict[str, Any], out_dir: Path) -> Path | N
             else:
                 direction = "ROSE despite the trap answering 4 of 9 locally \u2014 not the trap's doing"
             notes.append(f"Origin CPU: {origin['median']:+,.0f} \u00b5s \u2014 {direction}")
-        post = entry.get("post")
+        post = entry["series"].get("e2e_post")
         if post and post.get("median") is not None:
             reason = (
                 "this edge's trap still pays the origin round-trip"
@@ -338,17 +386,16 @@ def plot_attribution(rate: int, data: dict[str, Any], out_dir: Path) -> Path | N
     )
     fig.text(
         0.01, 0.005,
-        "The two SOLID bars are both measures of WORK and they nest: every timed region is CPU the "
-        "container spent. The gap between them is WADM work\n"
-        "no timer wraps \u2014 Lua VM entry and exit per phase, the response body filter, alert "
-        "rendering \u2014 AND the writing of the ~39 timing log lines per\n"
-        "iteration that only the WADM tier emits, so part of the gap is the instrumentation itself. "
-        "The CPU bar is the marginal CPU per request (idle cost\n"
-        "fitted out across all rates) \u00d7 requests per iteration, and it is NET: the trap answers "
-        "4 of 9 requests itself on three edges, saving proxy work.\n"
-        "The HATCHED bar is a different instrument \u2014 wall clock at the client, not work \u2014 "
-        "shown for scale only; several workers on two cores can burn more\n"
-        "than one CPU-\u00b5s per elapsed \u00b5s. Error bars = range across paired replicates.",
+        "SOLID bars are measures of WORK and they nest: every timed region is CPU the container "
+        "spent, and WADM as deployed (no benchmark timing lines) is contained in the\n"
+        "instrumented build. The gap between the timers and the deployed cost is WADM work no timer "
+        "wraps \u2014 Lua VM entry and exit, the body filter, alert rendering. The DOTTED bar\n"
+        "is the difference between the two CPU scopes: what writing ~39 timing lines per iteration "
+        "costs, i.e. the measurement's own overhead. CPU bars are marginal CPU per request\n"
+        "(idle cost fitted out across all rates) \u00d7 requests per iteration, and NET of the proxy "
+        "work the trap saves by answering 4 of 9 requests itself on three edges. The HATCHED\n"
+        "bar is wall clock at the client, not work, shown for scale only. Error bars = range across "
+        "paired replicates.",
         fontsize=7.5, color=INK_MUTED, style="italic", va="bottom", linespacing=1.5,
     )
     fig.tight_layout(rect=[0, 0.145, 1, 0.945])
@@ -375,7 +422,7 @@ def plot_coverage(data: dict[str, Any], rates: list[int], out_dir: Path) -> Path
     for i, edge in enumerate(edges):
         xs, ys, lows, highs = [], [], [], []
         for rate in rates:
-            cov = (data[edge].get(str(rate)) or {}).get("coverage_pct") or {}
+            cov = ((data[edge].get(str(rate)) or {}).get("series") or {}).get("coverage") or {}
             if cov.get("median") is None:
                 continue
             xs.append(rate * (1.06 ** (i - (len(edges) - 1) / 2)))
@@ -445,7 +492,14 @@ def main() -> int:
                 rates.add(rate)
         if per_rate:
             data[edge] = per_rate
-            marginal[edge] = paired_marginal_cpu(doc)
+            tiers = {c["tier"] for c in doc["cells"]}
+            deployed = "silent" if "silent" in tiers else "wadm"
+            marginal[edge] = {
+                "cpu_deployed": paired_marginal_cpu(doc, "bare", deployed),
+                "cpu_instrumented": paired_marginal_cpu(doc, "bare", "wadm"),
+                **({"cpu_probe": paired_marginal_cpu(doc, "silent", "wadm")}
+                   if deployed == "silent" else {}),
+            }
 
     if not data:
         print("Nothing to plot. Run run_paired_benchmark.py first.")
@@ -460,7 +514,7 @@ def main() -> int:
     rate = common[-1]
     attribution = {}
     for edge in data:
-        if marginal[edge].get("n"):
+        if marginal[edge]["cpu_deployed"].get("n"):
             attribution[edge] = {str(rate): with_marginal_cpu(data[edge][str(rate)], marginal[edge])}
         else:
             # Apache's marginal fit is rejected as unphysical (crash recovery makes CPU per request

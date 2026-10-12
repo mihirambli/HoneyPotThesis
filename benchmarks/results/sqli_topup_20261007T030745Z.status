@@ -1,0 +1,7 @@
+2026-10-07T03:07:45Z guest tuned
+2026-10-07T03:07:45Z START sqli top-up 20261007T030745Z: apache_lua
+2026-10-07T03:37:16Z OK     python3 benchmarks/run_paired_benchmark.py --edge apache_lua --mixes sqli-hit,sqli-miss --no-prime --rates 100 --duration 20s --replicates 5 --results benchmarks/results/sqli_topup_20261007T030745Z
+2026-10-07T03:37:16Z OK     python3 benchmarks/merge_replicates.py benchmarks/results/sqli-hit_apache_lua.json benchmarks/results/sqli_topup_20261007T030745Z/sqli-hit_apache_lua.json
+2026-10-07T03:37:16Z OK     python3 benchmarks/merge_replicates.py benchmarks/results/sqli-miss_apache_lua.json benchmarks/results/sqli_topup_20261007T030745Z/sqli-miss_apache_lua.json
+2026-10-07T03:37:17Z OK     python3 benchmarks/plot_sqli.py
+2026-10-07T03:37:17Z DONE

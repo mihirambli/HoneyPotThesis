@@ -278,18 +278,21 @@ two concurrent runs measure each other.
 
 | # | Command | Time | What it does | Needed? |
 |---|---|---|---|---|
-| 1 | `sudo ./benchmarks/tune_guest.sh apply` | seconds | Disables THP and swap, widens the accept queue and ephemeral port range, stops the apt/man-db timers. Fully reversible. | Once per session, before 2–5 |
-| 2 | `run_paired_benchmark.py --preset smoke --all` | **~20 min** | The whole pipeline at 1 replicate and short windows. Proves the harness works before you commit hours to it. Its numbers are **not reportable** — one replicate cannot produce an interval. | Once, the first time |
-| 3 | `analyze_paired.py` | seconds | Prints deltas, bootstrap intervals, validity verdicts, the slot self-check and the internal timings. Reads `paired_*.json`, writes `paired_summary.json`. Read-only w.r.t. the plotters' inputs, so safe to re-run any time. | After 2, and after 4 |
-| 4 | `run_paired_benchmark.py --preset full --all` | **~2.5–3 h** | The reportable dataset: 5 replicates × 3 rates × 2 tiers × 4 edges, paired, order-alternated and gated. | Yes — this is the dataset |
-| 5 | `run_capacity_benchmark.py --all` | **~30–45 min** | The saturation ladder: max sustained throughput per edge, which limit binds first, and CPU per request at each step. Answers what the old 500-VU level was really asking. | Yes, for any capacity claim |
-| 6 | `analyze_paired.py --write-legacy` | seconds | Optional. Regenerates `internal_*` / `e2e_*` in the schema the retired legacy plotters read. Copies whatever it replaces to `results/archive/<date>-write-legacy/` first. | Only for a legacy plotter |
-| 7 | `plot_paired_overhead.py`, `plot_cost_attribution.py`, `plot_remediation.py` | ~1 min total | Draws the figures and the headline table from `paired_*.json` (§6.6). | Yes |
-| 8 | `sudo ./benchmarks/tune_guest.sh revert` | seconds | Puts the guest back. | When you are done |
+| 1 | `sudo ./benchmarks/tune_guest.sh apply` | seconds | Disables THP and swap, widens the accept queue and ephemeral port range, stops the apt/man-db timers. Fully reversible. | Once per session, before 2–7 |
+| 2 | `run_paired_benchmark.py --preset smoke --all --results <scratch>` | **~30 min** | The whole pipeline at 1 replicate and short windows. Proves the harness works before you commit hours to it. Its numbers are **not reportable** — one replicate cannot produce an interval — and `--results` keeps it away from the dataset. | Once, the first time |
+| 3 | `functional_matrix.py` | ~10 min | WADM vs bare across 13 response shapes on all four edges (§7.3). | Yes |
+| 4 | `run_paired_benchmark.py --preset full --all` | **~4.5 h** | The reportable dataset: 5 replicates × 3 rates × 3 tiers (bare, silent, wadm) × 4 edges, paired, order-balanced, gated and functionally checked. | Yes — this is the dataset |
+| 5 | `run_paired_benchmark.py --all --mix get --rates 100 --replicates 3` and `--mix size --rates 10 --replicates 3` | ~1 h | The GET-only run that separates the trap's CPU from the GET path's, and the page-size sweep (§7.5). | For per-mechanism and size claims |
+| 5b | `run_sqli_suite.sh` | **~1.5 h** | The SQLi trap's cost per hit and per miss, interleaved, 5 replicates of 20 s (§7.5). | For any SQLi hit/miss claim |
+| 6 | `run_capacity_benchmark.py --all` | **~2.5 h** | The saturation ladder with per-container utilisation, bisection and 3 replicates per step (§7.4). | Yes, for any capacity claim |
+| 7 | `run_paired_benchmark.py --edge apache_lua_conn --tiers bare,wadm` | ~45 min | The Apache remediation variant, re-measured under the same order and checks (§4c). | For the remediation figure |
+| 8 | `analyze_paired.py`, then `plot_paired_overhead.py`, `plot_cost_attribution.py`, `plot_mechanisms.py`, `plot_remediation.py`, `report_capacity.py` | ~1 min total | The console report, every figure and every table (§6.6, §7.6). | Yes |
+| 9 | `sudo ./benchmarks/tune_guest.sh revert` | seconds | Puts the guest back. | When you are done |
 
-Steps 2–3 are a rehearsal. If they look sane, 4–8 are the real thing. Steps 4 and 5 are the only
-long ones and can be left unattended — but nothing else should run on the VM *or on the host*
-while they do.
+Steps 2–3 are a rehearsal and a one-shot check. Steps 4–7 are the long ones and can be left
+unattended — but nothing else should run on the VM *or on the host* while they do. Before 4,
+copy `results/` into a new dated folder under `results/archive/` if it holds anything you want to
+keep; the runners overwrite their files.
 
 **If a run is interrupted:** `paired_<edge>.json` is written once, at the end of that edge, so an
 interrupted edge leaves no file and the completed ones are untouched. Re-run just that one with
@@ -304,28 +307,40 @@ on. Each edge writes its own file and `analyze_paired.py` reads whatever is pres
 # Once per session, before measuring (guest side).
 sudo ./benchmarks/tune_guest.sh apply
 
-# Prove the harness works end to end. ~20 minutes, not reportable — one replicate
-# cannot produce an interval.
-python3 benchmarks/run_paired_benchmark.py --preset smoke --all
-python3 benchmarks/analyze_paired.py
+# Prove the harness works end to end. ~30 minutes, not reportable — one replicate
+# cannot produce an interval — and written to a scratch directory so it cannot overwrite results/.
+python3 benchmarks/run_paired_benchmark.py --preset smoke --all --results /tmp/wadm-smoke
+python3 benchmarks/analyze_paired.py --results /tmp/wadm-smoke
 
-# The reportable run. ~2.5-3 hours for four edges.
+# Does WADM break what the server did without it? ~10 minutes.
+python3 benchmarks/functional_matrix.py
+
+# The reportable run: three tiers, five replicates. ~4.5 hours for four edges.
 python3 benchmarks/run_paired_benchmark.py --preset full --all
-python3 benchmarks/analyze_paired.py
 
-# Capacity and cost per request under load. ~30 minutes.
+# Per-mechanism CPU (GET path vs. trap) and the page-size sweep. ~1 hour.
+python3 benchmarks/run_paired_benchmark.py --all --mix get --rates 100 --replicates 3
+python3 benchmarks/run_paired_benchmark.py --all --mix size --rates 10 --replicates 3
+
+# Capacity, with the resource that limits it. ~2.5 hours.
 python3 benchmarks/run_capacity_benchmark.py --all
 
-# Draw the figures and the headline table. All three read paired_<edge>.json directly.
-python3 benchmarks/plot_paired_overhead.py    # latency added, shift function, timers, table
-python3 benchmarks/plot_cost_attribution.py   # what the timers miss (see section 2)
+# The Apache remediation variant, same order and checks. ~45 minutes.
+python3 benchmarks/run_paired_benchmark.py --edge apache_lua_conn --tiers bare,wadm
+
+# Report, figures and tables.
+python3 benchmarks/analyze_paired.py
+python3 benchmarks/plot_paired_overhead.py    # latency added, shift function, timers, tables
+python3 benchmarks/plot_cost_attribution.py   # timers vs CPU vs latency, and the probe effect
+python3 benchmarks/plot_mechanisms.py         # CPU per mechanism, latency vs page size
 python3 benchmarks/plot_remediation.py        # Apache LuaScope thread vs conn (section 4c)
+python3 benchmarks/report_capacity.py         # capacity with its binding resource
 
 sudo ./benchmarks/tune_guest.sh revert
 ```
 
-`run_paired_benchmark.py` writes `paired_<edge>.json` as the record of truth — every cell, both
-tiers, all replicates, each with its validity verdict. `analyze_paired.py` derives
+`run_paired_benchmark.py` writes `paired_<edge>.json` as the record of truth — every cell, every
+tier, all replicates, each with its validity verdict. `analyze_paired.py` derives
 `paired_summary.json` (the deltas with intervals), and with `--write-legacy` also rewrites the
 `internal_*` / `e2e_*` files in the legacy schema. The plotters that read that schema
 (`plot_baseline_comparison.py`, `plot_edge_comparison.py`, `plot_token_comparison.py`,
@@ -746,7 +761,7 @@ reconnects and, under `LuaScope conn`, builds a fresh Lua state. The same asymme
 appears on shipped Apache and contradicts the SQLi 2×2's premise (encoding costs µs, outcome
 nothing). **Apache's end-to-end SQLi arms are therefore confounded; read the internal timers for
 the 2×2.** Not yet fixed: the remedy is a Williams 8×8 order (each probe after every other probe
-once per 8 iterations) plus a per-probe reconnect metric. Pending approval.
+once per 8 iterations) plus a per-probe reconnect metric — both now implemented (§7.2).
 
 ### 6.3 What the CPU figure does and does not contain
 
@@ -754,7 +769,7 @@ once per 8 iterations) plus a per-probe reconnect metric. Pending approval.
   of an iteration. On OpenResty, Envoy+Lua and Apache the trap answers 4 of those 9 itself instead
   of proxying them, saving proxy work, so the delta is "GET-path WADM cost − proxy work saved +
   trap rendering". cgroup counters cannot separate request types; a per-mechanism figure needs
-  separate GET-only and POST-only runs (pending).
+  separate GET-only and POST-only runs — now `--mix get` (§7.5).
 - **It includes the instrumentation.** Only the WADM tier writes timing lines — about 39 per
   iteration (4 on `GET /`, 11 on the tamper probe). Each is a `write()` charged to the edge and
   sitting in the request path; dockerd/containerd-shim then process them outside the cgroup on
@@ -762,7 +777,7 @@ once per 8 iterations) plus a per-probe reconnect metric. Pending approval.
   OpenResty 100/s: user +32, system +24 µs/req), which is not what Lua string work looks like. Part
   of the "instrumented blind spot" (§2) may therefore be the instrumentation itself. The lines were
   kept deliberately (THESIS_NOTES, "timing log lines were deliberately left alone"); a WADM-silent
-  tier that turns them off without changing their format would measure this directly (pending).
+  tier that turns them off without changing their format now measures this directly (§7.1).
 - **Its window is wider than the measurement.** `cpu.stat` is read before and after the whole
   load-tester lifecycle (container start, the 5 s `startTime`, `gracefulStop`, teardown). Idle CPU
   in those ~10 s is billed to requests — Envoy idles at ~6.5 ms/s, ~80 µs/req at 1/s. It mostly
@@ -788,7 +803,7 @@ Clock semantics differ in one way that matters at this scale. OpenResty and Envo
 average. Envoy+WASM reads a nanosecond host clock and **truncates the difference** to whole µs
 (`wasm-filter/src/lib.rs`, `elapsed_us`), so it reads ≈0.5 µs low against the other three —
 15–50% of a 1–3 µs region. Cross-edge timer comparisons involving WASM carry that bias until
-`elapsed_us` is changed (pending; needs a rebuild and re-run).
+`elapsed_us` was changed (§7.1; `docs/EDGE_LEVELING.md`).
 
 ### 6.5 The capacity ladder does not support "throughput retained"
 
@@ -806,7 +821,7 @@ rate); with WADM the trap keeps 4 of 9 away. The bare tier is most likely origin
 tier edge-bound, so "100% throughput retained" (OpenResty, Envoy+Lua) compares two different
 bottlenecks. The doubling ladder also cannot resolve differences under 2×, each step is a single
 20 s run, and the capacity files predate origin-CPU recording. **Do not quote the capacity ratio
-until the ladder records per-container utilisation** (pending). The headline table omits it.
+until the ladder records per-container utilisation** — it now does (§7.4).
 
 ### 6.6 Functional correctness, and the figure set
 
@@ -817,7 +832,7 @@ without load. The origin serves five HTML pages of 864–1,396 B, the best case 
 Reading the edge code predicts untested breakage: no `Content-Encoding` guard (a gzip body gets a
 plain-text comment appended); header and cookie baits on every response including non-HTML and
 304; full-body buffering everywhere, with the Envoy edges bounded by Envoy's default 1 MiB buffer.
-A WADM-vs-bare functional matrix and in-run integrity checks are proposed (pending).
+A WADM-vs-bare functional matrix and in-run integrity checks now exist (§7.3).
 
 One signal is available from existing data: timing samples per iteration against what the probes
 should produce (`coverage` in `paired_summary.json`). OpenResty, Envoy and WASM record exactly the
@@ -843,3 +858,260 @@ constant-VU files and are retired; the right-hand panel of `instrumented_coverag
 clock) was dropped as uninterpretable. Everything the review replaced is in
 `benchmarks/results/archive/2026-10-03-pre-critique/`, and any later regeneration copies what it
 replaces into a new dated folder under `results/archive/` first.
+
+---
+
+## 7. What the harness measures since 2026-10-03
+
+The review in §6 listed what the paired harness could not see. This section records what was built
+to see it. Results are in §8.
+
+### 7.1 Three tiers: bare, silent, instrumented
+
+Every paired cell now runs three tiers, not two:
+
+| Tier | Server config | `config.json` | What it is |
+|---|---|---|---|
+| `bare` | WADM-free | — | the server before WADM |
+| `silent` | WADM | generated `config-silent.json`, `emit_timings: false` | WADM as a deployment would run it |
+| `wadm` | WADM | `config.json` | the instrumented build; the only tier with in-edge timers |
+
+**silent − bare is the headline cost of WADM**; wadm − silent is the instrumentation's own cost;
+wadm − bare is what the two-tier harness reported. `config-silent.json` is regenerated from
+`config.json` at every run, so the two can only differ in the one flag. The tier order is balanced
+across replicates (`tier_order`): with three tiers it cycles through all six orders, so every tier
+occupies every position twice in six replicates. The edge-side switch, and the WASM timer
+correction made at the same time, are recorded in `docs/EDGE_LEVELING.md`.
+
+### 7.2 A probe order that balances the preceding request
+
+`test.js` defaults to `WADM_ORDER=williams`: rotating Williams' base sequence `0, 1, 7, 2, 6, 3, 5,
+4` instead of the identity. Over any eight consecutive iterations every probe occupies every
+position once **and** follows every other probe once, so whatever one request leaves behind — such
+as Apache closing the connection after a 500 — is spread over all probes instead of landing on the
+same successor every time (§6.2). `rotate` and `fixed` remain for reproducing older results. Every
+probe also records `new_conn_<probe>`: the share of its requests that opened a TCP connection
+instead of reusing one.
+
+### 7.3 Functional checks
+
+**In every paired cell.** Before the load starts, `test.js`'s `setup()` sends each probe once to the
+edge and once to the origin directly, and records both responses' status and body hash. That gives
+two checks per probe and tier: whether the edge returns what the origin returns (must hold on bare),
+and whether the bait header, cookie and comment are present (must hold on WADM tiers for every
+proxied probe). Every measured response is then compared with the edge's own reference:
+`intact_<probe>` is the share that came back with the same status and body hash, so a response
+corrupted, truncated or left un-injected under load shows up as a rate below 1. The runner also
+counts the `WADM ALERT` and `WADM TRAP` lines the edge logged in the measured window: one
+iteration should produce 7 and 2, so alert recall is counted ÷ expected, and on bare the count must
+be 0. Alerts are WADM's only output; a detection that leaves no line was, operationally, not made.
+
+**Once, across response shapes.** `functional_matrix.py` brings up all four edges, bare then WADM,
+and sends thirteen requests the probe set never exercises: an HTML page, a gzip-encoded page, HEAD,
+a conditional GET, a range request, a 204, a 404, JSON, binary, a page without `</body>`, 768 KiB
+and 2 MiB pages, and an HTTP/1.0 client. The origin serves the extra cases from generated pages
+(`backend/generate_test_pages.py`, `backend/www/test/`) and two locations in `backend/nginx.conf`
+(gzip, 204) that the latency probes never touch. Each WADM response is judged against the same
+edge's bare response — `preserved`, `injected` (HTML that differs only by inserted text, checked
+with a line-then-character diff), `changed`, `BROKEN` or `not exercised` (the bare edge itself
+refuses the case) — and a benign request that raises an alert is a false positive.
+
+### 7.4 Capacity with the binding resource named
+
+`run_capacity_benchmark.py` (schema `capacity-v2`) now:
+
+* samples the edge, the origin and the load generator from the host and records each one's cores
+  in use as a share of its cpuset, plus the host-wide busy and softirq shares, and names the busiest
+  component at the first failing rate as the binding resource;
+* bisects geometrically between the last passing and first failing rate (two steps by default), so
+  the capacity is resolved to about 20% rather than 2×;
+* runs every rate `--replicates` times (3 by default) and calls it sustained on a majority;
+* judges the SLO on the worst GET probe's p95, not the pooled p95 the trap's fast local answers
+  would flatter;
+* reports, beside the measured capacity, the edge-CPU-bound capacity: edge cores ÷ edge CPU per
+  request at the highest sustained rate. That figure is continuous and does not depend on which
+  other component saturates first, so it can be compared across tiers when the measured
+  capacities cannot.
+
+`report_capacity.py` prints the binding resource next to every capacity and refuses to call a
+throughput ratio comparable when the two tiers were limited by different components.
+
+### 7.5 Per-mechanism CPU and the page-size sweep
+
+`--mix get` runs the paired harness with only the priming GET and the four GET probes; the full mix
+minus this run isolates what the trap's four POSTs cost the edge, which the mixed figure nets away
+(§6.3). `--mix size` replaces the probes with one GET each for 1, 16, 256 and 768 KiB pages, all
+under Envoy's 1 MiB buffer. Both write `<mix>_<edge>.json`, never `paired_<edge>.json`, and
+`plot_mechanisms.py` draws them. CPU per iteration there is net of idle: the edge's idle rate,
+measured in the k6 `startTime` delay just before each window, times the window length is subtracted.
+
+**SQLi hit vs. miss.** The main mix measures every SQLi request's latency and the scan timer, but
+not what one hit or one miss costs in CPU. `run_sqli_suite.sh` runs, per edge,
+`run_paired_benchmark.py --mixes sqli-hit,sqli-miss --no-prime`: inside every replicate and tier a
+hit-only cell and a miss-only cell run minutes apart (order alternating by replicate), and every
+iteration of a cell is exactly two requests of its outcome (plain and %-encoded body, no priming
+GET), so CPU per iteration net of idle, halved, is the cost of one request of that outcome, and
+hit − miss is paired in time like every other difference. 100 iterations/s (200 req/s), 20 s
+windows (~4,000 requests a cell) and 5 replicates, ~1.5 h — deliberately shorter than the main runs,
+since this comparison is secondary (a 60 s × 7 configuration was tried first and abandoned, §8.8). It writes `sqli-hit_<edge>.json` and
+`sqli-miss_<edge>.json`; `plot_sqli.py` draws `sqli_hit_miss.png` — one row per edge, hit (circle)
+and miss (diamond) side by side in three panels: latency added, CPU added, and time inside the
+signature scan, with the hit − miss gap printed — and writes `sqli.md`, which adds absolute
+latencies, each encoding's scan time, reconnects, and the ALERT/TRAP lines per request (1/0 for a
+hit, 0/1 for a miss, so a missed detection or a false positive is visible).
+
+### 7.6 The measurement window, and what each cell now records
+
+CPU is no longer read with `docker compose exec cat cpu.stat` around the whole load-tester
+lifecycle. A host-side sampler reads each container's `cpu.stat` and `memory.current` four times a
+second, `test.js` logs the instant the first measured iteration starts, and the CPU is integrated
+over exactly the measured window. The same timestamp filters the edge's log lines, so timing
+samples and alert counts exclude `setup()`'s reference requests and the warm-up's tail; the coverage
+ratio (§6.6) is exact rather than off by a sample or two. The denominator for CPU per request is
+`edge_requests` — the requests the measured iterations sent — rather than k6's `http_reqs`, which
+also counts `setup()`. The exec-based reading is kept as `cpu.edge_lifecycle` for comparison.
+
+| Cell field | Content |
+|---|---|
+| `window` | k6's first measured iteration and the end of the measured duration (epoch s) |
+| `cpu.edge`, `cpu.origin` | CPU over the window: per request (total, user, system), cores in use, memory max/mean |
+| `cpu.edge.idle_cpu_us_per_s` | the edge's CPU while idle, just before the window |
+| `cpu.loadgen` | the load generator's cores in use |
+| `k6.intact`, `k6.new_conn` | per probe: share intact, share that reconnected |
+| `k6.reference` | per probe: the edge's and origin's reference responses, bait presence |
+| `alerts` | `WADM ALERT` / `WADM TRAP` lines in the window |
+
+Outputs added: `paired_functional.md/.csv`, `functional_matrix.md/.json`, `mechanisms.md`,
+`capacity_summary.md`, and the figures `mechanism_cpu.png`, `size_sweep.png`, `capacity.png`.
+
+---
+
+## 8. Results of the 2026-10-04/05 suite
+
+Run `suite_20261004T203641Z` (log and status file in `benchmarks/results/`), guest tuned, all steps
+OK. Tables: `paired_headline.md`, `paired_functional.md`, `functional_matrix.md`, `mechanisms.md`,
+`capacity_summary.md`; figures in `results/plots/`.
+
+**Run incidents.** The host slept for 2.8 h mid-run (VirtualBox logged a 10,200 s clock jump at
+04:29 UTC); the one step it overlapped, Apache's GET-only run, was re-run and its first version
+archived (`archive/2026-10-05-host-sleep/`). 15 cells were rejected, all explained: Apache at
+100/s (overloaded and segfaulting, 6), the `LuaScope conn` variant at 100/s (cannot sustain it, 5),
+and 4 instrumented cells of the size sweep, where the 1 ms "preemption" gate fires on legitimately
+slow injection into a 768 KiB page — a known false positive of that gate for large bodies; the size
+figure uses the silent tier and is unaffected.
+
+### 8.1 Latency added (silent − bare, median per GET)
+
+| Edge | 1/s | 10/s | 100/s | Δ p95 per GET |
+|---|---|---|---|---|
+| OpenResty | +166 µs (+19%) | +114 (+13%) | +109 (+20%) | +192 … +591 |
+| WASM | +149 (+13%) | +144 (+14%) | +134 (+20%) | +242 … +1,067 |
+| Envoy+Lua | +208 (+20%) | +163 (+16%) | +136 (+21%) | +351 … +478 |
+| Apache+Lua | +218 (+23%) | +162 (+17%) | **+2,174 (+334%)** | +320 … **+158,377** |
+
+Every GET cell is resolved (5/5 replicates agree in sign) except two `GET /` cells. The tail grows
+more than the median everywhere; Apache at 900 req/s is overloaded. The SQLi POSTs come back
+*faster* with WADM on three edges (the trap skips the origin) and slower on WASM, which still
+proxies them.
+
+### 8.2 The measurement's own cost
+
+The timing lines (wadm − silent) add +56 … +178 µs per GET of latency and up to +63 µs of CPU per
+request — on OpenResty and Envoy+Lua as much as WADM itself. Every two-tier figure before this run
+over-stated WADM's cost by that amount.
+
+### 8.3 CPU
+
+Marginal CPU per request, silent − bare: OpenResty +33 µs, Envoy+Lua +41, WASM +123, Apache +200
+(Apache's includes crash recovery; per-rate it is +113 … +139 at 1–10/s). The in-edge timers
+enclose 5–22% of it. By mechanism at 100/s (`mechanisms.md`): the GET path costs +62 (OpenResty),
++102 (WASM, Envoy+Lua) and +236 µs (Apache) per GET; the trap costs about nothing per POST on
+OpenResty, *saves* 65 µs on Envoy+Lua, costs +146 on WASM (it still proxies) and +1,815 on Apache
+(crash recovery at that rate).
+
+### 8.4 Page size
+
+Injection cost grows roughly linearly with the body: at 768 KiB it adds +0.9 ms (WASM), +1.4
+(Envoy+Lua), +1.5 (OpenResty) and +3.0 ms (Apache) per request, against ~0.1 ms at 1 KiB.
+
+### 8.5 Functionality
+
+* **Under load:** OpenResty, WASM and Envoy+Lua return 100% intact responses at every rate, with
+  100% alert and trap recall and no alerts on bare. Apache segfaults under WADM in both WADM tiers;
+  at 100/s it corrupts or fails ~1% of responses (worst intact 98.9%) and loses 0.2% of alerts and
+  0.8% of trap lines. Apache also closes the connection after the trap's 500, so 25% of all WADM
+  requests reconnect (1% on bare).
+* **Response shapes** (`functional_matrix.md`): gzip-encoded HTML and range requests are corrupted
+  on all four edges; HEAD advertises a wrong Content-Length on Apache (47 bytes) and Envoy+Lua
+  (the origin's); pages above 1 MiB fail on both Envoy edges (500, or a truncated body). Bait
+  headers are added to every response including JSON, binary, 204 and 304; three edges keep the
+  origin's ETag on a modified body. No benign request raised an alert.
+
+### 8.6 Capacity
+
+| Edge | bare | silent WADM | instrumented |
+|---|---|---|---|
+| OpenResty | 6,057 req/s | 4,284 (71%) | 4,284 |
+| WASM | 6,057 | 4,285 (71%) | 3,024 |
+| Envoy+Lua | 6,057 | 5,095 (84%) | 3,600 |
+| Apache+Lua | 3,024 | 900 (30%) | 901 |
+
+No single container was saturated at any failing step (all below 85% of their cores, the host 65–86%
+busy), so the measured limits are partly the VM's network path and the ratios are indicative. The
+edge-CPU-bound capacity, which does not depend on that, keeps 55–64% for silent WADM.
+
+### 8.7 Apache remediation (`LuaScope conn`)
+
+Zero segfaults (against 0.98–5.4 per 10,000 requests), at ten times the CPU (+1,847 against +178 µs
+per request at 1/s) and +3.2 against +1.3 ms per iteration of latency; neither configuration
+sustains 100/s. With the Williams order the reconnect cost after each 500 is now spread over every
+probe rather than charged to two, which is why the variant's latency overhead is higher than the
+rotate-order figure in §4c.1.
+
+### 8.8 SQLi hit/miss: first configuration abandoned (2026-10-06)
+
+*Superseded:* the long configuration below was abandoned the same day. Its files, both passes and
+their logs are in `archive/2026-10-06-sqli-long-runs/`, and all four edges were re-run with 20 s
+windows and 5 replicates. The account is kept for the record.
+
+`run_sqli_suite.sh` (`sqli_suite_20261005T203935Z`) completed, but the host repeatedly froze the VM
+(27+ kernel soft lockups of 10-335 s, one 14.7 h pause), and the `host_stalls` gate rejected every
+cell that overlapped a freeze. Usable silent/bare pairs per edge: OpenResty 4 hit / 5 miss, WASM 5 / 5,
+**Envoy+Lua 5 / 3, Apache 1 / 1**. `sqli_hit_miss.png` and `sqli.md` currently show this state;
+Apache's row is not reportable.
+
+A second pass of Apache and Envoy+Lua was started and stopped on request before any edge
+finished. Still to do, on a quiet host (plugged in, sleep off, VirtualBox in the foreground):
+
+```bash
+sudo ./benchmarks/tune_guest.sh apply
+for e in apache_lua envoy_lua; do
+  python3 benchmarks/run_paired_benchmark.py --edge $e --mixes sqli-hit,sqli-miss --no-prime \
+      --rates 100 --duration 60s --replicates 7 --results /tmp/sqli_pass2
+done
+```
+
+then append the second pass's cells to `results/sqli-{hit,miss}_{apache_lua,envoy_lua}.json` as
+replicates 8-14 (renumber `replicate` += 7, so each pair stays within one replicate) and re-run
+`plot_sqli.py`. The first-pass files are kept in `archive/2026-10-06-sqli-first-pass/`.
+
+### 8.9 SQLi hit vs. miss (20 s × 5, 2026-10-07)
+
+`sqli_suite_20261007T003347Z`, guest tuned, plus one Apache top-up pass with the same settings
+(merged as replicates 6-10; pre-merge files in `archive/2026-10-07-sqli-apache-before-topup/`).
+Host freezes continued (11 in two hours) and rejected the cells they touched; usable silent/bare
+pairs: OpenResty 4 hit / 3 miss, WASM 4 / 4, Apache 7 / 7, Envoy+Lua 4 / 3. `sqli.md`,
+`plots/sqli_hit_miss.png`.
+
+* **Latency vs. bare** (median request): the trap answers 0.39-0.45 ms *faster* than the origin
+  round-trip on OpenResty and Envoy+Lua for both outcomes, and on Apache −0.16 ms for a hit and
+  −0.31 ms for a miss. Envoy+WASM, which still forwards the request, adds +0.21 ms for either.
+* **CPU vs. bare:** answering locally is cheaper than proxying on OpenResty (−41/−43 µs per request)
+  and Envoy+Lua (−56/−76); WASM adds ~+195 µs for either outcome; Apache adds +75 µs for a miss and
+  +257 µs for a hit.
+* **Hit − miss:** indistinguishable from zero on OpenResty, WASM and Envoy+Lua (within ±40 µs, ranges
+  span zero). On Apache a hit costs +178 µs of latency and +172 µs of CPU more than a miss, because
+  Apache closes the connection after the trap's 500: 100% of requests after a hit reconnect (5% on
+  bare). The signature scan itself is never the difference — a hit's scan is 0.6-4.2 µs *shorter*
+  than a miss's, as it stops at the first matching signature.
+* **Detection:** exactly one ALERT per hit and one TRAP per miss on every edge, no ALERT on a miss.

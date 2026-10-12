@@ -1,0 +1,335 @@
+\documentclass{rptuma}
+\input{proposal_common}
+
+\subject{Master Thesis -- Structure Proposal A}
+\title{Template A: Design, Implementation, Evaluation}
+
+\begin{document}
+
+\maketitle
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+\chapter*{About This Proposal}
+
+\textbf{Organising idea.} The thesis tells the story of a system: what problem it solves, how
+it is designed, how it was built on four edges, and how well it works. This is the common
+structure of computer-science theses and systems papers, and it extends the department
+template's own \emph{Introduction} and \emph{Related Work} chapters directly. Modelled on
+general thesis guidance \cite{intille_thesis,unibz_guidelines} and on systems measurement
+papers such as MeshInsight \cite{zhu2022dissecting}.
+
+\textbf{Choose it if} WADM itself, the deception layer and its four implementations, is the
+main contribution, and the benchmark is the means of judging it.
+
+\textbf{Trade-off.} The levelling work and the benchmark-methodology lessons get less space here.
+They fit in, as Sections~\ref{sec:A.level} and~\ref{sec:A.validity}, but they are not the
+story.
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{@{}rXr@{}}
+\toprule
+Ch. & Title & approx.\ pages \\
+\midrule
+1 & Introduction & 5 \\
+2 & Background & 10 \\
+3 & Related Work & 6 \\
+4 & Design of WADM & 12 \\
+5 & Implementation on Four Edges & 14 \\
+6 & Evaluation Methodology & 10 \\
+7 & Results & 18 \\
+8 & Discussion & 6 \\
+9 & Conclusion and Future Work & 3 \\
+A--D & Appendices & as needed \\
+\bottomrule
+\end{tabularx}
+\end{center}
+{\footnotesize Page counts are a rough budget, not a department rule. The unibz guidelines
+advise keeping a chapter under about 20 pages and splitting it above 30 \cite{unibz_guidelines}.}
+
+\textbf{How to read the rest.} The table of contents is the proposed structure. Under each
+heading is a short note on what to write there, and a \emph{Material} line pointing to the
+place in the repository that already holds it (\repo{results/} and \repo{plots/} are short for
+\repo{benchmarks/results/} and \repo{benchmarks/results/plots/}).
+
+\frontmatternote
+
+\tableofcontents
+\cleardoublepage
+\pagenumbering{arabic}
+
+%======================================================================
+\chapter{Introduction}
+Why deception at the web edge is worth studying, and what this thesis contributes.
+
+\section{Motivation}
+Attackers inspect a web application's HTML, cookies and hidden paths before attacking it.
+Honeytokens planted there raise high-signal alerts, because no legitimate user touches them. An
+edge proxy can plant them without changing the application.
+
+\section{Problem Statement}
+Nobody has measured what this costs. Which edge technology should host the deception, and what
+does it cost in latency, CPU, capacity and correctness?
+
+\section{Research Questions}
+RQ1: latency added per request. RQ2: CPU and capacity cost. RQ3: whether existing functionality
+breaks. RQ4: how much the answers depend on the edge's extension runtime.
+
+\section{Contributions}
+(i) WADM: one configuration, five honeytoken kinds and a fake SQL-injection trap, implemented on
+four edges; (ii) behavioural and tuning levelling, with an automated parity check; (iii) a paired,
+three-plane benchmark harness; (iv) measured costs and where they come from.
+
+\section{Thesis Outline}
+One line per chapter.
+
+%======================================================================
+\chapter{Background}
+The concepts a reader needs before the design makes sense.
+
+\section{Cyber Deception, Honeypots and Honeytokens}
+Spitzner's definition \cite{spitzner2002honeypots,spitzner2003honeytokens}; honeytokens as data with
+no legitimate use; why false positives are rare.
+
+\section{Web Application Reconnaissance}
+What attackers read and tamper with: HTML source, response headers, cookies, \texttt{robots.txt},
+hidden form fields, SQL-injection probes.
+
+\section{Reverse Proxies and Their Request Phases}
+Request hooks, header and body filters, body buffering, upstream connection pools.
+
+\section{Extension Runtimes}
+LuaJIT (OpenResty, Envoy Lua), PUC Lua 5.1 (Apache \texttt{mod\_lua}), WebAssembly through
+proxy-wasm on V8 (Rust). Interpreted, JIT-compiled and compiled code compared.
+\material{\repo{CONTEXT.md} (tech stack table)}
+
+\section{Performance Measurement Fundamentals}
+Latency percentiles, open- and closed-loop load, coordinated omission, cgroup CPU accounting
+\cite{jain1991art}.
+
+%======================================================================
+\chapter{Related Work}
+\label{chap:A.related}
+Prior work, grouped by theme, ending with where this thesis sits.
+
+\section{Honeytokens and Decoys}
+Decoy documents \cite{bowen2009baiting}, honeywords \cite{juels2013honeywords}, and deceptive web
+artefacts such as HTML comments, \texttt{robots.txt} entries and invisible links
+\cite{virvilis2014changing}.
+
+\section{Application-Layer Deception without Code Changes}
+Kahlhofer and Rass review 19 techniques for deploying deception without developer involvement,
+reverse proxies among them \cite{kahlhofer2024application}.
+
+\section{Proxy and Service-Mesh Overhead}
+Sidecar overhead studies \cite{zhu2022dissecting}; Lua versus WebAssembly filters in Envoy.
+
+\section{Benchmarking Methodology in Systems Security}
+Common benchmarking flaws \cite{vanderkouwe2019sok,heiser_crimes}.
+
+\section{Positioning}
+No prior work measures deception cost across edge runtimes while holding behaviour identical.
+
+%======================================================================
+\chapter{Design of WADM}
+The mechanism on a conceptual level, independent of any one edge.
+
+\section{Requirements and Threat Model}
+The operator controls the edge but not the application. The attacker is a reconnaissance or
+scanning client. Non-goals: blocking traffic, real authentication.
+
+\section{Architecture}
+Client $\rightarrow$ edge $\rightarrow$ static origin. One shared \texttt{config.json}, an
+in-memory attacker-IP store, and the alert log as WADM's only output.
+\material{\repo{CONTEXT.md} (architecture diagram)}
+
+\section{Configuration Model}
+Per-token \texttt{enabled} switch, exact or \texttt{/*} paths, and plans precompiled per path when
+the configuration loads.
+\material{\repo{config.json}, \repo{CONTEXT.md} (field tables)}
+
+\section{Honeytoken Kinds}
+\subsection{HTML Comments}
+Injected before \texttt{</body>}; detected when the trigger keyword appears in the query.
+\subsection{HTTP Headers}
+A decoy response header; detected when its value is replayed in a later request.
+\subsection{Cookies}
+\texttt{Set-Cookie} bait; detected on tamper, since a browser replays the value unchanged.
+\subsection{Decoy Paths}
+Advertised as a hidden link or in \texttt{robots.txt}; any request to the path matches.
+\subsection{Form Fields}
+A hidden \texttt{<input>} before \texttt{</form>}; detected on tamper.
+
+\section{The Fake SQL-Injection Trap}
+The edge answers \texttt{POST /api/login} itself: a fake MySQL error that reflects the payload on a
+signature hit, a canned denial otherwise. Signatures are literal strings, not regular expressions.
+
+\section{Detection and Response Pipeline}
+Parse once, scan, strip the parameter so the origin never sees it, record the IP, then write one
+alert with CR/LF neutralised against log forgery.
+
+\section{The Canonical Mechanism}
+\label{sec:A.canonical}
+Rules every edge must follow: client IP from the socket peer, raw path, ordered query segments,
+and one plain-find splice primitive.
+\material{\repo{docs/EDGE_LEVELING.md} (``Behavioural equivalence and latency pass'')}
+
+%======================================================================
+\chapter{Implementation on Four Edges}
+How the design maps onto each proxy, and what made the four comparable.
+
+\section{Common Structure}
+A table mapping each edge's request hook, header filter and body filter, so the subsections below
+need only describe the differences.
+
+\section{OpenResty (Reference Edge)}
+Configuration compiled once in \texttt{init\_by\_lua}, detection in \texttt{access\_by\_lua},
+injection in the header and body filters, attacker IPs in a \texttt{lua\_shared\_dict}.
+\material{\repo{nginx/README.md}, \repo{nginx/nginx.conf}}
+
+\section{Envoy with a Lua Filter}
+\texttt{injection.lua}, handing the request path to the response phase via dynamic metadata, body
+buffering.
+\material{\repo{envoy_scripts/README.md}}
+
+\section{Envoy with a WebAssembly Filter}
+Rust proxy-wasm: configuration compiled in \texttt{on\_configure}, fewer host calls, a byte-level
+splice. A proxy-wasm filter cannot answer locally from the body callback.
+\material{\repo{wasm-filter/README.md}, \repo{wasm-filter/src/lib.rs}}
+
+\section{Apache httpd with mod\_lua}
+The shared \texttt{wadm.lua} core and its three hook scripts; \texttt{LuaScope} and
+\texttt{LuaCodeCache}.
+\material{\repo{apache_scripts/README.md}}
+
+\section{Levelling the Edges}
+\label{sec:A.level}
+Product defaults levelled before any comparison: upstream keep-alive, access logs, code caching.
+Baselines are the WADM configuration minus WADM. The residual differences are listed in a table.
+\material{\repo{docs/EDGE_LEVELING.md}, \repo{docs/THESIS_NOTES.md} (2026-09-17, 2026-09-18)}
+
+\section{Verifying Equivalence}
+\texttt{parity\_check.py} sends 13 requests to every edge and diffs the responses, the alert lines
+and the requests that reached the origin.
+\material{\repo{benchmarks/parity_check.py}}
+
+%======================================================================
+\chapter{Evaluation Methodology}
+How the costs were measured, and why the measurements can be trusted.
+
+\section{Goals and Metrics}
+Latency added, CPU per request, capacity, share of intact responses, alert recall.
+
+\section{Testbed}
+The VM, the cpuset layout, guest tuning, image versions.
+\material{\repo{docs/BENCHMARK_METHODOLOGY.md} \S4}
+
+\section{Workload}
+k6 iterations of nine requests: a priming \texttt{GET}, four \texttt{GET} probes and four SQLi
+\texttt{POST}s. Williams-balanced order \cite{williams1949designs}; arrival rates of 1, 10 and 100
+iterations/s.
+\material{\repo{benchmarks/test.js}}
+
+\section{Measurement Planes}
+In-edge timers (\textmu s), end-to-end latency from k6 (ms), CPU per request from cgroup
+\texttt{cpu.stat}.
+
+\section{Paired Three-Tier Design}
+Bare, silent and instrumented tiers run minutes apart in balanced order, over 5 replicates.
+\material{\repo{docs/BENCHMARK_METHODOLOGY.md} \S7.1}
+
+\section{Run Validity}
+\label{sec:A.validity}
+The \texttt{assess\_run()} gates, the origin-CPU negative control, and detection of host freezes.
+\material{\repo{benchmarks/wadm_timings.py}, \repo{docs/THESIS_NOTES.md} (2026-10-07)}
+
+\section{Statistics and Presentation}
+Medians of paired differences, the range over replicates, sign agreement, and a 5\%-trimmed mean
+for the timers.
+
+%======================================================================
+\chapter{Results}
+What was measured, one aspect per section.
+
+\section{Latency Added}
+$+109$ to $+218$\us{} per \texttt{GET} at the median (13--23\%). The tail grows more than the median.
+Apache at 100\,iterations/s is an outlier.
+\material{\repo{results/paired_headline.md}, \repo{plots/paired_latency_added.png}}
+
+\section{CPU Cost and Its Attribution}
+CPU added per request: OpenResty $+33$, Envoy+Lua $+41$, WASM $+123$, Apache $+200$\us. The in-edge
+timers enclose only 5--22\% of it.
+\material{\repo{plots/cost_attribution.png}}
+
+\section{The Cost of Measuring}
+The timing log lines alone cost about as much as WADM itself on OpenResty and Envoy+Lua.
+
+\section{Capacity}
+Share of bare capacity kept with silent WADM: OpenResty 71\%, WASM 71\%, Envoy+Lua 84\%, Apache
+30\%, each reported with the resource that limited it.
+\material{\repo{results/capacity_summary.md}, \repo{plots/capacity.png}}
+
+\section{Per-Mechanism Cost and Page Size}
+The \texttt{GET} path against the trap; injection cost grows linearly with body size.
+\material{\repo{plots/mechanism_cpu.png}, \repo{plots/size_sweep.png}}
+
+\section{The SQL-Injection Trap}
+In the encoding-by-outcome 2$\times$2, percent-decoding dominates scan depth, and only Apache's
+interpreted Lua makes scan depth visible.
+\material{\repo{results/sqli.md}, \repo{docs/THESIS_NOTES.md} (2026-09-21)}
+
+\section{Functional Correctness}
+Intact responses and alert recall under load. The response-shape matrix: gzip, range requests,
+HEAD, bodies over 1\,MiB, ETags.
+\material{\repo{results/paired_functional.md}, \repo{results/functional_matrix.md}}
+
+\section{Stability of Apache mod\_lua}
+Segfaults driven by cumulative requests in the body filter, and the cost of fixing them with
+\texttt{LuaScope conn}.
+\material{\repo{docs/BENCHMARK_METHODOLOGY.md} \S4b--4c, \repo{plots/apache_remediation.png}}
+
+%======================================================================
+\chapter{Discussion}
+What the results mean, and how far they can be trusted.
+
+\section{Choosing an Edge for Deception}
+A trade-off summary per edge: latency, CPU, capacity, robustness.
+
+\section{Where the Cost Comes From}
+Runtime entry and exit, body buffering and log writes, not the detection logic.
+
+\section{Deployment Implications}
+Compressed bodies, range requests, preserved ETags, body-size limits.
+
+\section{Threats to Validity}
+A single VM host, synthetic traffic, moving image tags, timer resolution.
+
+\section{Limitations}
+POST-body inspection exists on only two edges; no real attacker traffic; no TLS or HTTP/2.
+
+%======================================================================
+\chapter{Conclusion and Future Work}
+\section{Summary}
+One answer per research question.
+\section{Future Work}
+POST-body inspection on all four edges, injecting into compressed bodies, a field study with real
+attackers, TLS and HTTP/2.
+
+%======================================================================
+\appendix
+\chapter{Configuration Reference}
+Every \texttt{config.json} field per honeytoken kind, and the SQLi trap's fields.
+\material{\repo{CONTEXT.md}}
+\chapter{Parity-Check Request Set}
+The 13 requests and the documented exclusions.
+\chapter{Reproducing the Benchmarks}
+Commands, machine configuration, run durations.
+\material{\repo{docs/BENCHMARK_METHODOLOGY.md} \S3--4}
+\chapter{Additional Result Tables}
+Per-rate tables and figures.
+\material{\repo{benchmarks/results/plots/by_rate/}}
+
+\bibliographystyle{ieeetr}
+\bibliography{sources}
+\end{document}

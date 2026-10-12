@@ -1,0 +1,274 @@
+\documentclass{rptuma}
+\input{proposal_common}
+
+\subject{Master Thesis -- Structure Proposal B}
+\title{Template B: A Research-Question-Driven Empirical Study}
+
+\begin{document}
+
+\maketitle
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+\chapter*{About This Proposal}
+
+\textbf{Organising idea.} The thesis is a measurement study. The system is described only as much
+as the reader needs, and the body has one chapter per research question, each ending with an
+explicit answer. This is the convention of empirical software engineering, with a study-design
+chapter and categorised threats to validity \cite{wohlin2012experimentation}. Systems
+characterisation papers use the same shape, with one section per factor studied
+\cite{zhu2022dissecting}.
+
+\textbf{Choose it if} the main contribution is the answers: what deception at the edge costs, and
+whether it breaks anything. The three questions the benchmark was built around (performance,
+latency, functionality; \texttt{BENCHMARK\_METHODOLOGY.md} \S6) map directly onto chapters, and a
+fourth asks how much depends on the runtime.
+
+\textbf{Trade-off.} Design and implementation shrink to one chapter (\emph{The System under
+Study}). A reader looking for the engineering has to find it there or in the appendix.
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{@{}rXr@{}}
+\toprule
+Ch. & Title & approx.\ pages \\
+\midrule
+1 & Introduction & 5 \\
+2 & Background and Related Work & 12 \\
+3 & The System under Study & 10 \\
+4 & Study Design & 12 \\
+5 & RQ1: Latency Added & 8 \\
+6 & RQ2: CPU and Capacity & 12 \\
+7 & RQ3: Functional Correctness & 8 \\
+8 & RQ4: Influence of the Extension Runtime & 8 \\
+9 & Discussion & 7 \\
+10 & Conclusion & 3 \\
+A--D & Appendices & as needed \\
+\bottomrule
+\end{tabularx}
+\end{center}
+{\footnotesize Page counts are a rough budget, not a department rule.}
+
+\textbf{How to read the rest.} The table of contents is the proposed structure. Under each
+heading is a short note on what to write there, and a \emph{Material} line pointing to the
+place in the repository that already holds it (\repo{results/} and \repo{plots/} are short for
+\repo{benchmarks/results/} and \repo{benchmarks/results/plots/}).
+
+\frontmatternote
+
+\tableofcontents
+\cleardoublepage
+\pagenumbering{arabic}
+
+%======================================================================
+\chapter{Introduction}
+\section{Context}
+Edge proxies can plant honeytokens into any web application without changing its code
+\cite{kahlhofer2024application}. Whether that is affordable has not been measured.
+
+\section{Research Gap}
+Deception work studies whether a lure is effective; proxy-overhead work measures generic filters.
+Nothing measures deception logic across edge runtimes.
+
+\section{Research Questions}
+\textbf{RQ1} How much latency does WADM add per request on each edge, and how does that change with
+load? \textbf{RQ2} What does it cost in CPU and capacity, and where does that cost arise?
+\textbf{RQ3} Does it break what the server did without it, and does it detect what it should?
+\textbf{RQ4} How much of the answer depends on the extension runtime (LuaJIT, PUC Lua,
+WebAssembly)?
+
+\section{Contributions}
+The study design, the four levelled implementations, the measured answers, and a public harness.
+
+\section{Outline}
+One line per chapter, naming which research question each answers.
+
+%======================================================================
+\chapter{Background and Related Work}
+Background and related work combined, as is usual for a study of this kind; each section ends
+with how this thesis differs.
+
+\section{Honeytokens and Application-Layer Deception}
+From honeypots to honeytokens and deceptive web artefacts, and how they are deployed without
+changing code \cite{spitzner2003honeytokens,bowen2009baiting,juels2013honeywords,virvilis2014changing,kahlhofer2024application}
+
+\section{Edge Proxies and Their Extension Runtimes}
+Request phases, body buffering, and the runtimes compared: LuaJIT, PUC Lua 5.1, V8 WebAssembly.
+
+\section{Measuring Proxy Overhead}
+Service-mesh sidecar studies \cite{zhu2022dissecting}.
+
+\section{Benchmarking Pitfalls}
+Known flaws \cite{vanderkouwe2019sok,heiser_crimes} and coordinated omission; these motivate
+Chapter~\ref{chap:B.design}.
+
+\section{Research Gap Revisited}
+Restate the gap against the work just reviewed, and show why each RQ addresses part of it.
+
+%======================================================================
+\chapter{The System under Study}
+\label{chap:B.system}
+Just enough of WADM to interpret the measurements.
+
+\section{WADM in Brief}
+Five honeytoken kinds plus the fake SQL-injection trap, all driven by one \texttt{config.json}. One
+table: kind, where it is planted, what triggers it.
+\material{\repo{CONTEXT.md}, \repo{config.json}}
+
+\section{The Four Implementations}
+A table: edge, runtime, hooks used, how bodies are buffered, what differs.
+\material{\repo{nginx/README.md}, \repo{envoy_scripts/README.md}, \repo{wasm-filter/README.md},
+\repo{apache_scripts/README.md}}
+
+\section{Equivalence as a Precondition for Comparison}
+The canonical mechanism, tuning parity (keep-alive, logging, code caching), and the parity check
+that proves the four behave identically.
+\material{\repo{docs/EDGE_LEVELING.md}, \repo{benchmarks/parity_check.py}}
+
+%======================================================================
+\chapter{Study Design}
+\label{chap:B.design}
+The experiment as a reproducible procedure.
+
+\section{Variables}
+Independent: edge, tier, arrival rate, request mix, page size. Dependent: latency difference, CPU
+per request, capacity, share of intact responses, alert recall.
+
+\section{Environment}
+VM, cpuset pinning (system, edge, origin, load generator), guest tuning, image versions.
+\material{\repo{docs/BENCHMARK_METHODOLOGY.md} \S4}
+
+\section{Workload and Load Model}
+An open-loop arrival rate of 1, 10 or 100 iterations/s; nine requests per iteration; probes in
+Williams order \cite{williams1949designs}.
+\material{\repo{benchmarks/test.js}}
+
+\section{Instruments}
+\subsection{In-Edge Timers}
+Wall-clock regions around detection and injection, logged in \textmu s.
+\subsection{End-to-End Latency}
+The k6 summary, per probe.
+\subsection{CPU per Request}
+A host-side sampler of cgroup \texttt{cpu.stat}, integrated over the measured window.
+
+\section{Paired Design and Replication}
+Bare, silent and instrumented tiers in balanced order, 5 replicates. silent $-$ bare is the cost of
+WADM; instrumented $-$ silent is the cost of measuring it.
+
+\section{Validity Gates and Negative Control}
+The \texttt{assess\_run()} thresholds; origin CPU as a negative control; detection of host freezes.
+\material{\repo{benchmarks/wadm_timings.py}}
+
+\section{Analysis Procedure}
+Medians of paired differences, the range over replicates, ``resolved'' when the replicates agree
+in sign, and a trimmed mean for the timers.
+
+\section{Lessons from Earlier Harness Versions}
+Briefly, why the design looks like this: position confounding, the mean dominated by a tail,
+unpaired tiers, log writes in the measured path, the load generator competing with the edge.
+\material{\repo{docs/BENCHMARK_METHODOLOGY.md} \S1}
+
+%======================================================================
+\chapter{RQ1: Latency Added}
+\section{Median Latency per GET across Rates}
+$+109$ to $+218$\us{} (13--23\%), resolved in every \texttt{GET} cell.
+\material{\repo{results/paired_headline.md}, \repo{plots/paired_latency_added.png}}
+\section{Tail Latency}
+p95 grows more than the median on every edge. Apache at 100\,iterations/s collapses.
+\section{Request Position and Reconnects}
+The first request after the think-time sleep pays a wake-up cost. Apache closes the connection
+after the trap's 500.
+\material{\repo{docs/THESIS_NOTES.md} (2026-09-21, \S5b), \repo{plots/paired_latency_shift.png}}
+\section{Answer to RQ1}
+One paragraph: the number per edge, how it changes with load, and how certain it is.
+
+%======================================================================
+\chapter{RQ2: CPU and Capacity}
+\section{CPU per Request}
+CPU added per request: OpenResty $+33$, Envoy+Lua $+41$, WASM $+123$, Apache $+200$\us.
+\section{Cost Attribution}
+The in-edge timers cover 5--22\% of that CPU; the rest is VM entry and exit, body filters and log
+writes.
+\material{\repo{plots/cost_attribution.png}}
+\section{The Probe Effect}
+The instrumentation costs as much as WADM itself on two edges.
+\section{Per-Mechanism Cost and Page Size}
+The \texttt{GET} path against the trap; injection grows linearly up to 768\,KiB.
+\material{\repo{results/mechanisms.md}, \repo{plots/size_sweep.png}}
+\section{Capacity and the Binding Resource}
+Share of bare capacity kept with silent WADM: OpenResty 71\%, WASM 71\%, Envoy+Lua 84\%, Apache
+30\%, each reported with the resource that limited it.
+\material{\repo{results/capacity_summary.md}}
+\section{Answer to RQ2}
+CPU and capacity per edge, and where the cost arises.
+
+%======================================================================
+\chapter{RQ3: Functional Correctness}
+\section{Response Integrity under Load}
+Share of intact responses per probe and rate. Apache is the only edge that falls below 100\%.
+\material{\repo{results/paired_functional.md}}
+\section{Detection Recall and False Positives}
+\texttt{WADM ALERT} and \texttt{WADM TRAP} lines counted against expected; zero on bare.
+\section{Response-Shape Matrix}
+Gzip-encoded bodies and range requests are corrupted on all four edges. HEAD, bodies over 1\,MiB
+and ETags each fail on some of them.
+\material{\repo{results/functional_matrix.md}, \repo{benchmarks/functional_matrix.py}}
+\section{Answer to RQ3}
+What breaks, on which edge, and whether detection is complete.
+
+%======================================================================
+\chapter{RQ4: Influence of the Extension Runtime}
+\section{Per-Kind Operation Cost}
+In-edge timer distributions per honeytoken kind and edge.
+\material{\repo{plots/paired_internal_timers.png}}
+\section{The SQLi Trap: Scan Depth versus Decoding}
+In the 2$\times$2, decoding costs 0.5--2.5\us{} on the Lua edges and nothing on WASM; scan depth
+is visible only on PUC Lua.
+\material{\repo{docs/THESIS_NOTES.md} (2026-09-21), \repo{results/sqli.md}}
+\section{Case Study: Apache mod\_lua Segfaults}
+Crashes driven by cumulative requests, and the \texttt{LuaScope conn} trade-off.
+\material{\repo{docs/BENCHMARK_METHODOLOGY.md} \S4b--4c}
+\section{Answer to RQ4}
+How much of RQ1--RQ3 is explained by the runtime rather than by the deception logic.
+
+%======================================================================
+\chapter{Discussion}
+\section{Synthesis across Research Questions}
+One table of edges against the four answers.
+\section{Recommendations for Operators}
+Which edge to use, and which response types to exclude from injection.
+\section{Threats to Validity}
+\subsection{Construct Validity}
+Whether silent $-$ bare really is ``the cost of WADM''; the timer regions.
+\subsection{Internal Validity}
+Host freezes, position effects, warm-up, load-generator contention.
+\subsection{External Validity}
+One VM, synthetic traffic, a static origin, no TLS.
+\subsection{Conclusion Validity}
+Five replicates, ranges rather than significance tests, resolution limits.
+
+%======================================================================
+\chapter{Conclusion}
+\section{Summary of Answers}
+RQ1--RQ4 in one sentence each.
+\section{Future Work}
+POST-body inspection on all four edges, compressed bodies, real attacker traffic, TLS and HTTP/2.
+
+%======================================================================
+\appendix
+\chapter{Configuration Reference}
+Every \texttt{config.json} field per honeytoken kind, and the SQLi trap's fields.
+\material{\repo{CONTEXT.md}}
+\chapter{Experiment Parameters and Run Log}
+Suite IDs, rejected cells and their reasons, incidents such as the host sleeping mid-run.
+\material{\repo{docs/BENCHMARK_METHODOLOGY.md} \S8}
+\chapter{Full Result Tables}
+Per-rate tables and figures.
+\material{\repo{benchmarks/results/plots/by_rate/}}
+\chapter{Reproduction Guide}
+Commands and machine configuration, with how long each step takes.
+\material{\repo{docs/BENCHMARK_METHODOLOGY.md} \S3--4}
+
+\bibliographystyle{ieeetr}
+\bibliography{sources}
+\end{document}

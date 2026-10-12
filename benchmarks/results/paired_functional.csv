@@ -1,0 +1,36 @@
+edge,rate_iter_per_s,tier,worst_intact,worst_intact_probe,reconnecting_probes,bare_matches_origin,bait_on_every_proxied_probe,timing_lines,alert_recall,trap_recall
+OpenResty,1,bare,1,,,True,,0,0.0,0.0
+OpenResty,1,silent,1,,,,True,0,1.0,1.0
+OpenResty,1,wadm,1,,,,True,2730,1.0,1.0
+OpenResty,10,bare,1,,,True,,0,0.0,0.0
+OpenResty,10,silent,1,,,,True,0,1.0,1.0
+OpenResty,10,wadm,1,,,,True,13530,1.0,1.0
+OpenResty,100,bare,1,,,True,,0,0.0,0.0
+OpenResty,100,silent,1,,,,True,0,1.0,1.0
+OpenResty,100,wadm,1,,,,True,90030,1.0,1.0
+WASM (Envoy),1,bare,1,,,True,,0,0.0,0.0
+WASM (Envoy),1,silent,1,,,,True,0,1.0,1.0
+WASM (Envoy),1,wadm,1,,,,True,2730,1.0,1.0
+WASM (Envoy),10,bare,1,,,True,,0,0.0,0.0
+WASM (Envoy),10,silent,1,,,,True,0,1.0,1.0
+WASM (Envoy),10,wadm,1,,,,True,13530,1.0,1.0
+WASM (Envoy),100,bare,1,,,True,,0,0.0,0.0
+WASM (Envoy),100,silent,1,,,,True,0,1.0,1.0
+WASM (Envoy),100,wadm,1,,,,True,90030,1.0,1.0
+Apache+Lua,1,bare,1,,,True,,0,0.0,0.0
+Apache+Lua,1,silent,1,,"inject_get 25%, sqli_miss 25%, sqli_miss_enc 25%, detect_query 24%, token_decoy 24%, token_tamper 24%, sqli_hit 13%, sqli_hit_enc 12%",,True,0,1.0,1.0
+Apache+Lua,1,wadm,1,,"inject_get 25%, sqli_miss 25%, sqli_miss_enc 25%, detect_query 24%, token_decoy 24%, token_tamper 24%, sqli_hit 13%, sqli_hit_enc 12%",,True,2730,1.0,1.0
+Apache+Lua,10,bare,1,,"inject_get 1%, sqli_hit 1%, sqli_hit_enc 1%, sqli_miss 1%, sqli_miss_enc 1%, token_decoy 1%, token_tamper 1%, detect_query 1%",True,,0,0.0,0.0
+Apache+Lua,10,silent,0.9977827050997783,sqli_hit,"inject_get 25%, sqli_miss 25%, sqli_miss_enc 25%, detect_query 25%, token_decoy 25%, token_tamper 25%, sqli_hit 13%, sqli_hit_enc 12%",,True,0,0.9997,1.0
+Apache+Lua,10,wadm,1,,"sqli_miss 25%, detect_query 25%, inject_get 25%, sqli_miss_enc 25%, token_decoy 25%, token_tamper 25%, sqli_hit 13%, sqli_hit_enc 12%",,True,13530,1.0,1.0
+Apache+Lua,100,bare,1,,"detect_query 1%, inject_get 1%, sqli_hit 1%, sqli_hit_enc 1%, sqli_miss 1%, sqli_miss_enc 1%, token_decoy 1%, token_tamper 1%",True,,0,0.0,0.0
+Apache+Lua,100,silent,0.9886704431856048,sqli_hit_enc,"inject_get 25%, token_tamper 25%, sqli_miss 25%, token_decoy 25%, detect_query 25%, sqli_miss_enc 25%, sqli_hit_enc 13%, sqli_hit 13%",,True,0,0.9979,0.9918
+Envoy+Lua,1,bare,1,,,True,,0,0.0,0.0
+Envoy+Lua,1,silent,1,,,,True,0,1.0,1.0
+Envoy+Lua,1,wadm,1,,,,True,2730,1.0,1.0
+Envoy+Lua,10,bare,1,,,True,,0,0.0,0.0
+Envoy+Lua,10,silent,1,,,,True,0,1.0,1.0
+Envoy+Lua,10,wadm,1,,,,True,13530,1.0,1.0
+Envoy+Lua,100,bare,1,,,True,,0,0.0,0.0
+Envoy+Lua,100,silent,1,,,,True,0,1.0,1.0
+Envoy+Lua,100,wadm,1,,,,True,90030,1.0,1.0

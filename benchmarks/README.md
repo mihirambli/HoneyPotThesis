@@ -57,7 +57,7 @@ comparison needs every edge running the same mechanism, so the variant is run by
 its own.
 
 ```bash
-python3 benchmarks/run_paired_benchmark.py --edge apache_lua_conn --preset full
+python3 benchmarks/run_paired_benchmark.py --edge apache_lua_conn --tiers bare,wadm
 python3 benchmarks/plot_remediation.py
 ```
 
@@ -67,18 +67,30 @@ wired and presented.
 ```bash
 sudo ./benchmarks/tune_guest.sh apply          # guest-side noise reduction
 
-python3 benchmarks/run_paired_benchmark.py --preset smoke --all   # ~20 min, proves the harness
-python3 benchmarks/run_paired_benchmark.py --preset full  --all   # ~2.5-3 h, reportable
-python3 benchmarks/analyze_paired.py                              # deltas, quantiles, CPU split, coverage
+python3 benchmarks/run_paired_benchmark.py --preset smoke --all --results /tmp/wadm-smoke  # ~30 min
+python3 benchmarks/functional_matrix.py                           # ~10 min, does WADM break things
+python3 benchmarks/run_paired_benchmark.py --preset full  --all   # ~4.5 h, reportable, 3 tiers
+python3 benchmarks/run_paired_benchmark.py --all --mix get  --rates 100 --replicates 3   # trap vs GET CPU
+python3 benchmarks/run_paired_benchmark.py --all --mix size --rates 10  --replicates 3   # page-size sweep
+./benchmarks/run_sqli_suite.sh                                    # ~1.5 h, SQLi hit vs miss per edge
+python3 benchmarks/run_capacity_benchmark.py --all                # ~2.5 h, capacity + binding resource
+python3 benchmarks/analyze_paired.py                              # deltas, quantiles, CPU split, checks
 
-python3 benchmarks/plot_paired_overhead.py     # latency added, shift function, timers, headline table
-python3 benchmarks/plot_cost_attribution.py    # timers vs CPU vs end-to-end
+python3 benchmarks/plot_paired_overhead.py     # latency added, shift function, timers, tables
+python3 benchmarks/plot_by_rate.py             # one measure per figure, per rate: plots/by_rate/
+python3 benchmarks/plot_cost_attribution.py    # timers vs CPU vs end-to-end, and the probe effect
+python3 benchmarks/plot_mechanisms.py          # CPU per mechanism, latency vs page size
+python3 benchmarks/plot_sqli.py                # SQLi hit vs miss: latency, CPU, scan time
 python3 benchmarks/plot_remediation.py         # Apache LuaScope thread vs conn
-
-python3 benchmarks/run_capacity_benchmark.py --all                # see methodology §6.5 before quoting
+python3 benchmarks/report_capacity.py          # capacity with the resource that limited it
 
 sudo ./benchmarks/tune_guest.sh revert
 ```
+
+Every paired cell runs three tiers — `bare`, `silent` (WADM without the benchmark's own timing
+log lines) and `wadm` (instrumented) — so silent − bare is WADM's cost as deployed and wadm − silent
+is what measuring it costs; every response is checked against a pre-load reference and every alert
+counted. `docs/BENCHMARK_METHODOLOGY.md` §7 describes the harness, §8 the results.
 
 Every figure is drawn from `paired_<edge>.json`. The plotters that read the legacy
 `e2e_*` / `internal_*` files (`plot_baseline_comparison.py`, `plot_edge_comparison.py`,
@@ -836,7 +848,18 @@ benchmark is in progress.
 
 | File | Role |
 |------|------|
-| [test.js](test.js) | The k6 default-function script: four `GET`s and four `POST`s per iteration covering every deception feature's injection and detection paths, the `Trend` definitions, and the `handleSummary` sentinel line that publishes end-to-end latency to the runners. |
+| [test.js](test.js) | The k6 script: four `GET`s and four `POST`s per iteration (or a GET-only / page-size mix) in a Williams order, per-probe latency, reconnect and integrity metrics, the `setup()` reference responses, and the `handleSummary` sentinel line that publishes them to the runners. |
+| [run_paired_benchmark.py](run_paired_benchmark.py) | The reportable runner: bare, silent and instrumented tiers paired per replicate, host-side CPU and memory over the measured window, validity gates, functional checks and alert counts. Writes `paired_<edge>.json` (or `<mix>_<edge>.json`). |
+| [analyze_paired.py](analyze_paired.py) | Paired statistics for every tier comparison, the shift function, CPU split, coverage, functional checks and resources; console report and `paired_summary.json`. |
+| [run_capacity_benchmark.py](run_capacity_benchmark.py) | Capacity ladder with bisection, replicates, a worst-GET p95 SLO and per-container utilisation, naming the resource that limits each tier. Writes `capacity_<edge>.json`. |
+| [functional_matrix.py](functional_matrix.py) | WADM vs bare on all four edges across thirteen response shapes the probes never exercise (gzip, HEAD, range, 204, non-HTML, >1 MiB, HTTP/1.0…). Writes `functional_matrix.md/.json`. |
+| [run_full_suite.sh](run_full_suite.sh) | Every reportable measurement in order (functional matrix, paired, GET-only, size, SQLi, Apache variant, capacity), then every analysis and plot; unattended, with per-step retry and a status file. |
+| [run_sqli_suite.sh](run_sqli_suite.sh) | The SQLi hit-vs-miss experiment: per edge, hit-only and miss-only cells interleaved in every replicate and tier (20 s, 5 replicates), then `plot_sqli.py`. |
+| [suite_common.sh](suite_common.sh) | Shared by both suite scripts: the guest-tuning warning and the retry-once-then-move-on step runner. |
+| [plot_sqli.py](plot_sqli.py) | The SQLi trap per edge, hit vs. miss: latency added, CPU added and scan time (`sqli_hit_miss.png`, `sqli.md`), from the `sqli-hit_` / `sqli-miss_` runs. |
+| [plot_mechanisms.py](plot_mechanisms.py) | CPU per mechanism (GET path vs. SQLi trap) and latency added vs. page size, from the `get_` and `size_` runs. |
+| [report_capacity.py](report_capacity.py) | Capacity table and figure, each capacity stated with its binding resource. |
+| [edge_specs.py](edge_specs.py) | The single registry of edges, tiers and their configs; generates `config-silent.json`. |
 | [run_baseline_benchmark.py](run_baseline_benchmark.py) | Orchestrates the no-WADM tiers (four bare edges + the origin floor) from one parameterised table and writes `e2e_<edge>_bare.json`. |
 | [run_internal_openresty_benchmark.py](run_internal_openresty_benchmark.py) | Orchestrates internal OpenResty microsecond profiling runs and writes summary + raw JSON results. |
 | [run_internal_envoy_lua_benchmark.py](run_internal_envoy_lua_benchmark.py) | Orchestrates internal Envoy Lua microsecond profiling runs and writes summary + raw JSON results. |

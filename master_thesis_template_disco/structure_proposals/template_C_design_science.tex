@@ -1,0 +1,266 @@
+\documentclass{rptuma}
+\input{proposal_common}
+
+\subject{Master Thesis -- Structure Proposal C}
+\title{Template C: Design Science -- Building a Fair Comparison}
+
+\begin{document}
+
+\maketitle
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+\chapter*{About This Proposal}
+
+\textbf{Organising idea.} The thesis follows the design science research process: problem,
+objectives, design and development, demonstration, evaluation \cite{peffers2007dsrm}. It presents
+\emph{two} artefacts. Artefact~I is WADM, the deception layer. Artefact~II is the method that makes
+four different edges comparable: behavioural and tuning levelling, plus a paired benchmark with
+validity gates. The flaws found and fixed along the way become content, in the spirit of
+benchmarking-flaw studies \cite{vanderkouwe2019sok}.
+
+\textbf{Choose it if} you want the levelling and methodology work, a large share of the project's
+effort (\texttt{EDGE\_LEVELING.md}, \texttt{BENCHMARK\_METHODOLOGY.md}), credited as a contribution
+in its own right, and your examiners care most about measurement rigour.
+
+\textbf{Trade-off.} This is the longest of the three structures, and it risks reading like a
+chronicle. Keep the history to the flaws that changed a conclusion, each with before-and-after
+evidence.
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{@{}rXr@{}}
+\toprule
+Ch. & Title & approx.\ pages \\
+\midrule
+1 & Introduction & 5 \\
+2 & Foundations & 9 \\
+3 & Related Work & 6 \\
+4 & Problem Analysis and Objectives & 7 \\
+5 & Artefact I: The Deception Layer & 12 \\
+6 & Artefact II: A Fair Cross-Edge Evaluation Method & 14 \\
+7 & Demonstration & 6 \\
+8 & Evaluation & 18 \\
+9 & Discussion & 7 \\
+10 & Conclusion and Future Work & 3 \\
+A--D & Appendices & as needed \\
+\bottomrule
+\end{tabularx}
+\end{center}
+{\footnotesize Page counts are a rough budget, not a department rule.}
+
+\textbf{How to read the rest.} The table of contents is the proposed structure. Under each
+heading is a short note on what to write there, and a \emph{Material} line pointing to the
+place in the repository that already holds it (\repo{results/} and \repo{plots/} are short for
+\repo{benchmarks/results/} and \repo{benchmarks/results/plots/}).
+
+\frontmatternote
+
+\tableofcontents
+\cleardoublepage
+\pagenumbering{arabic}
+
+%======================================================================
+\chapter{Introduction}
+\section{Problem and Motivation}
+Deception at the edge needs no change to the application, but its cost is unknown, and comparing
+it across edges is harder than it looks.
+
+\section{Research Approach}
+Design science with two artefacts, each built, demonstrated and evaluated in iterations.
+
+\section{Contributions}
+WADM on four edges; the levelling rules and parity check; the paired three-plane harness; the
+measured costs; a catalogue of the comparison pitfalls found along the way.
+
+\section{Outline}
+One line per chapter, mapped to the design science steps.
+
+%======================================================================
+\chapter{Foundations}
+\section{Deception and Honeytokens}
+Honeypots, honeytokens, and why interaction with bait is a high-signal alert
+\cite{spitzner2002honeypots,spitzner2003honeytokens}
+\section{Edge Proxies and Extension Runtimes}
+Request phases and buffering; LuaJIT, PUC Lua and WebAssembly.
+\section{Performance Evaluation Foundations}
+Latency and its percentiles, cgroup CPU accounting, open- and closed-loop load, pairing,
+replication, crossover designs \cite{jain1991art,williams1949designs}.
+
+%======================================================================
+\chapter{Related Work}
+\section{Deception at the Application Layer}
+Decoys, honeywords and deceptive web artefacts, and deploying them without developer involvement
+\cite{bowen2009baiting,juels2013honeywords,virvilis2014changing,kahlhofer2024application}
+\section{Measuring Proxy Overhead}
+How sidecar and proxy costs have been measured, and which of their choices this harness adopts
+\cite{zhu2022dissecting}.
+\section{Benchmarking Flaws in Systems Security}
+\cite{vanderkouwe2019sok,heiser_crimes}. Which of the documented flaws this project ran into
+itself.
+
+%======================================================================
+\chapter{Problem Analysis and Objectives}
+Design science step 2: the objectives against which the artefacts are later judged.
+
+\section{Scenario and Stakeholders}
+An operator protects a web application whose code it cannot change.
+
+\section{Threat Model}
+A reconnaissance client reads HTML, replays values, tampers with cookies and form fields, and
+probes for SQL injection.
+
+\section{Functional Objectives}
+F1 plant bait; F2 detect interaction with it; F3 strip the trigger before it reaches the origin;
+F4 raise one alert per detection; F5 driven only by configuration.
+
+\section{Non-Functional Objectives}
+N1 low added latency; N2 low CPU cost; N3 no broken responses; N4 portable to four edges.
+
+\section{Comparability Objectives}
+C1 identical behaviour; C2 identical timed regions; C3 levelled product defaults; C4 a baseline
+that differs only by WADM.
+
+%======================================================================
+\chapter{Artefact I: The Deception Layer}
+\section{Architecture and Configuration}
+Edge between client and static origin; one shared \texttt{config.json}.
+\material{\repo{CONTEXT.md}, \repo{config.json}}
+\section{Honeytoken Kinds}
+\subsection{HTML Comments and HTTP Headers}
+Planted secrets, detected when the keyword is replayed.
+\subsection{Cookies and Form Fields}
+Planted values, detected when tampered with.
+\subsection{Decoy Paths}
+An advertised link to a trap path; any request to it matches.
+\section{The Fake SQL-Injection Trap}
+A detection-only feature: the edge answers itself with a fake MySQL error.
+\section{Realisation on Four Edges}
+\subsection{OpenResty}
+The reference edge: one precompiled table, four phase hooks, a shared dictionary for IPs.
+\material{\repo{nginx/README.md}}
+\subsection{Envoy with Lua}
+One filter script; the request path is handed to the response phase.
+\material{\repo{envoy_scripts/README.md}}
+\subsection{Envoy with WebAssembly}
+Rust proxy-wasm; fewer host calls; the trap still contacts the origin (a host constraint).
+\material{\repo{wasm-filter/README.md}}
+\subsection{Apache httpd with mod\_lua}
+A shared core for three hooks; per-thread Lua states; PUC Lua rather than LuaJIT.
+\material{\repo{apache_scripts/README.md}}
+
+%======================================================================
+\chapter{Artefact II: A Fair Cross-Edge Evaluation Method}
+The core methodological contribution.
+
+\section{Levelling Behaviour}
+Differences found: Apache never stripped the keyword (Lua pattern characters in the keyword),
+four different detection mechanisms, attacker IPs recorded as \texttt{unknown} on Envoy, a log
+line on every request, PCRE against plain find. The canonical mechanism that replaced them.
+\material{\repo{docs/THESIS_NOTES.md} (2026-09-18), \repo{docs/EDGE_LEVELING.md}}
+
+\section{Levelling Product Defaults}
+Upstream keep-alive (about 0.5\,ms per request on OpenResty), access logs, \texttt{LuaCodeCache}.
+The rule this establishes: level defaults before comparing.
+\material{\repo{docs/THESIS_NOTES.md} (2026-09-17)}
+
+\section{Baselines and Tiers}
+Bare (WADM deleted, nothing added), silent (as deployed), instrumented (timers on).
+
+\section{Measurement Planes}
+Timers, end-to-end latency, cgroup CPU, and why no single plane survives a noisy VM.
+
+\section{From a Flawed Harness to a Paired One}
+\subsection{Flaws Found}
+Request position read as WADM phase, a mean dominated by its tail, unpaired tiers, unequal offered
+load, environment variables silently overriding the scenario, log writes inside the measured path,
+the load generator competing with the edge.
+\subsection{Fixes}
+Pairing, balanced tier and probe orders, medians and trimmed means, separate tiers for
+instrumentation.
+\material{\repo{docs/BENCHMARK_METHODOLOGY.md} \S1, \S7}
+
+\section{Validity Gates and Negative Controls}
+Gates scale with the damage rather than firing on any failure; origin CPU is the negative control.
+\material{\repo{benchmarks/wadm_timings.py}}
+
+%======================================================================
+\chapter{Demonstration}
+Design science step 4: the artefacts work as intended.
+
+\section{Behavioural Parity}
+\texttt{parity\_check.py}: identical responses, alerts and origin requests on all four edges.
+\material{\repo{benchmarks/parity_check.py}}
+
+\section{Functional Behaviour across Response Shapes}
+Thirteen response types, bare against WADM: preserved, injected, changed or broken.
+\material{\repo{results/functional_matrix.md}}
+
+\section{An Attack Walk-Through}
+Read the HTML comment, replay its keyword, tamper with a cookie, try SQL injection; the alerts
+that result on each edge.
+
+%======================================================================
+\chapter{Evaluation}
+Design science step 5: Artefact~I judged against N1--N3, Artefact~II against C1--C4.
+
+\section{Setup and Protocol}
+Testbed, workload, rates, replicates, rejected cells.
+\material{\repo{docs/BENCHMARK_METHODOLOGY.md} \S4, \S7}
+\section{Latency}
+$+109$ to $+218$\us{} per \texttt{GET} at the median.
+\material{\repo{plots/paired_latency_added.png}}
+\section{CPU, Cost Attribution and the Probe Effect}
+$+33$ to $+200$\us{} of CPU per request; the timers enclose 5--22\% of it.
+\material{\repo{plots/cost_attribution.png}}
+\section{Capacity}
+Capacity kept with silent WADM, and the resource that bound it.
+\material{\repo{results/capacity_summary.md}}
+\section{Mechanisms, Page Size and the SQLi Trap}
+The \texttt{GET} path against the trap, linear growth with body size, the 2$\times$2.
+\material{\repo{results/mechanisms.md}, \repo{results/sqli.md}}
+\section{Stability: Apache mod\_lua}
+Segfaults driven by cumulative requests, and the \texttt{LuaScope conn} trade-off.
+\material{\repo{plots/apache_remediation.png}}
+\section{Evaluating the Method Itself}
+How much levelling and pairing changed the numbers. WASM's 500-VU p90 fell from 382 to 65\,ms once
+behaviour was levelled. The old harness could not resolve the effect it claimed to measure, while
+the paired harness resolves every \texttt{GET} cell. The two-tier figures had overstated WADM's
+cost by the instrumentation's own cost.
+\material{\repo{docs/BENCHMARK_METHODOLOGY.md} intro and \S8.2}
+
+%======================================================================
+\chapter{Discussion}
+\section{Meeting the Objectives}
+A table mapping each of F1--F5, N1--N4 and C1--C4 to its evidence, with a verdict.
+\section{Lessons for Cross-Platform Benchmarks}
+Level the defaults, pair the tiers, gate on damage, keep a negative control.
+\section{Threats to Validity and Limitations}
+Single VM host, synthetic traffic, POST-body inspection on only two edges, no TLS.
+
+%======================================================================
+\chapter{Conclusion and Future Work}
+\section{Summary}
+What each artefact achieved, against the objectives.
+\section{Future Work}
+Complete the fourth edge's POST inspection, injection into compressed bodies, a field study, and
+reusing Artefact~II for other edge features.
+
+%======================================================================
+\appendix
+\chapter{Configuration Reference}
+Every \texttt{config.json} field per honeytoken kind, and the SQLi trap's fields.
+\material{\repo{CONTEXT.md}}
+\chapter{Equivalence Invariants Checklist}
+Each invariant, how it is checked, and the residual differences left on purpose.
+\material{\repo{benchmarks/README.md} (``Level-playing-field invariants'')}
+\chapter{Harness History and Archived Results}
+Each archived result set and why it was superseded.
+\material{\repo{benchmarks/results/archive/}}
+\chapter{Reproduction Guide}
+Commands and machine configuration.
+\material{\repo{docs/BENCHMARK_METHODOLOGY.md} \S3--4}
+
+\bibliographystyle{ieeetr}
+\bibliography{sources}
+\end{document}

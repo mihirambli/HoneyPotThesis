@@ -26,6 +26,9 @@ and 404s as before; only `POST` is trapped.
 | `/admin.html` | Admin settings form | **yes** |
 | `/about.html` | Static info | no |
 
+`test/` holds generated pages used only by the benchmark's size sweep and functional matrix — see
+`test/README.md`. The latency benchmark's main probe set never requests them.
+
 ## Deploying honeytokens on a page
 
 Choose where a token is planted with the `paths` (or `advertise_on_paths`) field in the repo-root

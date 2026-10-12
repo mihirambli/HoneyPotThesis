@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
-use std::time::SystemTime;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 // Registers the WASM plugin with Envoy: sets log level and the root context factory (entry point for all streams).
 proxy_wasm::main! {{
@@ -53,6 +53,11 @@ struct Config {
     honeytokens: Option<Honeytokens>,
     #[serde(default)]
     sql_injection: Option<SqlInjection>,
+    // Benchmark instrumentation switch, mirroring the Lua edges'. The timing lines are not part of
+    // WADM; `false` (config-silent.json) keeps every clock read and every alert but skips these
+    // lines, so the difference between the two settings is the cost of emitting them.
+    #[serde(default)]
+    emit_timings: Option<bool>,
 }
 
 // Fake SQL-injection trap: the edge terminates the configured login endpoint and plays a
@@ -232,6 +237,7 @@ struct Compiled {
     decoy_detect: Vec<DecoyDetect>,
     form_detect: Vec<FormDetect>,
     sqli: Option<Sqli>,
+    emit_timings: bool,
 }
 
 impl Compiled {
@@ -258,6 +264,7 @@ fn covers(paths: &[String], path: Option<&str>) -> bool {
 }
 
 fn compile(cfg: Config) -> Compiled {
+    let emit_timings = cfg.emit_timings.unwrap_or(true);
     let ht = cfg.honeytokens.unwrap_or_default();
     let comments: Vec<&HtmlComment> = ht.html_comments.iter().filter(|t| is_on(&t.enabled)).collect();
     let headers: Vec<&HeaderToken> = ht.http_headers.iter().filter(|t| is_on(&t.enabled)).collect();
@@ -331,6 +338,7 @@ fn compile(cfg: Config) -> Compiled {
     let default_plan = build(None);
 
     Compiled {
+        emit_timings,
         plans,
         default_plan,
         triggers: comments.iter().filter_map(|t| nonempty(&t.trigger_keyword)).collect(),
@@ -571,7 +579,9 @@ impl HttpContext for HoneypotHttp {
                 self.set_http_response_header(name, Some(value));
             }
             let elapsed = self.elapsed_us(start);
-            warn!("WADM TOKEN http_headers inject (us): {}", elapsed);
+            if self.emit_timings() {
+                warn!("WADM TOKEN http_headers inject (us): {}", elapsed);
+            }
         }
         if !plan.cookies.is_empty() {
             let start = self.get_current_time();
@@ -579,7 +589,9 @@ impl HttpContext for HoneypotHttp {
                 self.add_http_response_header("set-cookie", cookie);
             }
             let elapsed = self.elapsed_us(start);
-            warn!("WADM TOKEN cookies inject (us): {}", elapsed);
+            if self.emit_timings() {
+                warn!("WADM TOKEN cookies inject (us): {}", elapsed);
+            }
         }
         Action::Continue
     }
@@ -624,7 +636,9 @@ impl HttpContext for HoneypotHttp {
             if let Some(nb) = spliced {
                 body = nb;
             }
-            warn!("WADM TOKEN {} inject (us): {}", x.kind, elapsed);
+            if self.emit_timings() {
+                warn!("WADM TOKEN {} inject (us): {}", x.kind, elapsed);
+            }
         }
 
         match &plan.comments {
@@ -633,7 +647,9 @@ impl HttpContext for HoneypotHttp {
                 let out = splice_or_append(body, injection);
                 self.set_http_response_body(0, body_size, &out);
                 let elapsed = self.elapsed_us(start);
-                warn!("WASM Injection execution time (us): {}", elapsed);
+                if self.emit_timings() {
+                    warn!("WASM Injection execution time (us): {}", elapsed);
+                }
             }
             None => self.set_http_response_body(0, body_size, &body),
         }
@@ -642,11 +658,16 @@ impl HttpContext for HoneypotHttp {
 }
 
 impl HoneypotHttp {
+    // The difference of two whole-microsecond timestamps — the quantity the Lua and Apache edges
+    // log (their clocks only ever return whole µs). Truncating the nanosecond difference instead
+    // read ~0.5 µs low on average against them, which is 15-50% of a 1-3 µs region.
     fn elapsed_us(&self, start: SystemTime) -> u128 {
-        self.get_current_time()
-            .duration_since(start)
-            .map(|d| d.as_micros())
-            .unwrap_or(0)
+        let micros = |t: SystemTime| t.duration_since(UNIX_EPOCH).map(|d| d.as_micros()).unwrap_or(0);
+        micros(self.get_current_time()).saturating_sub(micros(start))
+    }
+
+    fn emit_timings(&self) -> bool {
+        self.compiled.as_ref().map_or(true, |c| c.emit_timings)
     }
 
     // The socket peer, as OpenResty ($remote_addr) and Apache (useragent_ip) record it. Reading
@@ -713,7 +734,9 @@ impl HoneypotHttp {
                 self.sqli_ip, self.sqli_method, self.request_path, status
             );
         }
-        warn!("WADM TOKEN {} detect (us): {}", kind, elapsed);
+        if self.emit_timings() {
+            warn!("WADM TOKEN {} detect (us): {}", kind, elapsed);
+        }
 
         self.sqli_page = Some(page);
         self.sqli_status = status;
@@ -747,7 +770,9 @@ impl HoneypotHttp {
                     warn!("{}", format_alert(ctx.ip, hit));
                 }
                 // Timed only on a hit, so every edge samples the same population.
-                warn!("WADM TOKEN {} detect (us): {}", name, elapsed);
+                if self.emit_timings() {
+                    warn!("WADM TOKEN {} detect (us): {}", name, elapsed);
+                }
             }
         }
     }
@@ -795,7 +820,9 @@ impl HoneypotHttp {
                 warn!("{}", format_alert(ctx.ip, hit));
             }
             // Only trigger-bearing requests are timed so all edges sample the same population.
-            warn!("WASM Detection execution time (us): {}", elapsed);
+            if self.emit_timings() {
+                warn!("WASM Detection execution time (us): {}", elapsed);
+            }
         }
     }
 }

@@ -24,6 +24,11 @@ local ht = config.honeytokens or {}
 
 local M = {}
 
+-- Benchmark instrumentation switch, mirroring nginx.conf's. The timing lines are not part of WADM;
+-- `false` (config-silent.json) keeps every clock read and every alert but skips these lines, so
+-- the difference between the two settings is the cost of emitting them.
+M.emit_timings = config.emit_timings ~= false
+
 -- Per-token on/off switch (all kinds): active unless explicitly disabled. 1/on/true/yes = on;
 -- anything else = off; absent = on (backward compatible).
 local function token_enabled(token)

@@ -471,6 +471,17 @@ def ensure_compose_cleanup(base_env: dict[str, str]) -> None:
     run_cmd(["docker", "network", "prune", "-f"], env=base_env)
 
 
+def ensure_test_pages() -> None:
+    """Generate backend/www/test/ before the origin starts; it serves that tree read-only.
+
+    Run as a script rather than imported because it lives under backend/, outside this package.
+    """
+    script = Path(__file__).resolve().parent.parent / "backend" / "generate_test_pages.py"
+    result = run_cmd(["python3", str(script)])
+    if result.returncode != 0:
+        raise RuntimeError(f"test page generation failed: {result.stderr.strip()}")
+
+
 def cycle_loadtester(env: dict[str, str]) -> tuple[subprocess.CompletedProcess[str], datetime]:
     """Remove any leftover load-tester container, start a fresh one, and wait for k6 to finish.
 
@@ -507,6 +518,9 @@ START_DELAY_ENV = "WADM_START_DELAY"
 ORDER_ENV = "WADM_ORDER"
 SEED_ENV = "WADM_SEED"
 MAX_VUS_ENV = "WADM_MAX_VUS"
+MIX_ENV = "WADM_MIX"
+PRIME_ENV = "WADM_PRIME"
+CHECKS_ENV = "WADM_CHECKS"
 
 # Offered iterations per second. 1/10/100 are the latency regime: the edge is far from saturation,
 # so a measured difference is service time rather than queueing. 500 is deliberately absent — at
@@ -539,9 +553,12 @@ def k6_env(
     rate: int,
     duration: str,
     start_delay: str = DEFAULT_START_DELAY,
-    order: str = "rotate",
+    order: str = "williams",
     seed: int = 1,
     max_vus: int | None = None,
+    mix: str = "all",
+    checks: bool = True,
+    prime: bool = True,
 ) -> dict[str, str]:
     """Load-shape variables for one k6 run.
 
@@ -554,6 +571,9 @@ def k6_env(
         START_DELAY_ENV: start_delay,
         ORDER_ENV: order,
         SEED_ENV: str(seed),
+        MIX_ENV: mix,
+        CHECKS_ENV: "1" if checks else "0",
+        PRIME_ENV: "1" if prime else "0",
     }
     if max_vus is not None:
         env[MAX_VUS_ENV] = str(max_vus)
@@ -615,6 +635,7 @@ def assess_run(
     crash_count: int = 0,
     worst_tail_count: int = 0,
     origin_cpu_us_per_request: float | None = None,
+    host_stalls: list[list[float]] | None = None,
 ) -> dict[str, Any]:
     """Decide whether one run's numbers may be used, and record why if not.
 
@@ -638,6 +659,14 @@ def assess_run(
     # level for damage that may be a hundredth of a percent, and it discards exactly the runs where
     # "this edge crashes under load" is the finding. The crash is recorded, surfaced in the report
     # and carried into the figures; whether the DATA is usable is decided by the damage gates.
+    # The host stopped running this VM inside the window (see host_stalls). Rejected outright: during
+    # a freeze nothing is measured, and what resumes is an edge, a load generator and a clock that
+    # were all paused at different points.
+    if host_stalls:
+        reasons.append(
+            f"host froze the VM for {sum(b - a for a, b in host_stalls):.0f} s inside the window "
+            f"(kernel soft lockup / clock jump)"
+        )
     if crash_patterns:
         warnings.append(
             f"edge crashed {crash_count}x during this run "
@@ -746,6 +775,280 @@ def cpu_cost_per_request(
             round(delta["system_usec"] / http_reqs, 3) if "system_usec" in delta else None
         ),
     }
+
+
+# ── Host-side cgroup sampling ────────────────────────────────────────────────────────────────
+#
+# The before/after `docker compose exec cat cpu.stat` readings above bracket the whole load-tester
+# lifecycle — container start, the k6 startTime delay, the run, gracefulStop and teardown — and the
+# `cat` they exec is itself charged to the container. Idle CPU in those extra ~10 s was billed to
+# requests (Envoy idles at ~6.5 ms/s, ~80 us/request at the lowest rate). Sampling the counters from
+# the host instead, several times a second, lets the harness integrate over exactly the measured
+# window k6 reports, read the edge's idle rate from the startTime delay that precedes it, and see
+# every container's utilisation and memory at once — which is what names the binding resource at
+# capacity. Nothing is executed inside any container.
+
+CGROUP_ROOT = Path("/sys/fs/cgroup")
+SAMPLE_INTERVAL_S = 0.25
+
+# How long before the window start the idle-rate reading ends, and how long it lasts. The k6
+# startTime is 5 s; the edge is idle for all of it once the warm-up's connections have drained.
+IDLE_GAP_S = 0.5
+IDLE_SPAN_S = 3.0
+
+
+def container_id(service: str, env: dict[str, str], profile: str | None = None) -> str | None:
+    command = ["docker", "compose"]
+    if profile:
+        command += ["--profile", profile]
+    ids = run_cmd(command + ["ps", "-q", service], env=env).stdout.split()
+    return ids[0] if ids else None
+
+
+def cgroup_dir(cid: str | None) -> Path | None:
+    """The container's cgroup v2 directory on the host, for the systemd or cgroupfs driver."""
+    if not cid:
+        return None
+    for candidate in (
+        CGROUP_ROOT / "system.slice" / f"docker-{cid}.scope",
+        CGROUP_ROOT / "docker" / cid,
+    ):
+        if (candidate / "cpu.stat").exists():
+            return candidate
+    return None
+
+
+def _read_host_cpu() -> tuple[int, int, int] | None:
+    """(busy, total, softirq) jiffies summed over every CPU, from /proc/stat.
+
+    Kernel network processing (the Docker bridge, veth pairs) largely runs as softirq work that no
+    container's cgroup is charged for, so a run can stall with every container below its cpuset
+    while the host itself is busy. This is what shows it.
+    """
+    try:
+        fields = [int(v) for v in Path("/proc/stat").read_text().splitlines()[0].split()[1:]]
+    except (OSError, ValueError, IndexError):
+        return None
+    idle = fields[3] + (fields[4] if len(fields) > 4 else 0)
+    total = sum(fields[:8])
+    return total - idle, total, fields[6] if len(fields) > 6 else 0
+
+
+def _read_counters(directory: Path) -> tuple[int, int, int, int] | None:
+    try:
+        stat = dict(
+            line.split() for line in (directory / "cpu.stat").read_text().splitlines()
+            if len(line.split()) == 2
+        )
+        memory = int((directory / "memory.current").read_text().strip())
+        return int(stat["usage_usec"]), int(stat["user_usec"]), int(stat["system_usec"]), memory
+    except (OSError, KeyError, ValueError):
+        return None
+
+
+class CgroupSampler:
+    """Background sampler of cpu.stat and memory.current for several containers.
+
+    Each sample is (epoch seconds, usage_usec, user_usec, system_usec, memory bytes). Epoch time,
+    not monotonic, because the window it is cut to comes from k6's Date.now() in another container
+    on the same kernel clock.
+    """
+
+    def __init__(
+        self,
+        directories: dict[str, Path | None],
+        interval_s: float = SAMPLE_INTERVAL_S,
+        late: dict[str, Any] | None = None,
+    ):
+        """`late` maps a name to a zero-argument callable returning that container's cgroup
+        directory, retried until it exists — for a container (the load generator) that the
+        sampler must already be running before it is created."""
+        import threading
+
+        self.directories = {k: v for k, v in directories.items() if v is not None}
+        self.late = dict(late or {})
+        self.interval_s = interval_s
+        self.samples: dict[str, list[tuple[float, int, int, int, int]]] = {
+            k: [] for k in list(self.directories) + list(self.late)
+        }
+        self.host: list[tuple[float, int, int, int]] = []
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+
+    def _run(self) -> None:
+        tick = 0
+        while not self._stop.is_set():
+            # Resolving a late container costs a subprocess, so it is retried every few ticks
+            # rather than on every one.
+            if self.late and tick % 4 == 0:
+                for name, resolve in list(self.late.items()):
+                    directory = resolve()
+                    if directory is not None:
+                        self.directories[name] = directory
+                        del self.late[name]
+            now = time.time()
+            host = _read_host_cpu()
+            if host is not None:
+                self.host.append((now, *host))
+            for name, directory in self.directories.items():
+                counters = _read_counters(directory)
+                if counters is not None:
+                    self.samples[name].append((now, *counters))
+            tick += 1
+            self._stop.wait(self.interval_s)
+
+    def __enter__(self) -> "CgroupSampler":
+        self._thread.start()
+        return self
+
+    def __exit__(self, *_exc: Any) -> None:
+        self._stop.set()
+        self._thread.join(timeout=5)
+
+    def _at(self, name: str, t: float) -> tuple[float, float, float] | None:
+        """Cumulative (usage, user, system) at time t, linearly interpolated between samples."""
+        series = self.samples.get(name) or []
+        if len(series) < 2 or t < series[0][0] or t > series[-1][0]:
+            return None
+        for (t0, *a), (t1, *b) in zip(series, series[1:]):
+            if t0 <= t <= t1:
+                f = 0.0 if t1 == t0 else (t - t0) / (t1 - t0)
+                return tuple(x + f * (y - x) for x, y in zip(a[:3], b[:3]))  # type: ignore[return-value]
+        return None
+
+    def window(self, name: str, start: float, end: float, requests: int | None) -> dict[str, Any]:
+        """CPU spent by one container in [start, end], per request and as cores in use."""
+        lo, hi = self._at(name, start), self._at(name, end)
+        seconds = end - start
+        if lo is None or hi is None or seconds <= 0:
+            return {"available": False, "cpu_us_per_request": None}
+        usage, user, system = (h - l for h, l in zip(hi, lo))
+        memory = [m for t, *_rest, m in self.samples[name] if start <= t <= end]
+        out: dict[str, Any] = {
+            "available": True,
+            "source": "host cgroup sampler, measured window only",
+            "window_s": round(seconds, 3),
+            "cpu_usec_total": round(usage),
+            "cores_used": round(usage / (seconds * 1e6), 4),
+            "memory_bytes_max": max(memory) if memory else None,
+            "memory_bytes_mean": round(statistics.fmean(memory)) if memory else None,
+            "cpu_us_per_request": None,
+        }
+        if requests:
+            out.update({
+                "requests": requests,
+                "cpu_us_per_request": round(usage / requests, 3),
+                "user_us_per_request": round(user / requests, 3),
+                "system_us_per_request": round(system / requests, 3),
+            })
+        return out
+
+    def host_window(self, start: float, end: float) -> dict[str, Any]:
+        """Share of all CPUs busy, and busy in softirq, over [start, end] (nearest samples)."""
+        inside = [h for h in self.host if start <= h[0] <= end]
+        if len(inside) < 2:
+            return {"available": False}
+        (_, b0, t0, s0), (_, b1, t1, s1) = inside[0], inside[-1]
+        total = t1 - t0
+        if total <= 0:
+            return {"available": False}
+        return {
+            "available": True,
+            "busy_fraction": round((b1 - b0) / total, 3),
+            "softirq_fraction": round((s1 - s0) / total, 3),
+        }
+
+    def idle_rate(self, name: str, window_start: float) -> float | None:
+        """CPU microseconds per second the container burned while idle, just before the window."""
+        end = window_start - IDLE_GAP_S
+        lo, hi = self._at(name, end - IDLE_SPAN_S), self._at(name, end)
+        if lo is None or hi is None:
+            return None
+        return round((hi[0] - lo[0]) / IDLE_SPAN_S, 1)
+
+
+# The host not running this VM shows up in the guest's kernel log in two ways: a vCPU the watchdog
+# finds stuck for 20 s or more ("soft lockup - CPU#1 stuck for 86s"), and VirtualBox's time sync
+# stepping the clock after a pause ("Radical host time change"). On the 2026-10-05 SQLi run vCPU 1 —
+# one of the edge's pinned cores — was repeatedly frozen for 21-335 s while the host was awake.
+# Freezes shorter than the watchdog's 20 s threshold leave no trace and cannot be caught this way.
+SOFT_LOCKUP_RE = re.compile(r"soft lockup - CPU#\d+ stuck for (\d+)s")
+CLOCK_STEP_RE = re.compile(r"Radical (?:host|guest) time change")
+
+
+def host_stalls(start: float, end: float) -> list[list[float]]:
+    """Intervals (epoch seconds) overlapping [start, end] in which the host did not run this VM."""
+    result = run_cmd([
+        "journalctl", "-k", "-o", "short-unix", "--no-pager",
+        "--since", f"@{int(start) - 900}", "--until", f"@{int(end) + 900}",
+    ])
+    stalls = []
+    for line in result.stdout.splitlines():
+        try:
+            stamp = float(line.split()[0])
+        except (IndexError, ValueError):
+            continue
+        lockup = SOFT_LOCKUP_RE.search(line)
+        if lockup:
+            stalls.append([stamp - int(lockup.group(1)), stamp])
+        elif CLOCK_STEP_RE.search(line):
+            stalls.append([stamp - 5, stamp + 5])
+    return [[max(a, start), min(b, end)] for a, b in stalls if a < end and b > start]
+
+
+K6_WINDOW_RE = re.compile(r"WADM K6 WINDOW START (\d+)")
+
+
+def k6_window_start(logs: str) -> float | None:
+    """Epoch seconds at which k6 started the first measured iteration, from test.js's sentinel."""
+    matches = K6_WINDOW_RE.findall(logs)
+    return int(matches[-1]) / 1000.0 if matches else None
+
+
+# `docker compose logs --timestamps` puts an RFC 3339 nanosecond timestamp after the service prefix.
+LOG_TIMESTAMP_RE = re.compile(r"^(?:\S+\s+\|\s+)?(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(\.\d+)?Z\s?(.*)$")
+
+
+def lines_since(logs: str, start: float) -> str:
+    """Keep only log lines stamped at or after `start` (epoch seconds), timestamps stripped.
+
+    Used to drop what an edge logged before the measured window — setup()'s reference requests and
+    the tail of the warm-up — so sample and alert counts can be compared exactly against the
+    iterations k6 ran. `--since` alone is second-granular and cannot do this.
+    """
+    kept = []
+    for line in logs.splitlines():
+        m = LOG_TIMESTAMP_RE.match(line)
+        if not m:
+            continue
+        stamp = datetime.strptime(m.group(1), "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+        seconds = stamp.timestamp() + (float(m.group(2)) if m.group(2) else 0.0)
+        if seconds >= start:
+            kept.append(m.group(3))
+    return "\n".join(kept)
+
+
+# Alerts are WADM's only output channel: a detection that leaves no line was, operationally, not
+# made. Counted per cell and compared with the triggers the probes sent.
+ALERT_RE = re.compile(r"WADM ALERT:")
+TRAP_RE = re.compile(r"WADM TRAP:")
+
+
+def count_alerts(logs: str) -> dict[str, int]:
+    return {"alert": len(ALERT_RE.findall(logs)), "trap": len(TRAP_RE.findall(logs))}
+
+
+def tier_order(tiers: list[str], replicate: int) -> list[str]:
+    """Order in which a replicate runs its tiers, balanced across replicates.
+
+    Rotates the list by one every two replicates and reverses it on even replicates. For two tiers
+    that alternates which goes first; for three it cycles through all six orders, so every tier
+    occupies every position twice in six replicates and none is systematically the one that runs
+    after a particular other.
+    """
+    k = (replicate - 1) // 2 % len(tiers)
+    order = tiers[k:] + tiers[:k]
+    return order[::-1] if replicate % 2 == 0 else order
 
 
 # ── Paired statistics ────────────────────────────────────────────────────────────────────────

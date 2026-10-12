@@ -1,4 +1,5 @@
 {
+  "emit_timings": true,
   "post_body_inspection": false,
   "sql_injection": {
     "enabled": 1,
