@@ -1,0 +1,55 @@
+\begin{thebibliography}{10}
+
+\bibitem{owasp2020wstg}
+{OWASP Foundation}, {\em Web Security Testing Guide, Version 4.2}, 2020.
+\newblock Tests WSTG-INFO-03 and WSTG-INFO-05. Release of 03.12.2020: \url{https://github.com/OWASP/wstg/releases/tag/v4.2}. Accessed: 12.10.2026.
+
+\bibitem{han2017evaluation}
+X.~Han, N.~Kheir, and D.~Balzarotti, ``Evaluation of deception-based web attacks detection,'' in {\em Proceedings of the 2017 Workshop on Moving Target Defense (MTD)}, pp.~65--73, 2017.
+
+\bibitem{spitzner2003insider}
+L.~Spitzner, ``Honeypots: Catching the insider threat,'' in {\em Proceedings of the 19th Annual Computer Security Applications Conference (ACSAC)}, pp.~170--179, 2003.
+
+\bibitem{han2018deception}
+X.~Han, N.~Kheir, and D.~Balzarotti, ``Deception techniques in computer security: A research perspective,'' {\em ACM Computing Surveys}, vol.~51, no.~4, pp.~1--36, 2018.
+
+\bibitem{kahlhofer2024application}
+M.~Kahlhofer and S.~Rass, ``Application layer cyber deception without developer interaction,'' in {\em Proceedings of the IEEE European Symposium on Security and Privacy Workshops (EuroS\&PW)}, pp.~416--429, 2024.
+
+\bibitem{fraunholz2018cloxy}
+D.~Fraunholz, D.~Reti, S.~D. Anton, and H.~D. Schotten, ``Cloxy: A context-aware deception-as-a-service reverse proxy for web services,'' in {\em Proceedings of the 5th ACM Workshop on Moving Target Defense (MTD)}, pp.~40--47, 2018.
+
+\bibitem{reti2023honeyinfiltrator}
+D.~Reti, T.~Angeli, and H.~D. Schotten, ``Honey infiltrator: Injecting honeytoken using netfilter,'' in {\em Proceedings of the IEEE European Symposium on Security and Privacy Workshops (EuroS\&PW)}, pp.~465--469, 2023.
+
+\bibitem{zhu2023dissecting}
+X.~Zhu, G.~She, B.~Xue, Y.~Zhang, Y.~Zhang, X.~K. Zou, X.~Duan, P.~He, A.~Krishnamurthy, M.~Lentz, D.~Zhuo, and R.~Mahajan, ``Dissecting overheads of service mesh sidecars,'' in {\em Proceedings of the ACM Symposium on Cloud Computing (SoCC)}, pp.~142--157, 2023.
+
+\bibitem{spitzner2002honeypots}
+L.~Spitzner, {\em Honeypots: Tracking Hackers}.
+\newblock Addison-Wesley, 2002.
+
+\bibitem{spitzner2003honeytokens}
+L.~Spitzner, ``Honeytokens: The other honeypot.'' SecurityFocus, July 2003.
+\newblock \url{http://www.securityfocus.com/infocus/1713}.
+
+\bibitem{bowen2009baiting}
+B.~M. Bowen, S.~Hershkop, A.~D. Keromytis, and S.~J. Stolfo, ``Baiting inside attackers using decoy documents,'' in {\em Security and Privacy in Communication Networks (SecureComm)}, pp.~51--70, 2009.
+
+\bibitem{juels2013honeywords}
+A.~Juels and R.~L. Rivest, ``Honeywords: Making password-cracking detectable,'' in {\em Proceedings of the ACM Conference on Computer and Communications Security (CCS)}, pp.~145--160, 2013.
+
+\bibitem{virvilis2014changing}
+N.~Virvilis, B.~Vanautgaerden, and O.~S. Serrano, ``Changing the game: The art of deceiving sophisticated attackers,'' in {\em 6th International Conference on Cyber Conflict (CyCon)}, pp.~87--97, 2014.
+
+\bibitem{vanderkouwe2019sok}
+E.~van~der Kouwe, G.~Heiser, D.~Andriesse, H.~Bos, and C.~Giuffrida, ``{SoK}: Benchmarking flaws in systems security,'' in {\em IEEE European Symposium on Security and Privacy (EuroS\&P)}, 2019.
+
+\bibitem{heiser_crimes}
+G.~Heiser, ``Systems benchmarking crimes.'' \url{https://gernot-heiser.org/benchmarking-crimes.html}.
+\newblock Accessed: 07.10.2026.
+
+\bibitem{williams1949designs}
+E.~J. Williams, ``Experimental designs balanced for the estimation of residual effects of treatments,'' {\em Australian Journal of Scientific Research, Series A}, vol.~2, no.~2, pp.~149--168, 1949.
+
+\end{thebibliography}

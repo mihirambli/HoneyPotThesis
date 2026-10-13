@@ -1,0 +1,441 @@
+\documentclass{rptuma}
+\input{proposal_common}
+
+\subject{Master Thesis}
+\title{Title}
+
+\begin{document}
+
+\maketitle
+\makedeclaration
+
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+% Problem (deception at the web edge has an unknown cost), approach (one mechanism on four
+% levelled edges), method (paired benchmark on three measurement planes), headline numbers.
+\chapter*{Abstract}
+English
+
+\chapter*{Zusammenfassung}
+Deutsche
+
+\tableofcontents
+\cleardoublepage
+\pagenumbering{arabic}
+
+%======================================================================
+\chapter{Introduction}
+\label{chap:intro}
+
+A web application exposes more to its visitors than the pages it renders. Its HTML source, its
+response headers and cookies, and auxiliary files such as \texttt{robots.txt} are delivered to
+every client, including one that is preparing an attack. This thesis studies a defence that
+turns that exposure against the attacker: an edge proxy in front of the application plants
+honeytokens in the traffic it forwards and raises an alert when one of them is used. The
+mechanism developed for this purpose is called the Reverse-Proxy Deception Layer (RPDL). The
+thesis implements RPDL on four reverse-proxy platforms and measures what it costs on each.
+
+%----------------------------------------------------------------------
+\section{Motivation}
+\label{sec:intro.motivation}
+
+Security testing of a web application begins with information gathering. The OWASP Web
+Security Testing Guide instructs a tester to review the comments and metadata in a page's
+HTML source, which may reveal internal information that should not be available to an
+attacker, and to read \texttt{robots.txt} for paths and functionality that the site does not
+link to \cite{owasp2020wstg}. An adversary who reconnoitres the same application has access to
+the same artefacts, because they are served to any client that requests them.
+
+Cyber deception exploits this phase of an attack \cite{han2017evaluation}. Spitzner describes a honeypot as an
+information system resource whose value lies in unauthorised or illicit use of that resource
+\cite{spitzner2003insider}; a honeytoken applies the same idea to a piece of data, such as a
+fake credential or a URL parameter that no legitimate workflow uses \cite{han2018deception}. Because a legitimate user has
+no reason to touch such an element, an interaction with it is a strong indication of malicious
+activity \cite{han2017evaluation}, and deception products have been marketed as intrusion detection with zero false
+positives \cite{han2018deception}. Han et al.\ tested this claim for web applications
+\cite{han2017evaluation}. Over seven months of production use with 258 regular users, their
+deceptive elements raised no false alarm. In a red-team exercise with 150 participants, 84
+participants triggered at least one of twelve traps, and 64\,\% of the participants who found
+a real vulnerability also triggered a trap. The same study found that 36\,\% of the attackers
+who exploited at least one vulnerability did so without triggering any trap, and concluded that
+deception is a valuable companion to other detection techniques rather than a standalone
+protection \cite{han2017evaluation}.
+
+The practical obstacle is deployment. Kahlhofer and Rass observe that what limits the adoption
+of cyber deception is its deployment in real-world software systems, and that the operator
+responsible for security usually has access to the built software artefacts but not to their
+source code \cite{kahlhofer2024application}. Of the 19 technical methods they review for
+deploying application-layer deception without developer involvement, placing a reverse proxy
+in front of the application is the one most commonly found in research
+\cite{kahlhofer2024application}. Han et al.\ implemented their framework as a transparent
+reverse proxy that injects cookies, hidden form fields and \texttt{robots.txt} entries into
+responses and removes them from incoming requests before forwarding
+\cite{han2017evaluation}. Cloxy couples a reverse proxy with several deception-based defences to
+protect legacy web applications that cannot easily be updated \cite{fraunholz2018cloxy}, and
+Honey Infiltrator injects honeytokens, such as an HTML comment, into web traffic from a layer-2
+network bridge \cite{reti2023honeyinfiltrator}.
+
+A reverse proxy is frequently present already. In Kubernetes, the ingress that connects a
+cluster to the outside world is often a reverse proxy such as NGINX or Envoy
+\cite{kahlhofer2024application}, and such proxies can be extended with custom code: Envoy, for
+example, accepts filters written in C++, Lua or WebAssembly, and developers of custom filters
+tend to use Lua or WebAssembly \cite{zhu2023dissecting}. Placing the honeytokens in an edge proxy
+that the operator already runs therefore requires no change to the application and no
+additional network hop.
+
+%----------------------------------------------------------------------
+\section{Problem Statement}
+\label{sec:intro.problem}
+
+Running deception logic inside the request path is not free. Kahlhofer and Rass note that the
+reverse-proxy pattern often comes with a significant performance overhead and call for research
+to reduce it \cite{kahlhofer2024application}. The measurements they refer to come from service
+meshes, where Zhu et al.\ report up to 269\,\% higher latency and up to 163\,\% more virtual
+CPU cores for their benchmark applications, with the severity depending on configuration and
+workload \cite{zhu2023dissecting}. The same study shows that the choice of extension runtime
+matters on its own: in Envoy, even a filter that does nothing has a substantial overhead when it
+is written in Lua or WebAssembly, and the Lua filter cost three times as much latency and nearly
+five times as much CPU as the WebAssembly filter \cite{zhu2023dissecting}. A filter that does
+nothing, however, performs no deception. It bounds the cost of hosting an extension, not the cost
+of parsing requests for trigger values, rewriting response bodies and recording alerts.
+
+The deception systems discussed above do not close this gap. Cloxy reports that its prototype
+increases the delay of communication with the protected web application, a delay its authors
+consider tolerable \cite{fraunholz2018cloxy}. The evaluation by Han et al.\ concerns false alarms
+and detection accuracy \cite{han2017evaluation}. Neither compares the cost of one deception
+mechanism across different proxy technologies, so the choice of edge cannot be made on measured
+grounds.
+
+
+The problem addressed by this thesis is therefore the following. An operator who wants to deploy
+honeytokens at the web edge has no measured basis for choosing the edge technology, nor for
+estimating what the deception costs in latency, CPU, capacity and functional correctness. The
+thesis answers this question for one deception mechanism on four reverse-proxy platforms in a controlled testbed.
+All measurements were taken on a single virtualised host serving a static origin, so the
+comparison between edges is the claim the results support, while absolute values are not
+expected to carry over to other hardware. The effectiveness of honeytokens against real
+attackers is outside the scope of this work; detection is tested only against scripted requests
+whose expected alerts are known.
+
+%----------------------------------------------------------------------
+\section{Research Questions}
+\label{sec:AB.rq}
+
+The thesis addresses four research questions. Chapter~\ref{chap:AB.results} answers them in this
+order.
+
+\begin{itemize}[leftmargin=3.2em,labelwidth=2.6em,labelsep=0.6em]
+  \item[\textbf{RQ1}] How much latency does RPDL add to a request on each edge, and how does the added
+    latency change with load?
+  \item[\textbf{RQ2}] How much CPU and capacity does RPDL cost on each edge, and where does that cost
+    arise?
+  \item[\textbf{RQ3}] Does RPDL preserve the responses the edge produced without it, and does it raise
+    the alerts it is expected to raise?
+  \item[\textbf{RQ4}] To what extent do the answers to RQ1--RQ3 depend on the extension runtime: LuaJIT,
+    PUC Lua or WebAssembly?
+\end{itemize}
+
+%----------------------------------------------------------------------
+% Archived on 2026-10-13 at the author's request; kept for possible reuse. Remove \iffalse/\fi to restore.
+\iffalse
+\section{Contributions}
+\label{sec:intro.contrib}
+
+This thesis makes four contributions.
+
+\begin{enumerate}
+  \item \textbf{RPDL on four reverse-proxy platforms.} One configuration file drives a single deception mechanism
+    on OpenResty (nginx with LuaJIT), Envoy with a Lua filter (LuaJIT), Envoy with a WebAssembly
+    filter written in Rust against the proxy-wasm interface and executed by V8, and Apache httpd
+    with \texttt{mod\_lua} (PUC Lua~5.1). RPDL plants five kinds of honeytoken: HTML comments,
+    HTTP response headers, cookies, decoy paths and hidden form fields. It also includes a fake
+    SQL-injection trap, in which the edge answers a login endpoint itself with a fabricated
+    database error. When a honeytoken is triggered, the edge removes the triggering parameter
+    before forwarding the request, records the client address and writes one alert line.
+  \item \textbf{Levelling and verified equivalence.} The four implementations were brought to
+    one canonical mechanism, with the same parsing, stripping, injection and alert format, and
+    their configurations were aligned where differing defaults would otherwise appear as RPDL
+    cost, for example in upstream connection reuse. An automated parity check sends thirteen
+    requests to every edge and compares the responses, the alert lines and the requests that
+    reach the origin against the reference edge, OpenResty. The remaining differences are
+    documented.
+  \item \textbf{A paired benchmark harness.} Each edge is measured in three tiers in the same
+    container: without RPDL (\emph{bare}), with RPDL as deployed (\emph{silent}), and with RPDL
+    plus timing instrumentation. The tiers of one replicate are run minutes apart, five
+    replicates are taken at 1, 10 and 100 iterations per second (one iteration being nine
+    requests), and the probe order follows a Williams design \cite{williams1949designs}. Every
+    run is measured on three planes: end-to-end latency from the load generator, CPU time per
+    request from the container's control group, and microsecond timers inside the edge. Runs
+    that fail explicit validity gates are excluded. Separate experiments measure capacity and
+    check functional correctness against the bare tier.
+  \item \textbf{Measured costs.} At 1 and 10 iterations per second, RPDL added between 114 and
+    218\us{} to the median latency of a GET request, 13--23\,\% of the bare latency, on every
+    edge. At 100 iterations per second, three edges stayed between 109 and 136\us, while
+    Apache with \texttt{mod\_lua} added 2,174\us{} (+334\,\%); its worker processes crashed with
+    segmentation faults 13--16 times per instrumented run at that rate. The marginal CPU cost per
+    request was 33\us{} on OpenResty, 41\us{} on Envoy with Lua, 123\us{} on Envoy with
+    WebAssembly and 200\us{} on Apache. On all four reverse-proxy platforms, injection corrupted gzip-encoded
+    responses and byte-range responses, and both Envoy-based edges failed to deliver an HTML page
+    larger than Envoy's 1\,MiB buffer. Under load, every edge raised all expected alerts except
+    Apache, whose alert recall was 0.9997 at 10 and 0.9979 at 100 iterations per second.
+\end{enumerate}
+\fi
+
+%----------------------------------------------------------------------
+\section{Thesis Outline}
+\label{sec:intro.outline}
+
+Chapter~\ref{chap:background} introduces cyber deception and honeytokens, the reconnaissance
+that web honeytokens target, and the request-processing phases of a reverse proxy.
+Chapter~\ref{chap:AB.related} reviews prior work on honeytokens and decoys, application-layer
+deception without code changes, proxy and service-mesh overhead, and benchmarking methodology.
+Chapter~\ref{chap:design} presents the design of RPDL independently of any edge, and
+Chapter~\ref{chap:impl} describes its implementation on the four reverse-proxy platforms together with the
+levelling that makes them comparable. Chapter~\ref{chap:method} describes the testbed, the
+workload, the measurement planes and the criteria for a valid run.
+Chapter~\ref{chap:AB.results} presents the results, with one section per research question.
+Chapter~\ref{chap:discussion} discusses the results, the choice of an edge for deception, the
+threats to validity and the limitations, and Chapter~\ref{chap:conclusion} concludes and outlines
+future work. The appendices contain the configuration reference, the parity-check request set,
+instructions for reproducing the benchmarks and additional result tables.
+
+%======================================================================
+\chapter{Background}
+\label{chap:background}
+The concepts a reader needs before the design makes sense.
+
+\section{Cyber Deception, Honeypots and Honeytokens}
+Spitzner's definition \cite{spitzner2002honeypots,spitzner2003honeytokens}; honeytokens as data with
+no legitimate use; why false positives are rare.
+
+\section{Web Application Reconnaissance}
+What attackers read and tamper with: HTML source, response headers, cookies, \texttt{robots.txt},
+hidden form fields, SQL-injection probes.
+
+\section{Reverse Proxies and Their Request Phases}
+Request hooks, header and body filters, body buffering, upstream connection pools.
+
+%======================================================================
+\chapter{Related Work}
+\label{chap:AB.related}
+One continuous literature survey, grouped by theme in paragraphs rather than sections, ending
+with where this thesis sits. Themes in order: decoy documents \cite{bowen2009baiting}, honeywords
+\cite{juels2013honeywords}, and deceptive web artefacts such as HTML comments, \texttt{robots.txt}
+entries and invisible links \cite{virvilis2014changing}; application-layer deception without code
+changes, where Kahlhofer and Rass review 19 techniques, reverse proxies among them
+\cite{kahlhofer2024application}; proxy and service-mesh overhead, including Lua versus
+WebAssembly filters in Envoy \cite{zhu2023dissecting}; and benchmarking flaws in systems security
+\cite{vanderkouwe2019sok,heiser_crimes}.
+
+%======================================================================
+\chapter{Design of the Deception Layer}
+\label{chap:design}
+The mechanism on a conceptual level, independent of any one edge.
+
+\section{Requirements and Threat Model}
+The operator controls the edge but not the application. The attacker is a reconnaissance or
+scanning client. Non-goals: blocking traffic, real authentication.
+
+\section{Architecture}
+Client $\rightarrow$ edge $\rightarrow$ static origin. One shared \texttt{config.json}, an
+in-memory attacker-IP store, and the alert log as RPDL's only output.
+\material{\repo{CONTEXT.md} (architecture diagram)}
+
+\section{Honeytoken Kinds}
+\subsection{HTML Comments}
+Injected before \texttt{</body>}; detected when the trigger keyword appears in the query.
+\subsection{HTTP Headers}
+A decoy response header; detected when its value is replayed in a later request.
+\subsection{Cookies}
+\texttt{Set-Cookie} bait; detected on tamper, since a browser replays the value unchanged.
+\subsection{Decoy Paths}
+Advertised as a hidden link or in \texttt{robots.txt}; any request to the path matches.
+\subsection{Form Fields}
+A hidden \texttt{<input>} before \texttt{</form>}; detected on tamper.
+
+\section{The Fake SQL-Injection Trap}
+The edge answers \texttt{POST /api/login} itself: a fake MySQL error that reflects the payload on a
+signature hit, a canned denial otherwise. Signatures are literal strings, not regular expressions.
+
+\section{Detection and Response Pipeline}
+Parse once, scan, strip the parameter so the origin never sees it, record the IP, then write one
+alert with CR/LF neutralised against log forgery.
+
+%======================================================================
+\chapter{Implementation on Four Deception layer platforms}
+\label{chap:impl}
+How the design maps onto each proxy, and what made the four comparable.
+
+\section{Common Structure}
+A table mapping each edge's request hook, header filter and body filter, so the subsections below
+need only describe the differences.
+
+\section{OpenResty (Reference Edge)}
+Configuration compiled once in \texttt{init\_by\_lua}, detection in \texttt{access\_by\_lua},
+injection in the header and body filters, attacker IPs in a \texttt{lua\_shared\_dict}.
+\material{\repo{nginx/README.md}, \repo{nginx/nginx.conf}}
+
+\section{Envoy with a Lua Filter}
+\texttt{injection.lua}, handing the request path to the response phase via dynamic metadata, body
+buffering.
+\material{\repo{envoy_scripts/README.md}}
+
+\section{Envoy with a WebAssembly Filter}
+Rust proxy-wasm: configuration compiled in \texttt{on\_configure}, fewer host calls, a byte-level
+splice. A proxy-wasm filter cannot answer locally from the body callback.
+\material{\repo{wasm-filter/README.md}, \repo{wasm-filter/src/lib.rs}}
+
+\section{Apache httpd with mod\_lua}
+The shared \texttt{wadm.lua} core and its three hook scripts; \texttt{LuaScope} and
+\texttt{LuaCodeCache}.
+\material{\repo{apache_scripts/README.md}}
+
+\section{Levelling the Edges}
+\label{sec:AB.level}
+Product defaults levelled before any comparison: upstream keep-alive, access logs, code caching.
+Baselines are the RPDL configuration minus RPDL. The residual differences are listed in a table.
+\material{\repo{docs/EDGE_LEVELING.md}, \repo{docs/THESIS_NOTES.md} (2026-09-17, 2026-09-18)}
+
+\section{Verifying Equivalence}
+\texttt{parity\_check.py} sends 13 requests to every edge and diffs the responses, the alert lines
+and the requests that reached the origin.
+\material{\repo{benchmarks/parity_check.py}}
+
+%======================================================================
+\chapter{Evaluation Methodology}
+\label{chap:method}
+How the costs were measured, and why the measurements can be trusted.
+
+\section{Goals and Metrics}
+\label{sec:AB.metrics}
+A table mapping each metric to its question. RQ1: latency added (median and p95). RQ2: CPU per
+request, capacity. RQ3: share of intact responses, alert recall, false positives. RQ4: in-edge
+timer cost per kind.
+
+\section{Testbed}
+The VM, the cpuset layout, guest tuning, image versions.
+\material{\repo{docs/BENCHMARK_METHODOLOGY.md} \S4}
+
+\section{Workload}
+k6 iterations of nine requests: a priming \texttt{GET}, four \texttt{GET} probes and four SQLi
+\texttt{POST}s. Williams-balanced order \cite{williams1949designs}; arrival rates of 1, 10 and 100
+iterations/s.
+\material{\repo{benchmarks/test.js}}
+
+\section{Measurement Planes}
+In-edge timers (\textmu s), end-to-end latency from k6 (ms), CPU per request from cgroup
+\texttt{cpu.stat}.
+
+\section{Run Validity}
+\label{sec:AB.validity}
+The \texttt{assess\_run()} gates, the origin-CPU negative control, and detection of host freezes.
+\material{\repo{benchmarks/wadm_timings.py}, \repo{docs/THESIS_NOTES.md} (2026-10-07)}
+
+%======================================================================
+\chapter{Results}
+\label{chap:AB.results}
+One section per research question, each ending with its answer.
+
+\section{RQ1: Latency Added}
+\subsection{Median Latency per GET across Rates}
+$+109$ to $+218$\us{} per \texttt{GET} (13--23\%), resolved in every \texttt{GET} cell.
+\material{\repo{results/paired_headline.md}, \repo{plots/paired_latency_added.png}}
+\subsection{Tail Latency}
+p95 grows more than the median on every edge. Apache at 100\,iterations/s collapses.
+\subsection{Request Position and Reconnects}
+The first request after the think-time sleep pays a wake-up cost. Apache closes the connection
+after the trap's 500.
+\material{\repo{docs/THESIS_NOTES.md} (2026-09-21, \S5b), \repo{plots/paired_latency_shift.png}}
+\subsection{Answer to RQ1}
+One paragraph: the number per edge, how it changes with load, and how certain it is.
+
+\section{RQ2: CPU and Capacity}
+\subsection{CPU per Request}
+CPU added per request: OpenResty $+33$, Envoy+Lua $+41$, WASM $+123$, Apache $+200$\us.
+\subsection{Cost Attribution}
+The in-edge timers cover 5--22\% of that CPU; the rest is VM entry and exit, body filters and log
+writes.
+\material{\repo{plots/cost_attribution.png}}
+\subsection{The Cost of Measuring}
+The timing log lines alone cost about as much as RPDL itself on OpenResty and Envoy+Lua.
+\subsection{Per-Mechanism Cost and Page Size}
+The \texttt{GET} path against the trap; injection cost grows linearly with body size up to
+768\,KiB.
+\material{\repo{results/mechanisms.md}, \repo{plots/mechanism_cpu.png}, \repo{plots/size_sweep.png}}
+\subsection{Answer to RQ2}
+CPU and capacity per edge, and where the cost arises.
+
+\section{RQ3: Functional Correctness}
+\subsection{Response Integrity under Load}
+Share of intact responses per probe and rate. Apache is the only edge that falls below 100\%.
+\material{\repo{results/paired_functional.md}}
+\subsection{Detection Recall and False Positives}
+\texttt{WADM ALERT} and \texttt{WADM TRAP} lines counted against expected; zero on bare.
+\subsection{Answer to RQ3}
+What breaks, on which edge, and whether detection is complete.
+
+\section{RQ4: Influence of the Extension Runtime}
+\subsection{Per-Kind Operation Cost}
+In-edge timer distributions per honeytoken kind and edge.
+\material{\repo{plots/paired_internal_timers.png}}
+\subsection{The SQLi Trap: Scan Depth versus Decoding}
+In the encoding-by-outcome 2$\times$2, decoding costs 0.5--2.5\us{} on the Lua edges and nothing
+on WASM; scan depth is visible only on Apache's interpreted PUC Lua.
+\material{\repo{results/sqli.md}, \repo{docs/THESIS_NOTES.md} (2026-09-21)}
+\subsection{Stability of Apache mod\_lua}
+Segfaults driven by cumulative requests in the body filter, and the cost of fixing them with
+\texttt{LuaScope conn}.
+\material{\repo{docs/BENCHMARK_METHODOLOGY.md} \S4b--4c, \repo{plots/apache_remediation.png}}
+\subsection{Answer to RQ4}
+How much of RQ1--RQ3 is explained by the runtime rather than by the deception logic.
+
+%======================================================================
+\chapter{Discussion}
+\label{chap:discussion}
+What the results mean, and how far they can be trusted.
+
+\section{Synthesis across Research Questions}
+One table of edges against the four answers.
+
+\section{Choosing an Edge for Deception}
+A trade-off summary per edge: latency, CPU, capacity, robustness.
+
+\section{Where the Cost Comes From}
+Runtime entry and exit, body buffering and log writes, not the detection logic.
+
+\section{Deployment Implications}
+Compressed bodies, range requests, preserved ETags, body-size limits.
+
+\section{Threats to Validity}
+A single VM host, synthetic traffic, moving image tags, timer resolution.
+
+\section{Limitations}
+POST-body inspection exists on only two edges; no real attacker traffic; no TLS or HTTP/2.
+
+%======================================================================
+\chapter{Conclusion and Future Work}
+\label{chap:conclusion}
+\section{Summary}
+RQ1--RQ4 answered in one or two sentences each, then the overall contribution.
+\section{Future Work}
+POST-body inspection on all four reverse-proxy platforms, injecting into compressed bodies, a field study with real
+attackers, TLS and HTTP/2.
+
+%======================================================================
+\appendix
+\chapter{Configuration Reference}
+Every \texttt{config.json} field per honeytoken kind, and the SQLi trap's fields.
+\material{\repo{CONTEXT.md}}
+\chapter{Parity-Check Request Set}
+The 13 requests and the documented exclusions.
+\chapter{Reproducing the Benchmarks}
+Commands, machine configuration, run durations.
+\material{\repo{docs/BENCHMARK_METHODOLOGY.md} \S3--4}
+\chapter{Additional Result Tables}
+Per-rate tables and figures.
+\material{\repo{benchmarks/results/plots/by_rate/}}
+
+\bibliographystyle{ieeetr}
+\bibliography{sources}
+\end{document}

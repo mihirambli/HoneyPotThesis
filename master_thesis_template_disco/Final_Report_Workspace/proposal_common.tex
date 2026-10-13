@@ -1,0 +1,32 @@
+% Shared preamble for the final report, built against the local rptuma.cls by build.sh,
+% so the report renders exactly as a thesis written in the department template would.
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{enumitem}
+
+% The class loads its logo as img/RPTUlogo, kept alongside in img/.
+\graphicspath{{./}}
+
+\definecolor{materialgray}{gray}{0.38}
+\newcommand{\material}[1]{\par{\raggedright\small\sffamily\color{materialgray}\textbf{Material:} #1\par}}
+\newcommand{\repo}[1]{\path{#1}}
+\newcommand{\us}{\,\textmu s}
+% Marks a claim still awaiting verification, so it cannot slip into the submitted PDF unnoticed.
+\newcommand{\todo}[1]{{\color{red}\textbf{[TODO: #1]}}}
+
+\setlist{nosep,leftmargin=*}
+% Repository paths and identifiers are long unbreakable words; loose spacing beats margin overruns.
+\AtBeginDocument{\sloppy}
+\setcounter{tocdepth}{2}
+% KOMA appends a period to section numbers once appendices exist; the department sample has none.
+\KOMAoptions{numbers=noendperiod}
+\addto\captionsenglish{\renewcommand{\bibname}{Sources Used for This Proposal}}
+
+\newdate{thesisDate}{07}{10}{2026}
+\author{Mihir Mahesh Ambli}
+\department{University of Kaiserslautern-Landau\\Department of Computer Science\\Distributed Systems Lab}
+\supervisortitle{Examiner:}
+\supervisor{Prof. Dr.-Ing. Jens B. Schmitt}
+\secondsupervisor{M. Sc. Daniel Reti}
+
