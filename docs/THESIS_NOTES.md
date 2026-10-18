@@ -1281,3 +1281,177 @@ the deception logic alone (methodology §4b, "How to read Apache's numbers"). It
    drawn from rejected runs.
 
 Recommended: 1 with 2.
+
+## 2026-10-13 — The origin tier: what the host proxy itself adds, and why the paired dataset is re-measured
+
+RPDL is the thesis's name for what the code and the earlier entries call WADM, and a *host proxy* is
+what they call an *edge*. This entry uses the thesis's terms so passages can be lifted directly.
+
+### 1. The question the existing tiers could not answer
+
+Every paired latency figure so far compares two configurations of the same host proxy: `bare` (no
+RPDL), `silent` (RPDL as deployed) and `wadm` (RPDL plus the benchmark's timing log lines). All three
+have the proxy in the request path, so they answer "what does RPDL cost on top of a reverse proxy?"
+and say nothing about what the reverse proxy costs in the first place. The answer matters for how the
+RPDL result is read. For example, if the proxy alone added 0.4 ms and RPDL another 0.15 ms
+(illustrative values, not measurements), RPDL would be about a quarter of what deploying it costs
+in front of an origin that previously had no proxy, and the proxy would be the rest.
+
+A no-proxy tier existed once (`run_baseline_benchmark.py --edge origin`), but it was measured in its
+own session, unpaired, and was retired with the old harness (methodology §1.3; files in
+`benchmarks/results/archive/2026-10-05-legacy-unused/`). Read naively, those archived files put
+bare − origin at roughly 0.3–0.7 ms at 1 and 10 VUs. That is a difference of two runs taken in
+different sessions, and is not reportable.
+
+### 2. How it is measured
+
+The reportable `all` mix now runs a fourth tier, **`origin`**, in every replicate of every host
+proxy's run:
+
+| | `origin` | `bare` / `silent` / `wadm` |
+|---|---|---|
+| k6 sends to | the origin (`http://backend:80`) directly | the host proxy, which forwards to the origin |
+| Iteration | identical: priming GET, four GET probes, four SQLi POSTs, Williams order | same |
+| Rate, window, warm-up, start delay | identical | same |
+| Load generator, cores, network | identical | same |
+| Host proxy container | left running from the previous tier, idle, receives nothing | serves every request |
+
+The tier order within a replicate is balanced across replicates (`tier_order`). With four tiers
+every tier holds every position twice in eight replicates; the five replicates used cover five rows
+of that cycle. So **bare − origin** and **silent − origin** are paired exactly as silent − bare is:
+both members are measured minutes apart in the same replicate, and the reported value is the median
+of the per-replicate differences with their range and sign agreement. Session drift is common to
+both members and cancels.
+
+There are four floors, one per host proxy's run. They should coincide. How far apart they are shows
+how much the floor moved between sessions, which is the drift that pairing removes and an unpaired
+comparison would have kept.
+
+### 3. What the three differences mean, and what they do not
+
+- **bare − origin** is what placing the host proxy, without RPDL, in the path adds on this testbed.
+  It contains the proxy's request handling, forwarding and upstream connection pool, **and** one
+  extra traversal of the Docker bridge in each direction (client → proxy → origin instead of
+  client → origin). It is a property of this topology, not of the proxy software alone. A proxy on
+  its own machine would replace the bridge traversal with a real network hop.
+- **silent − origin** is the deployed stack: host proxy plus RPDL.
+- **silent − bare** is the unchanged headline RPDL cost, reported beside the others as "of which
+  RPDL". Within one replicate `silent − origin = (bare − origin) + (silent − bare)` exactly. Across
+  replicates each figure is its own median, and medians need not add up, so the thesis should never
+  derive one of the three by subtracting the other two.
+- **Percentages are relative to a very fast origin.** The origin is static nginx serving HTML files
+  of 864–1,396 B, answering in a fraction of a millisecond. A fixed cost of a few hundred
+  microseconds is therefore a large percentage of it, and would be a few percent in front of an
+  application that takes tens of milliseconds. The absolute µs is the result; a percentage must be
+  stated as "relative to this origin".
+- **Client connections end somewhere different.** In the origin tier, k6's keep-alive connections
+  terminate at the origin's nginx under its default policy (75 s idle timeout, 1,000 requests per
+  connection; `backend/nginx.conf` sets neither). In the proxied tiers they terminate at the host
+  proxy, under its own settings. Any difference in reconnects is part of bare − origin.
+  `new_conn_<probe>` is recorded for every tier, so it can be checked.
+- **Only the four GETs are reported.** The SQLi POSTs stay in the origin tier's iteration so that
+  every tier offers the same load, but the origin has no `/api/login` and answers 404, so a
+  difference against it is not anything RPDL does. The SQLi hit/miss experiment does not get an
+  origin tier at all, and the runner refuses one for the SQLi mixes.
+
+### 4. Why the main dataset is re-measured, and nothing else is
+
+**"The current data is stale" is not quite the reason.** The three-tier dataset of 2026-10-04 is not
+wrong: its silent − bare is a valid paired measurement. The reason is pairing. A difference is
+trustworthy here only because both members come from the same replicate, minutes apart. Origin
+cells measured now could only be compared with bare cells from the 2026-10-04 suite. That is the
+unpaired comparison of methodology §1.3, where session drift of 100–500 µs would be an unknown,
+large fraction of a proxy cost estimated at a few hundred µs. `merge_replicates.py` cannot help
+either: it adds whole replicates and never forms a pair across sessions.
+
+So the main paired run is repeated with four tiers: `run_paired_suite.sh`, about 6.5 hours, guest
+tuned, host kept awake. It first copies the three-tier files and figures to
+`benchmarks/results/archive/<date>-pre-origin-tier/`, then regenerates every analysis and figure drawn
+from them. Every number the thesis takes from `paired_<edge>.json` is then re-derived from the new
+run and should be quoted from it alone. The new values of the same quantities (silent − bare, CPU
+added, timers) will differ from the old ones by about the spread of their replicates.
+
+| Dataset | Re-measured? | Reason |
+|---|---|---|
+| Main paired run, `paired_<edge>.json` | **Yes** | the origin tier must share replicates with bare and silent |
+| Functional matrix | No | a functional check with no timing and no origin tier |
+| SQLi hit/miss | No | excluded by design; the origin has no trap |
+| GET-only and page-size mixes | No | self-contained paired runs. The per-mechanism split combines the GET-only run with the main one, but each side is already a within-replicate difference, and the two were hours apart before |
+| Apache `LuaScope conn` variant | No (optional) | its own paired run, set beside Apache's main delta as before |
+| Capacity | No | separate runner with no origin tier |
+
+### 5. What changes in the thesis after the re-run
+
+- The tier description in the contributions list ("Each host proxy is measured in three tiers in the
+  same container …", `template_final.tex` ~line 165) becomes four tiers. The origin tier is **not in
+  the host proxy's container** (it bypasses the proxy), so "in the same container" must not cover it.
+  A precise form: *each host proxy is measured in four tiers within the same replicate: the origin
+  reached directly with no host proxy in the path, the host proxy without RPDL (bare), with RPDL as
+  deployed (silent), and with RPDL plus timing instrumentation.*
+- Every number quoted from the paired dataset must be re-read from the new run:
+  - the contributions list (~lines 175–180): 114–218 µs, 13–23 %, 109–136 µs, Apache's 2,174 µs
+    (+334 %), its 13–16 segfaults per run, and marginal CPU of 33/41/123/200 µs;
+  - RQ1 (~line 507);
+  - RQ2's CPU, cost-attribution and probe-effect figures (~lines 520–527);
+  - the GET-path side of the per-mechanism split.
+- RQ1 gains a result it could not state before: per host proxy, the latency the proxy adds on its
+  own, and RPDL's share of the latency the deployed stack adds above the origin. That share is
+  computed per replicate as (silent − bare) / (silent − origin) and then summarised, never as a
+  ratio of two medians.
+  Sources: `benchmarks/results/origin_floor.md`, figures `plots/origin_floor/<rate>_per_s.png`, and
+  `plots/origin_floor/latency_levels.png` for context. Design and caveats:
+  `docs/BENCHMARK_METHODOLOGY.md` §9.
+
+### 6. Harness check before the re-run
+
+A one-replicate smoke run of all four host proxies with the four tiers (2026-10-13, methodology
+§9.5) completed with 47 of 48 runs valid. All 12 origin runs were valid. The single rejection was
+Apache's instrumented tier at 100 iterations/s, the known mod_lua crash. The four independently
+measured origin floors agreed to within about 50 µs at each rate (for example 341–350 µs at 100/s).
+That is the evidence that the floor is stable enough for per-replicate pairing to remove what drift
+remains. Smoke numbers have no interval and are not results; the thesis quotes only the five-replicate
+re-run.
+
+### 7. Results of the four-tier run (2026-10-15)
+
+The re-run (`paired_suite_20261014T203839Z`, guest tuned, no host freezes) produced 236 of 240 valid
+runs. All four rejections were Apache's instrumented tier at 100 iterations/s. Every origin, bare and
+silent run is valid, so each figure below rests on five paired replicates that all agree in sign.
+
+**What the host proxy itself costs, and what RPDL adds** (median latency added per GET request, at
+1 / 10 / 100 iterations/s; `benchmarks/results/origin_floor.md`):
+
+| Host proxy | Proxy alone (bare − origin) | Proxy + RPDL (silent − origin) | of which RPDL (silent − bare) | RPDL's share |
+|---|---|---|---|---|
+| OpenResty | 260 / 255 / 184 µs | 409 / 388 / 294 µs | 145 / 114 / 111 µs | 35 / 31 / 37 % |
+| Envoy + WASM | 372 / 369 / 319 | 500 / 484 / 442 | 150 / 110 / 121 | 29 / 23 / 28 % |
+| Apache + mod_lua | 324 / 372 / 279 | 545 / 553 / 580 | 233 / 189 / 295 | 42 / 33 / 51 % |
+| Envoy + Lua | 396 / 389 / 309 | 571 / 557 / 455 | 203 / 170 / 147 | 34 / 30 / 32 % |
+
+The origin answered a GET in about 0.52–0.55 ms at the two lower rates and 0.35 ms at 100/s, and the
+four separately measured floors agree within 36 µs. Read plainly: **putting a reverse proxy in front
+of this origin costs 0.18–0.40 ms per request, and RPDL adds a further 0.11–0.30 ms. RPDL is roughly a
+quarter to a half of the total, and the proxy is the larger part on every host proxy except Apache at
+100/s.** The caveats of §3 apply: the proxy figure includes an extra Docker-bridge traversal, and the
+percentages are relative to a very fast static origin.
+
+**Two earlier numbers did not reproduce, and the thesis currently quotes both:**
+
+1. *Apache's median at 100/s.* The three-tier run gave +2,174 µs (+334 %); the re-run gives +295 µs
+   (+48 %), with the same number of worker crashes (12–16 per run). The per-replicate medians spanned
+   +605 to +26,332 µs before and +235 to +544 µs now. Crash recovery produces stalls of tens of
+   milliseconds, and whether enough of them land in the middle of the distribution to move the median
+   is chance. What did reproduce is the tail: the 90th percentile rose by tens of milliseconds in both
+   runs. The defensible statement is that under RPDL at 100 iterations/s Apache's workers crash
+   repeatedly and its latency tail grows by tens of milliseconds, while the median increase varied
+   between about 0.2 ms and 26 ms across runs. A single median such as "2,174 µs" is not defensible.
+2. *Apache's marginal CPU of 200 µs.* The linear fit that separates per-request from idle CPU is now
+   rejected as unphysical for Apache's RPDL tiers in every replicate. Respawning crashed workers makes
+   CPU per request rise at 100/s (722 µs against 430 µs at 10/s), which no straight line through the
+   three rates describes. Quote Apache's CPU added per rate instead (+295 / +129 / +495 µs per request
+   at 1 / 10 / 100 iterations/s). The other three marginal figures reproduced: OpenResty 31 µs (was 33),
+   Envoy + WASM 108 (123), Envoy + Lua 45 (41).
+
+Every other number the thesis draws from the paired dataset should now be re-read from
+`paired_headline.md`, `origin_floor.md` and the regenerated figures of this run, not from the
+archived three-tier files.

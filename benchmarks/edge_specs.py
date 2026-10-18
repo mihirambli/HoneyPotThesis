@@ -21,7 +21,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# The three tiers a paired cell can run, in the order they are reported.
+# The three configurations of an edge a paired cell can run, in the order they are reported.
+# The paired runner adds a fourth tier, ORIGIN_TIER, below.
 #
 #   bare    the edge's WADM-free config: what the server did before WADM existed.
 #   silent  full WADM with the benchmark's timing log lines switched off (`emit_timings: false`):
@@ -31,6 +32,19 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 #           wadm - silent is the cost of the instrumentation itself.
 TIERS = ["bare", "silent", "wadm"]
 WADM_TIERS = ("silent", "wadm")
+
+# The no-proxy floor: k6 straight to the origin, with the edge left idle and out of the request path.
+# It runs inside the same replicate as the edge's own tiers, so bare - origin (what the proxy alone
+# adds) is paired exactly as silent - bare is; a floor measured in a separate session would carry
+# that session's drift, which is larger than the proxy's cost (BENCHMARK_METHODOLOGY.md §1.3).
+#
+# Kept out of TIERS on purpose: TIERS means "configurations of an edge", and the capacity runner
+# builds its tier list from it with no notion of a tier that has no edge.
+ORIGIN_TIER = "origin"
+PAIRED_TIERS = [ORIGIN_TIER, *TIERS]
+
+ORIGIN_SERVICE = "backend"
+ORIGIN_TARGET = "http://backend:80"
 
 SILENT_CONFIG_NAME = "config-silent.json"
 
@@ -60,19 +74,25 @@ class EdgeSpec:
             command += ["--profile", self.profile]
         return command
 
+    def target_for(self, tier: str) -> str:
+        """The URL k6 sends this tier's requests to: the edge, or the origin directly."""
+        return ORIGIN_TARGET if tier == ORIGIN_TIER else self.target
+
     def tier_env(self, tier: str) -> dict[str, str]:
         """Compose variables that select this tier: the server config, and the WADM config.json.
 
         Both are set explicitly for every tier, never left to inherit, so a variable exported in the
-        operator's shell cannot quietly put one tier's config under another tier's name.
+        operator's shell cannot quietly put one tier's config under another tier's name. The origin
+        tier sends no traffic through the edge; it is given the WADM-free config so that any
+        Compose command touching the idle edge cannot load WADM into it.
         """
-        if tier not in TIERS:
-            raise ValueError(f"unknown tier {tier!r}; expected one of {TIERS}")
+        if tier not in PAIRED_TIERS:
+            raise ValueError(f"unknown tier {tier!r}; expected one of {PAIRED_TIERS}")
         env: dict[str, str] = {
             "WADM_CONFIG_JSON": f"./{SILENT_CONFIG_NAME}" if tier == "silent" else "./config.json",
         }
         if self.config_env:
-            config = self.bare_config if tier == "bare" else self.wadm_config
+            config = self.wadm_config if tier in WADM_TIERS else self.bare_config
             if config:
                 env[self.config_env] = config
         return env
@@ -143,14 +163,15 @@ EDGES: dict[str, EdgeSpec] = {
         detect_re=_APACHE_RES[0], inject_re=_APACHE_RES[1], variant_of="apache_lua",
     ),
     "origin": EdgeSpec(
-        key="origin", label="Origin only", profile=None, service="backend",
-        target="http://backend:80", config_env=None,
+        key="origin", label="Origin only", profile=None, service=ORIGIN_SERVICE,
+        target=ORIGIN_TARGET, config_env=None,
         wadm_config=None, bare_config=None, detect_re=None, inject_re=None,
     ),
 }
 
-# The four real edges, in the order figures present them. `origin` is excluded: it is a reference
-# line, not an edge, and it has no WADM tier to pair against.
+# The four real edges, in the order figures present them. `origin` is excluded: it is not an edge and
+# has no WADM tier. The paired runner measures the no-proxy floor as ORIGIN_TIER inside each edge's
+# own run instead, so it is paired with that edge's tiers.
 #
 # Remediation variants are NOT here. The cross-edge comparison rests on every edge running the same
 # mechanism, so a variant that changes one edge's runtime semantics would make the four-way figure

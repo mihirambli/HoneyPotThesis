@@ -1,0 +1,181 @@
+edge,rate_iter_per_s,scope,probe,comparison,replicates,median_us,min_us,max_us,sign_agreement,resolved,pct_of_low,origin_level_us,wadm_share_pct
+OpenResty,1,per_get,mean of 4 GETs,bare - origin,5,259.7,249.5,291.2,5/5,True,50.9,515.8,35.4
+OpenResty,1,per_get,mean of 4 GETs,silent - origin,5,409.3,372.6,414.0,5/5,True,77.8,515.8,35.4
+OpenResty,1,per_get,mean of 4 GETs,silent - bare,5,144.8,105.4,164.6,5/5,True,19.3,515.8,35.4
+OpenResty,1,per_probe,inject_get,bare - origin,5,247.9,227.7,283.0,5/5,True,,515.8,
+OpenResty,1,per_probe,inject_get,silent - origin,5,315.8,251.7,361.6,5/5,True,,515.8,
+OpenResty,1,per_probe,inject_get,silent - bare,5,73.5,24.0,113.7,5/5,True,,515.8,
+OpenResty,1,per_probe,detect_query,bare - origin,5,261.9,239.0,340.4,5/5,True,,515.8,
+OpenResty,1,per_probe,detect_query,silent - origin,5,458.2,416.2,496.0,5/5,True,,515.8,
+OpenResty,1,per_probe,detect_query,silent - bare,5,205.7,75.8,234.1,5/5,True,,515.8,
+OpenResty,1,per_probe,token_tamper,bare - origin,5,266.5,233.5,308.6,5/5,True,,515.8,
+OpenResty,1,per_probe,token_tamper,silent - origin,5,437.3,406.5,462.3,5/5,True,,515.8,
+OpenResty,1,per_probe,token_tamper,silent - bare,5,172.9,97.8,195.7,5/5,True,,515.8,
+OpenResty,1,per_probe,token_decoy,bare - origin,5,264.8,229.9,274.9,5/5,True,,515.8,
+OpenResty,1,per_probe,token_decoy,silent - origin,5,387.6,353.5,443.8,5/5,True,,515.8,
+OpenResty,1,per_probe,token_decoy,silent - bare,5,124.1,113.7,179.0,5/5,True,,515.8,
+WASM (Envoy),1,per_get,mean of 4 GETs,bare - origin,5,372.3,296.6,379.9,5/5,True,68.4,535.6,28.8
+WASM (Envoy),1,per_get,mean of 4 GETs,silent - origin,5,500.2,475.4,552.8,5/5,True,94.4,535.6,28.8
+WASM (Envoy),1,per_get,mean of 4 GETs,silent - bare,5,150.5,103.1,179.8,5/5,True,16.6,535.6,28.8
+WASM (Envoy),1,per_probe,inject_get,bare - origin,5,377.2,271.1,428.1,5/5,True,,535.6,
+WASM (Envoy),1,per_probe,inject_get,silent - origin,5,416.7,349.9,498.4,5/5,True,,535.6,
+WASM (Envoy),1,per_probe,inject_get,silent - bare,5,70.3,11.0,78.8,5/5,True,,535.6,
+WASM (Envoy),1,per_probe,detect_query,bare - origin,5,340.2,297.2,378.6,5/5,True,,535.6,
+WASM (Envoy),1,per_probe,detect_query,silent - origin,5,537.9,493.8,550.5,5/5,True,,535.6,
+WASM (Envoy),1,per_probe,detect_query,silent - bare,5,177.9,153.6,232.2,5/5,True,,535.6,
+WASM (Envoy),1,per_probe,token_tamper,bare - origin,5,372.3,306.1,399.1,5/5,True,,535.6,
+WASM (Envoy),1,per_probe,token_tamper,silent - origin,5,556.9,463.2,573.1,5/5,True,,535.6,
+WASM (Envoy),1,per_probe,token_tamper,silent - bare,5,174.0,96.3,226.9,5/5,True,,535.6,
+WASM (Envoy),1,per_probe,token_decoy,bare - origin,5,359.8,312.0,382.5,5/5,True,,535.6,
+WASM (Envoy),1,per_probe,token_decoy,silent - origin,5,533.4,507.0,593.3,5/5,True,,535.6,
+WASM (Envoy),1,per_probe,token_decoy,silent - bare,5,195.8,127.1,215.3,5/5,True,,535.6,
+Apache+Lua,1,per_get,mean of 4 GETs,bare - origin,5,324.2,279.6,357.8,5/5,True,59.7,543.3,41.8
+Apache+Lua,1,per_get,mean of 4 GETs,silent - origin,5,545.3,534.4,556.9,5/5,True,99.5,543.3,41.8
+Apache+Lua,1,per_get,mean of 4 GETs,silent - bare,5,232.7,176.7,265.7,5/5,True,26.8,543.3,41.8
+Apache+Lua,1,per_probe,inject_get,bare - origin,5,331.2,276.0,347.0,5/5,True,,543.3,
+Apache+Lua,1,per_probe,inject_get,silent - origin,5,428.4,419.4,451.6,5/5,True,,543.3,
+Apache+Lua,1,per_probe,inject_get,silent - bare,5,114.5,81.4,143.3,5/5,True,,543.3,
+Apache+Lua,1,per_probe,detect_query,bare - origin,5,348.9,288.5,377.5,5/5,True,,543.3,
+Apache+Lua,1,per_probe,detect_query,silent - origin,5,606.7,567.3,626.1,5/5,True,,543.3,
+Apache+Lua,1,per_probe,detect_query,silent - bare,5,277.2,231.4,311.7,5/5,True,,543.3,
+Apache+Lua,1,per_probe,token_tamper,bare - origin,5,326.7,249.8,369.6,5/5,True,,543.3,
+Apache+Lua,1,per_probe,token_tamper,silent - origin,5,575.4,534.7,636.3,5/5,True,,543.3,
+Apache+Lua,1,per_probe,token_tamper,silent - bare,5,295.5,165.1,348.7,5/5,True,,543.3,
+Apache+Lua,1,per_probe,token_decoy,bare - origin,5,314.8,256.3,366.9,5/5,True,,543.3,
+Apache+Lua,1,per_probe,token_decoy,silent - origin,5,568.3,542.0,580.9,5/5,True,,543.3,
+Apache+Lua,1,per_probe,token_decoy,silent - bare,5,260.6,195.1,309.4,5/5,True,,543.3,
+Envoy+Lua,1,per_get,mean of 4 GETs,bare - origin,5,395.6,365.6,399.6,5/5,True,72.3,552.3,34.0
+Envoy+Lua,1,per_get,mean of 4 GETs,silent - origin,5,571.3,540.1,605.6,5/5,True,102.4,552.3,34.0
+Envoy+Lua,1,per_get,mean of 4 GETs,silent - bare,5,203.1,140.5,210.0,5/5,True,22.1,552.3,34.0
+Envoy+Lua,1,per_probe,inject_get,bare - origin,5,386.6,352.4,437.9,5/5,True,,552.3,
+Envoy+Lua,1,per_probe,inject_get,silent - origin,5,445.5,410.7,527.5,5/5,True,,552.3,
+Envoy+Lua,1,per_probe,inject_get,silent - bare,5,89.6,-22.3,116.9,4/5,False,,552.3,
+Envoy+Lua,1,per_probe,detect_query,bare - origin,5,368.2,312.5,427.9,5/5,True,,552.3,
+Envoy+Lua,1,per_probe,detect_query,silent - origin,5,600.4,564.1,657.3,5/5,True,,552.3,
+Envoy+Lua,1,per_probe,detect_query,silent - bare,5,281.7,136.2,290.3,5/5,True,,552.3,
+Envoy+Lua,1,per_probe,token_tamper,bare - origin,5,406.3,367.1,440.5,5/5,True,,552.3,
+Envoy+Lua,1,per_probe,token_tamper,silent - origin,5,631.9,589.7,710.4,5/5,True,,552.3,
+Envoy+Lua,1,per_probe,token_tamper,silent - bare,5,232.7,183.5,310.6,5/5,True,,552.3,
+Envoy+Lua,1,per_probe,token_decoy,bare - origin,5,389.1,336.8,407.3,5/5,True,,552.3,
+Envoy+Lua,1,per_probe,token_decoy,silent - origin,5,582.4,555.1,637.1,5/5,True,,552.3,
+Envoy+Lua,1,per_probe,token_decoy,silent - bare,5,205.4,149.1,249.9,5/5,True,,552.3,
+OpenResty,10,per_get,mean of 4 GETs,bare - origin,5,255.3,245.4,281.8,5/5,True,46.3,543.1,30.9
+OpenResty,10,per_get,mean of 4 GETs,silent - origin,5,387.9,351.3,393.5,5/5,True,71.4,543.1,30.9
+OpenResty,10,per_get,mean of 4 GETs,silent - bare,5,114.2,101.3,148.1,5/5,True,14.1,543.1,30.9
+OpenResty,10,per_probe,inject_get,bare - origin,5,265.6,227.6,279.6,5/5,True,,543.1,
+OpenResty,10,per_probe,inject_get,silent - origin,5,316.6,282.5,334.3,5/5,True,,543.1,
+OpenResty,10,per_probe,inject_get,silent - bare,5,54.8,26.3,60.8,5/5,True,,543.1,
+OpenResty,10,per_probe,detect_query,bare - origin,5,258.4,249.6,270.2,5/5,True,,543.1,
+OpenResty,10,per_probe,detect_query,silent - origin,5,409.1,366.7,433.0,5/5,True,,543.1,
+OpenResty,10,per_probe,detect_query,silent - bare,5,139.0,108.3,178.0,5/5,True,,543.1,
+OpenResty,10,per_probe,token_tamper,bare - origin,5,264.6,239.6,296.5,5/5,True,,543.1,
+OpenResty,10,per_probe,token_tamper,silent - origin,5,401.7,376.8,430.6,5/5,True,,543.1,
+OpenResty,10,per_probe,token_tamper,silent - bare,5,134.1,112.4,169.5,5/5,True,,543.1,
+OpenResty,10,per_probe,token_decoy,bare - origin,5,244.3,232.5,281.0,5/5,True,,543.1,
+OpenResty,10,per_probe,token_decoy,silent - origin,5,397.6,379.3,416.4,5/5,True,,543.1,
+OpenResty,10,per_probe,token_decoy,silent - bare,5,155.2,116.6,183.9,5/5,True,,543.1,
+WASM (Envoy),10,per_get,mean of 4 GETs,bare - origin,5,369.0,344.8,379.6,5/5,True,67.6,546.2,22.7
+WASM (Envoy),10,per_get,mean of 4 GETs,silent - origin,5,484.3,472.4,492.7,5/5,True,89.3,546.2,22.7
+WASM (Envoy),10,per_get,mean of 4 GETs,silent - bare,5,109.7,105.7,127.6,5/5,True,12.0,546.2,22.7
+WASM (Envoy),10,per_probe,inject_get,bare - origin,5,380.8,336.6,383.0,5/5,True,,546.2,
+WASM (Envoy),10,per_probe,inject_get,silent - origin,5,405.6,396.2,420.3,5/5,True,,546.2,
+WASM (Envoy),10,per_probe,inject_get,silent - bare,5,37.3,15.6,59.6,5/5,True,,546.2,
+WASM (Envoy),10,per_probe,detect_query,bare - origin,5,361.9,335.1,377.5,5/5,True,,546.2,
+WASM (Envoy),10,per_probe,detect_query,silent - origin,5,498.4,471.5,512.6,5/5,True,,546.2,
+WASM (Envoy),10,per_probe,detect_query,silent - bare,5,128.3,124.9,162.9,5/5,True,,546.2,
+WASM (Envoy),10,per_probe,token_tamper,bare - origin,5,386.0,361.1,395.7,5/5,True,,546.2,
+WASM (Envoy),10,per_probe,token_tamper,silent - origin,5,520.3,514.1,527.8,5/5,True,,546.2,
+WASM (Envoy),10,per_probe,token_tamper,silent - bare,5,128.9,126.4,159.9,5/5,True,,546.2,
+WASM (Envoy),10,per_probe,token_decoy,bare - origin,5,348.4,346.3,379.8,5/5,True,,546.2,
+WASM (Envoy),10,per_probe,token_decoy,silent - origin,5,504.5,501.1,522.8,5/5,True,,546.2,
+WASM (Envoy),10,per_probe,token_decoy,silent - bare,5,155.3,130.9,160.2,5/5,True,,546.2,
+Apache+Lua,10,per_get,mean of 4 GETs,bare - origin,5,371.8,354.1,380.2,5/5,True,68.2,545.4,33.2
+Apache+Lua,10,per_get,mean of 4 GETs,silent - origin,5,552.7,539.4,568.9,5/5,True,101.6,545.4,33.2
+Apache+Lua,10,per_get,mean of 4 GETs,silent - bare,5,188.7,167.6,195.5,5/5,True,20.4,545.4,33.2
+Apache+Lua,10,per_probe,inject_get,bare - origin,5,366.9,342.5,420.0,5/5,True,,545.4,
+Apache+Lua,10,per_probe,inject_get,silent - origin,5,483.9,462.8,487.7,5/5,True,,545.4,
+Apache+Lua,10,per_probe,inject_get,silent - bare,5,107.3,67.7,132.0,5/5,True,,545.4,
+Apache+Lua,10,per_probe,detect_query,bare - origin,5,371.3,359.2,379.5,5/5,True,,545.4,
+Apache+Lua,10,per_probe,detect_query,silent - origin,5,605.6,574.2,608.9,5/5,True,,545.4,
+Apache+Lua,10,per_probe,detect_query,silent - bare,5,228.7,194.9,246.4,5/5,True,,545.4,
+Apache+Lua,10,per_probe,token_tamper,bare - origin,5,372.8,364.4,391.9,5/5,True,,545.4,
+Apache+Lua,10,per_probe,token_tamper,silent - origin,5,574.3,561.7,596.6,5/5,True,,545.4,
+Apache+Lua,10,per_probe,token_tamper,silent - bare,5,204.7,185.4,212.1,5/5,True,,545.4,
+Apache+Lua,10,per_probe,token_decoy,bare - origin,5,364.8,348.3,381.0,5/5,True,,545.4,
+Apache+Lua,10,per_probe,token_decoy,silent - origin,5,558.8,543.4,586.0,5/5,True,,545.4,
+Apache+Lua,10,per_probe,token_decoy,silent - bare,5,203.2,191.8,208.6,5/5,True,,545.4,
+Envoy+Lua,10,per_get,mean of 4 GETs,bare - origin,5,389.4,383.5,396.6,5/5,True,71.5,544.1,30.3
+Envoy+Lua,10,per_get,mean of 4 GETs,silent - origin,5,556.6,516.8,566.2,5/5,True,102.4,544.1,30.3
+Envoy+Lua,10,per_get,mean of 4 GETs,silent - bare,5,170.2,120.2,176.8,5/5,True,18.1,544.1,30.3
+Envoy+Lua,10,per_probe,inject_get,bare - origin,5,394.9,361.7,418.5,5/5,True,,544.1,
+Envoy+Lua,10,per_probe,inject_get,silent - origin,5,461.7,455.0,518.4,5/5,True,,544.1,
+Envoy+Lua,10,per_probe,inject_get,silent - bare,5,95.8,53.5,103.6,5/5,True,,544.1,
+Envoy+Lua,10,per_probe,detect_query,bare - origin,5,377.5,369.8,391.8,5/5,True,,544.1,
+Envoy+Lua,10,per_probe,detect_query,silent - origin,5,572.9,531.8,579.9,5/5,True,,544.1,
+Envoy+Lua,10,per_probe,detect_query,silent - bare,5,195.9,140.0,210.1,5/5,True,,544.1,
+Envoy+Lua,10,per_probe,token_tamper,bare - origin,5,397.2,385.0,412.0,5/5,True,,544.1,
+Envoy+Lua,10,per_probe,token_tamper,silent - origin,5,592.7,541.4,608.6,5/5,True,,544.1,
+Envoy+Lua,10,per_probe,token_tamper,silent - bare,5,187.6,135.3,223.6,5/5,True,,544.1,
+Envoy+Lua,10,per_probe,token_decoy,bare - origin,5,390.2,379.3,400.9,5/5,True,,544.1,
+Envoy+Lua,10,per_probe,token_decoy,silent - origin,5,564.7,530.4,589.5,5/5,True,,544.1,
+Envoy+Lua,10,per_probe,token_decoy,silent - bare,5,185.4,138.7,199.2,5/5,True,,544.1,
+OpenResty,100,per_get,mean of 4 GETs,bare - origin,5,184.5,183.2,190.1,5/5,True,53.3,346.0,37.1
+OpenResty,100,per_get,mean of 4 GETs,silent - origin,5,294.2,293.4,301.7,5/5,True,85.2,346.0,37.1
+OpenResty,100,per_get,mean of 4 GETs,silent - bare,5,111.1,106.7,117.3,5/5,True,20.9,346.0,37.1
+OpenResty,100,per_probe,inject_get,bare - origin,5,185.7,180.6,188.6,5/5,True,,346.0,
+OpenResty,100,per_probe,inject_get,silent - origin,5,246.0,241.2,250.4,5/5,True,,346.0,
+OpenResty,100,per_probe,inject_get,silent - bare,5,60.3,53.8,68.6,5/5,True,,346.0,
+OpenResty,100,per_probe,detect_query,bare - origin,5,184.2,178.0,190.0,5/5,True,,346.0,
+OpenResty,100,per_probe,detect_query,silent - origin,5,307.5,301.8,312.5,5/5,True,,346.0,
+OpenResty,100,per_probe,detect_query,silent - bare,5,122.5,117.4,129.5,5/5,True,,346.0,
+OpenResty,100,per_probe,token_tamper,bare - origin,5,192.9,188.2,200.9,5/5,True,,346.0,
+OpenResty,100,per_probe,token_tamper,silent - origin,5,329.4,326.4,336.9,5/5,True,,346.0,
+OpenResty,100,per_probe,token_tamper,silent - bare,5,137.6,128.5,144.2,5/5,True,,346.0,
+OpenResty,100,per_probe,token_decoy,bare - origin,5,180.1,175.5,189.2,5/5,True,,346.0,
+OpenResty,100,per_probe,token_decoy,silent - origin,5,303.1,298.7,309.8,5/5,True,,346.0,
+OpenResty,100,per_probe,token_decoy,silent - bare,5,122.8,120.4,128.1,5/5,True,,346.0,
+WASM (Envoy),100,per_get,mean of 4 GETs,bare - origin,5,319.1,313.3,325.0,5/5,True,91.4,346.1,27.8
+WASM (Envoy),100,per_get,mean of 4 GETs,silent - origin,5,442.2,431.3,449.2,5/5,True,129.2,346.1,27.8
+WASM (Envoy),100,per_get,mean of 4 GETs,silent - bare,5,121.2,111.3,136.0,5/5,True,18.3,346.1,27.8
+WASM (Envoy),100,per_probe,inject_get,bare - origin,5,322.2,315.6,324.7,5/5,True,,346.1,
+WASM (Envoy),100,per_probe,inject_get,silent - origin,5,387.5,377.6,400.1,5/5,True,,346.1,
+WASM (Envoy),100,per_probe,inject_get,silent - bare,5,65.3,60.8,84.5,5/5,True,,346.1,
+WASM (Envoy),100,per_probe,detect_query,bare - origin,5,307.2,299.2,320.5,5/5,True,,346.1,
+WASM (Envoy),100,per_probe,detect_query,silent - origin,5,448.0,440.6,457.0,5/5,True,,346.1,
+WASM (Envoy),100,per_probe,detect_query,silent - bare,5,141.4,123.3,150.0,5/5,True,,346.1,
+WASM (Envoy),100,per_probe,token_tamper,bare - origin,5,334.2,325.0,335.7,5/5,True,,346.1,
+WASM (Envoy),100,per_probe,token_tamper,silent - origin,5,483.9,464.6,491.7,5/5,True,,346.1,
+WASM (Envoy),100,per_probe,token_tamper,silent - bare,5,149.2,132.7,166.7,5/5,True,,346.1,
+WASM (Envoy),100,per_probe,token_decoy,bare - origin,5,310.9,302.2,319.6,5/5,True,,346.1,
+WASM (Envoy),100,per_probe,token_decoy,silent - origin,5,442.7,431.4,452.7,5/5,True,,346.1,
+WASM (Envoy),100,per_probe,token_decoy,silent - bare,5,129.2,123.2,142.6,5/5,True,,346.1,
+Apache+Lua,100,per_get,mean of 4 GETs,bare - origin,5,278.9,275.3,285.1,5/5,True,79.7,349.5,51.2
+Apache+Lua,100,per_get,mean of 4 GETs,silent - origin,5,580.3,514.3,824.8,5/5,True,167.8,349.5,51.2
+Apache+Lua,100,per_get,mean of 4 GETs,silent - bare,5,295.2,235.4,543.6,5/5,True,46.8,349.5,51.2
+Apache+Lua,100,per_probe,inject_get,bare - origin,5,282.0,272.5,283.7,5/5,True,,349.5,
+Apache+Lua,100,per_probe,inject_get,silent - origin,5,506.1,440.0,727.6,5/5,True,,349.5,
+Apache+Lua,100,per_probe,inject_get,silent - bare,5,226.9,156.3,445.6,5/5,True,,349.5,
+Apache+Lua,100,per_probe,detect_query,bare - origin,5,272.9,267.9,288.1,5/5,True,,349.5,
+Apache+Lua,100,per_probe,detect_query,silent - origin,5,620.1,548.9,867.4,5/5,True,,349.5,
+Apache+Lua,100,per_probe,detect_query,silent - bare,5,333.1,277.4,594.2,5/5,True,,349.5,
+Apache+Lua,100,per_probe,token_tamper,bare - origin,5,293.0,285.9,294.8,5/5,True,,349.5,
+Apache+Lua,100,per_probe,token_tamper,silent - origin,5,624.8,543.4,861.9,5/5,True,,349.5,
+Apache+Lua,100,per_probe,token_tamper,silent - bare,5,330.0,253.0,567.5,5/5,True,,349.5,
+Apache+Lua,100,per_probe,token_decoy,bare - origin,5,269.9,267.7,278.3,5/5,True,,349.5,
+Apache+Lua,100,per_probe,token_decoy,silent - origin,5,571.5,524.8,842.4,5/5,True,,349.5,
+Apache+Lua,100,per_probe,token_decoy,silent - bare,5,303.8,254.8,566.8,5/5,True,,349.5,
+Envoy+Lua,100,per_get,mean of 4 GETs,bare - origin,5,309.4,308.5,311.8,5/5,True,89.2,348.2,32.3
+Envoy+Lua,100,per_get,mean of 4 GETs,silent - origin,5,455.4,447.8,461.5,5/5,True,130.8,348.2,32.3
+Envoy+Lua,100,per_get,mean of 4 GETs,silent - bare,5,147.0,136.0,152.1,5/5,True,22.4,348.2,32.3
+Envoy+Lua,100,per_probe,inject_get,bare - origin,5,315.5,311.0,317.0,5/5,True,,348.2,
+Envoy+Lua,100,per_probe,inject_get,silent - origin,5,393.8,392.6,401.8,5/5,True,,348.2,
+Envoy+Lua,100,per_probe,inject_get,silent - bare,5,81.9,77.1,84.8,5/5,True,,348.2,
+Envoy+Lua,100,per_probe,detect_query,bare - origin,5,297.4,290.4,304.0,5/5,True,,348.2,
+Envoy+Lua,100,per_probe,detect_query,silent - origin,5,470.4,456.9,476.8,5/5,True,,348.2,
+Envoy+Lua,100,per_probe,detect_query,silent - bare,5,167.1,161.2,180.0,5/5,True,,348.2,
+Envoy+Lua,100,per_probe,token_tamper,bare - origin,5,328.2,313.3,329.7,5/5,True,,348.2,
+Envoy+Lua,100,per_probe,token_tamper,silent - origin,5,487.7,483.0,503.9,5/5,True,,348.2,
+Envoy+Lua,100,per_probe,token_tamper,silent - bare,5,164.5,153.3,182.7,5/5,True,,348.2,
+Envoy+Lua,100,per_probe,token_decoy,bare - origin,5,304.6,296.0,306.4,5/5,True,,348.2,
+Envoy+Lua,100,per_probe,token_decoy,silent - origin,5,470.0,452.9,473.5,5/5,True,,348.2,
+Envoy+Lua,100,per_probe,token_decoy,silent - bare,5,165.4,146.5,174.3,5/5,True,,348.2,

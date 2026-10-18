@@ -33,7 +33,7 @@ There are now two, and only one of them produces a number you can report as a co
 
 | | `run_paired_benchmark.py` + `analyze_paired.py` | `run_baseline_benchmark.py` / `run_internal_<edge>_benchmark.py` |
 |---|---|---|
-| Tiers | bare and WADM, **paired**, minutes apart, order alternated | one tier per invocation, tens of minutes apart |
+| Tiers | origin (no proxy), bare, WADM silent and instrumented, **paired**, minutes apart, order balanced | one tier per invocation, tens of minutes apart |
 | Replication | `--replicates` pairs, bootstrap CI on the differences | one run |
 | Bad runs | gated and excluded, with recorded reasons | warned about, then written and plotted |
 | Load shape | `constant-arrival-rate`, offered rate fixed | `constant-vus` + `sleep(1)`, achieved rate varies with latency |
@@ -67,9 +67,9 @@ wired and presented.
 ```bash
 sudo ./benchmarks/tune_guest.sh apply          # guest-side noise reduction
 
-python3 benchmarks/run_paired_benchmark.py --preset smoke --all --results /tmp/wadm-smoke  # ~30 min
+python3 benchmarks/run_paired_benchmark.py --preset smoke --all --results /tmp/wadm-smoke  # ~40 min
 python3 benchmarks/functional_matrix.py                           # ~10 min, does WADM break things
-python3 benchmarks/run_paired_benchmark.py --preset full  --all   # ~4.5 h, reportable, 3 tiers
+./benchmarks/run_paired_suite.sh                                  # ~6.5 h, reportable, 4 tiers, + figures
 python3 benchmarks/run_paired_benchmark.py --all --mix get  --rates 100 --replicates 3   # trap vs GET CPU
 python3 benchmarks/run_paired_benchmark.py --all --mix size --rates 10  --replicates 3   # page-size sweep
 ./benchmarks/run_sqli_suite.sh                                    # ~1.5 h, SQLi hit vs miss per edge
@@ -82,6 +82,7 @@ python3 benchmarks/plot_cost_attribution.py    # timers vs CPU vs end-to-end, an
 python3 benchmarks/plot_mechanisms.py          # CPU per mechanism, latency vs page size
 python3 benchmarks/plot_sqli.py                # SQLi hit vs miss: latency, CPU, scan time
 python3 benchmarks/plot_remediation.py         # Apache LuaScope thread vs conn
+python3 benchmarks/plot_origin_floor.py        # bare proxy and WADM against the no-proxy origin
 python3 benchmarks/report_capacity.py          # capacity with the resource that limited it
 
 sudo ./benchmarks/tune_guest.sh revert
@@ -91,6 +92,30 @@ Every paired cell runs three tiers — `bare`, `silent` (WADM without the benchm
 log lines) and `wadm` (instrumented) — so silent − bare is WADM's cost as deployed and wadm − silent
 is what measuring it costs; every response is checked against a pre-load reference and every alert
 counted. `docs/BENCHMARK_METHODOLOGY.md` §7 describes the harness, §8 the results.
+
+### The origin floor
+
+The reportable `all` mix also runs a fourth tier, `origin`: the same iteration sent by the same k6
+container straight to `http://backend:80`, with the edge left idle and out of the path, inside the
+same replicate as the other three. That makes **bare − origin** (what the proxy alone adds) and
+**silent − origin** (what proxy + WADM adds) paired differences, just like silent − bare.
+
+| Mix | Default tiers | Why |
+|---|---|---|
+| `all` | origin, bare, silent, wadm | the reportable dataset; the floor belongs with it |
+| `get`, `size`, `post` | bare, silent, wadm | mechanism questions the floor does not change; `--tiers origin,...` still allowed |
+| `sqli-hit`, `sqli-miss` | bare, silent, wadm | `origin` is **refused**: the origin has no trap to compare the trap's answer against |
+
+The origin tier records k6's trends, reconnects, integrity and the origin's CPU, and goes through
+the same gates. It has no edge CPU, alert count or timing-line count, because the edge serves nothing in
+it. The SQLi POSTs stay in its iteration so the load is identical, but `plot_origin_floor.py` reports
+only the four GETs. Against the origin the POSTs are 404s, not anything WADM does.
+
+An origin tier cannot be added to a dataset measured earlier. Pairing exists only within a
+replicate, so `run_paired_suite.sh` re-measures all four tiers. It archives the three-tier files
+and figures first, then regenerates every figure drawn from them. `docs/BENCHMARK_METHODOLOGY.md`
+§9 covers the design, what the differences do and do not mean, and why no other dataset needs
+re-measuring.
 
 Every figure is drawn from `paired_<edge>.json`. The plotters that read the legacy
 `e2e_*` / `internal_*` files (`plot_baseline_comparison.py`, `plot_edge_comparison.py`,
@@ -383,6 +408,10 @@ What each timer wraps, and why the html_comments numbers are unaffected, is docu
 Because an iteration now carries eight requests rather than four, absolute html_comments numbers are **not** comparable with runs recorded before this change. All four edges are re-measured together, so the cross-edge comparison remains valid.
 
 ## Baseline (no-WADM) benchmarking
+
+*Historical.* This section describes the retired unpaired harness. Its `origin` tier was measured in
+a separate session; the no-proxy floor is now the paired `origin` tier above ([The origin
+floor](#the-origin-floor)).
 
 Everything above measures the **internal microsecond cost** of a detect/inject region. That says
 what a honeytoken operation costs in isolation; it cannot say what deploying WADM costs a
@@ -854,6 +883,7 @@ benchmark is in progress.
 | [run_capacity_benchmark.py](run_capacity_benchmark.py) | Capacity ladder with bisection, replicates, a worst-GET p95 SLO and per-container utilisation, naming the resource that limits each tier. Writes `capacity_<edge>.json`. |
 | [functional_matrix.py](functional_matrix.py) | WADM vs bare on all four edges across thirteen response shapes the probes never exercise (gzip, HEAD, range, 204, non-HTML, >1 MiB, HTTP/1.0…). Writes `functional_matrix.md/.json`. |
 | [run_full_suite.sh](run_full_suite.sh) | Every reportable measurement in order (functional matrix, paired, GET-only, size, SQLi, Apache variant, capacity), then every analysis and plot; unattended, with per-step retry and a status file. |
+| [run_paired_suite.sh](run_paired_suite.sh) | The reportable four-tier paired run on all four edges, after archiving the dataset it replaces to `results/archive/<date>-pre-origin-tier/`, then every analysis and figure drawn from it. |
 | [run_sqli_suite.sh](run_sqli_suite.sh) | The SQLi hit-vs-miss experiment: per edge, hit-only and miss-only cells interleaved in every replicate and tier (20 s, 5 replicates), then `plot_sqli.py`. |
 | [suite_common.sh](suite_common.sh) | Shared by both suite scripts: the guest-tuning warning and the retry-once-then-move-on step runner. |
 | [plot_sqli.py](plot_sqli.py) | The SQLi trap per edge, hit vs. miss: latency added, CPU added and scan time (`sqli_hit_miss.png`, `sqli.md`), from the `sqli-hit_` / `sqli-miss_` runs. |
@@ -868,6 +898,7 @@ benchmark is in progress.
 | [parity_check.py](parity_check.py) | Functional check that all four edges produce identical responses, alert lines and origin requests for a fixed probe set; run before benchmarking after any edge change. |
 | [wadm_timings.py](wadm_timings.py) | Shared by every runner: Compose driving (cleanup, stack start, load-tester cycling), summary statistics, the cross-edge `WADM TOKEN <kind> <phase> (us):` scraper, the k6 end-to-end summary scraper, and the end-to-end result-document builders. |
 | [plot_paired_overhead.py](plot_paired_overhead.py) | From the paired data: latency added per probe (forest plot), the shift function by quantile, the in-edge timer heatmap, and the headline table (`results/paired_headline.md/.csv`). |
+| [plot_origin_floor.py](plot_origin_floor.py) | Latency each edge adds above the no-proxy origin, bare and with WADM, paired per replicate: `plots/origin_floor/<rate>_per_s.png`, `plots/origin_floor/latency_levels.png`, `results/origin_floor.md/.csv`. GETs only. |
 | [plot_common.py](plot_common.py) | Shared by every plotter: edge palette, result-file loader, raw/summary fallback, pooled-sample helpers, symlog axis styling. |
 | [plot_edge_comparison.py](plot_edge_comparison.py) | *Retired.* Per-VU box-plot comparison of all four edges with **all honeytoken kinds pooled** — the edge-level ranking. |
 | [plot_token_comparison.py](plot_token_comparison.py) | *Retired.* Per-honeytoken-kind breakdown: box plots per (phase, kind) at each VU level, plus median-vs-load scaling panels. |

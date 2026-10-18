@@ -2,7 +2,8 @@
 # Run every reportable measurement in order, then the analysis, figures and tables.
 #
 # Nothing here runs concurrently: every step drives the same Docker stack on the same pinned cores,
-# and two runs at once would measure each other. Expect ~14 hours on the reference VM.
+# and two runs at once would measure each other. Expect ~15 hours on the reference VM; the paired step
+# runs four tiers per edge (origin, bare, silent, wadm), the origin tier adding about 1.5 hours.
 #
 # Built to run unattended (see suite_common.sh): a failing step is retried once, then skipped, and
 # every step's outcome is appended to the status file, which is what to read in the morning.
@@ -49,9 +50,11 @@ fi
 
 step python3 benchmarks/analyze_paired.py
 step python3 benchmarks/plot_paired_overhead.py
+step python3 benchmarks/plot_by_rate.py
 step python3 benchmarks/plot_cost_attribution.py
 step python3 benchmarks/plot_mechanisms.py
 step python3 benchmarks/plot_remediation.py
+step python3 benchmarks/plot_origin_floor.py
 [[ $SKIP_CAPACITY -eq 0 ]] && step python3 benchmarks/report_capacity.py
 
 echo "$(date -u +%FT%TZ) DONE" >> "$STATUS"

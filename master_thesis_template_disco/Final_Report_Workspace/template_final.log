@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026/Debian) (preloaded format=pdflatex 2026.10.12)  13 OCT 2026 12:46
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026/Debian) (preloaded format=pdflatex 2026.10.12)  18 OCT 2026 18:48
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -441,7 +441,196 @@ Package: enumitem 2025/02/06 v3.11 Customized lists
 \enit@inbox=\box57
 \enit@count@id=\count331
 \enitdp@description=\count332
+) (/usr/share/texlive/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty (/usr/share/texlive/texmf-dist/tex/latex/pgf/basiclayer/pgf.sty (/usr/share/texlive/texmf-dist/tex/latex/pgf/utilities/pgfrcs.sty (/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfutil-common.tex
+\pgfutil@everybye=\toks27
+\pgfutil@tempdima=\dimen180
+\pgfutil@tempdimb=\dimen181
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfutil-latex.def
+\pgfutil@abb=\box58
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfrcs.code.tex (/usr/share/texlive/texmf-dist/tex/generic/pgf/pgf.revision.tex)
+Package: pgfrcs 2025-08-29 v3.1.11a (3.1.11a)
 ))
+Package: pgf 2025-08-29 v3.1.11a (3.1.11a)
+ (/usr/share/texlive/texmf-dist/tex/latex/pgf/basiclayer/pgfcore.sty (/usr/share/texlive/texmf-dist/tex/latex/pgf/systemlayer/pgfsys.sty (/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgfsys.code.tex
+Package: pgfsys 2025-08-29 v3.1.11a (3.1.11a)
+ (/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfkeys.code.tex
+\pgfkeys@pathtoks=\toks28
+\pgfkeys@temptoks=\toks29
+ (/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfkeyslibraryfiltered.code.tex
+\pgfkeys@tmptoks=\toks30
+))
+\pgf@x=\dimen182
+\pgf@y=\dimen183
+\pgf@xa=\dimen184
+\pgf@ya=\dimen185
+\pgf@xb=\dimen186
+\pgf@yb=\dimen187
+\pgf@xc=\dimen188
+\pgf@yc=\dimen189
+\pgf@xd=\dimen190
+\pgf@yd=\dimen191
+\w@pgf@writea=\write4
+\r@pgf@reada=\read3
+\c@pgf@counta=\count333
+\c@pgf@countb=\count334
+\c@pgf@countc=\count335
+\c@pgf@countd=\count336
+\t@pgf@toka=\toks31
+\t@pgf@tokb=\toks32
+\t@pgf@tokc=\toks33
+\pgf@sys@id@count=\count337
+ (/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgf.cfg
+File: pgf.cfg 2025-08-29 v3.1.11a (3.1.11a)
+)
+Driver file for pgf: pgfsys-pdftex.def
+ (/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgfsys-pdftex.def
+File: pgfsys-pdftex.def 2025-08-29 v3.1.11a (3.1.11a)
+ (/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgfsys-common-pdf.def
+File: pgfsys-common-pdf.def 2025-08-29 v3.1.11a (3.1.11a)
+))) (/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgfsyssoftpath.code.tex
+File: pgfsyssoftpath.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfsyssoftpath@smallbuffer@items=\count338
+\pgfsyssoftpath@bigbuffer@items=\count339
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgfsysprotocol.code.tex
+File: pgfsysprotocol.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcore.code.tex
+Package: pgfcore 2025-08-29 v3.1.11a (3.1.11a)
+ (/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmath.code.tex (/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathutil.code.tex) (/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathparser.code.tex
+\pgfmath@dimen=\dimen192
+\pgfmath@count=\count340
+\pgfmath@box=\box59
+\pgfmath@toks=\toks34
+\pgfmath@stack@operand=\toks35
+\pgfmath@stack@operation=\toks36
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.code.tex) (/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.basic.code.tex) (/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.trigonometric.code.tex) (/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.random.code.tex) (/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.comparison.code.tex) (/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.base.code.tex) (/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.round.code.tex) (/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.misc.code.tex) (/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.integerarithmetics.code.tex) (/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathcalc.code.tex) (/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex
+\c@pgfmathroundto@lastzeros=\count341
+)) (/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfint.code.tex) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex
+File: pgfcorepoints.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@picminx=\dimen193
+\pgf@picmaxx=\dimen194
+\pgf@picminy=\dimen195
+\pgf@picmaxy=\dimen196
+\pgf@pathminx=\dimen197
+\pgf@pathmaxx=\dimen198
+\pgf@pathminy=\dimen199
+\pgf@pathmaxy=\dimen256
+\pgf@xx=\dimen257
+\pgf@xy=\dimen258
+\pgf@yx=\dimen259
+\pgf@yy=\dimen260
+\pgf@zx=\dimen261
+\pgf@zy=\dimen262
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathconstruct.code.tex
+File: pgfcorepathconstruct.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@path@lastx=\dimen263
+\pgf@path@lasty=\dimen264
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.tex
+File: pgfcorepathusage.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@shorten@end@additional=\dimen265
+\pgf@shorten@start@additional=\dimen266
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorescopes.code.tex
+File: pgfcorescopes.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfpic=\box60
+\pgf@hbox=\box61
+\pgf@layerbox@main=\box62
+\pgf@picture@serial@count=\count342
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code.tex
+File: pgfcoregraphicstate.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgflinewidth=\dimen267
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransformations.code.tex
+File: pgfcoretransformations.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@pt@x=\dimen268
+\pgf@pt@y=\dimen269
+\pgf@pt@temp=\dimen270
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorequick.code.tex
+File: pgfcorequick.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreobjects.code.tex
+File: pgfcoreobjects.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathprocessing.code.tex
+File: pgfcorepathprocessing.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex
+File: pgfcorearrows.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfarrowsep=\dimen271
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreshade.code.tex
+File: pgfcoreshade.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@max=\dimen272
+\pgf@sys@shading@range@num=\count343
+\pgf@shadingcount=\count344
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreimage.code.tex
+File: pgfcoreimage.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreexternal.code.tex
+File: pgfcoreexternal.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfexternal@startupbox=\box63
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorelayers.code.tex
+File: pgfcorelayers.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransparency.code.tex
+File: pgfcoretransparency.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepatterns.code.tex
+File: pgfcorepatterns.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorerdf.code.tex
+File: pgfcorerdf.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+))) (/usr/share/texlive/texmf-dist/tex/generic/pgf/modules/pgfmoduleshapes.code.tex
+File: pgfmoduleshapes.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfnodeparttextbox=\box64
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/modules/pgfmoduleplot.code.tex
+File: pgfmoduleplot.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+) (/usr/share/texlive/texmf-dist/tex/latex/pgf/compatibility/pgfcomp-version-0-65.sty
+Package: pgfcomp-version-0-65 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@nodesepstart=\dimen273
+\pgf@nodesepend=\dimen274
+) (/usr/share/texlive/texmf-dist/tex/latex/pgf/compatibility/pgfcomp-version-1-18.sty
+Package: pgfcomp-version-1-18 2025-08-29 v3.1.11a (3.1.11a)
+)) (/usr/share/texlive/texmf-dist/tex/latex/pgf/utilities/pgffor.sty (/usr/share/texlive/texmf-dist/tex/latex/pgf/utilities/pgfkeys.sty (/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfkeys.code.tex)) (/usr/share/texlive/texmf-dist/tex/latex/pgf/math/pgfmath.sty (/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmath.code.tex)) (/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex
+Package: pgffor 2025-08-29 v3.1.11a (3.1.11a)
+\pgffor@iter=\dimen275
+\pgffor@skip=\dimen276
+\pgffor@stack=\toks37
+\pgffor@toks=\toks38
+)) (/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex
+Package: tikz 2025-08-29 v3.1.11a (3.1.11a)
+ (/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/pgflibraryplothandlers.code.tex
+File: pgflibraryplothandlers.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@plot@mark@count=\count345
+\pgfplotmarksize=\dimen277
+)
+\tikz@lastx=\dimen278
+\tikz@lasty=\dimen279
+\tikz@lastxsaved=\dimen280
+\tikz@lastysaved=\dimen281
+\tikz@lastmovetox=\dimen282
+\tikz@lastmovetoy=\dimen283
+\tikzleveldistance=\dimen284
+\tikzsiblingdistance=\dimen285
+\tikz@figbox=\box65
+\tikz@figbox@bg=\box66
+\tikz@tempbox=\box67
+\tikz@tempbox@bg=\box68
+\tikztreelevel=\count346
+\tikznumberofchildren=\count347
+\tikznumberofcurrentchild=\count348
+\tikz@fig@count=\count349
+ (/usr/share/texlive/texmf-dist/tex/generic/pgf/modules/pgfmodulematrix.code.tex
+File: pgfmodulematrix.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfmatrixcurrentrow=\count350
+\pgfmatrixcurrentcolumn=\count351
+\pgf@matrix@numberofcolumns=\count352
+)
+\tikz@expandcount=\count353
+ (/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytopaths.code.tex
+File: tikzlibrarytopaths.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+))) (/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex
+File: tikzlibrarypositioning.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex
+File: pgflibraryarrows.meta.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfarrowinset=\dimen286
+\pgfarrowlength=\dimen287
+\pgfarrowwidth=\dimen288
+\pgfarrowlinewidth=\dimen289
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshapes.geometric.code.tex
+File: tikzlibraryshapes.geometric.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+ (/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex
+File: pgflibraryshapes.geometric.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)))
 Package babel-german Info: Using contemporary glottonyms
 (babel-german)             `german' denotes post-1996 spelling. on input line 7.
  (/usr/share/texlive/texmf-dist/tex/generic/babel/locale/de/babel-german.tex
@@ -462,10 +651,10 @@ Class scrbook Info: loading recommended package `bookmark'.
 Package: bookmark 2026-05-21 v1.32 PDF bookmarks (HO)
  (/usr/share/texlive/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def
 File: l3backend-pdftex.def 2026-02-18 L3 backend support: PDF output (pdfTeX)
-\l__color_backend_stack_int=\count333
+\l__color_backend_stack_int=\count354
 ) (/usr/share/texlive/texmf-dist/tex/latex/bookmark/bkm-pdftex.def
 File: bkm-pdftex.def 2026-05-21 v1.32 bookmark driver for pdfTeX (HO)
-\BKM@id=\count334
+\BKM@id=\count355
 ))
 LaTeX Font Info:    Trying to load font information for T1+ppl on input line 7.
  (/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1ppl.fd
@@ -504,26 +693,26 @@ Package scrbase Info: activating english \indexname on input line 7.
 Package hyperref Info: Link coloring ON on input line 7.
  (/usr/share/texlive/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
-\scratchcounter=\count335
-\scratchdimen=\dimen180
-\scratchbox=\box58
-\nofMPsegments=\count336
-\nofMParguments=\count337
-\everyMPshowfont=\toks27
-\MPscratchCnt=\count338
-\MPscratchDim=\dimen181
-\MPnumerator=\count339
-\makeMPintoPDFobject=\count340
-\everyMPtoPDFconversion=\toks28
+\scratchcounter=\count356
+\scratchdimen=\dimen290
+\scratchbox=\box69
+\nofMPsegments=\count357
+\nofMParguments=\count358
+\everyMPshowfont=\toks39
+\MPscratchCnt=\count359
+\MPscratchDim=\dimen291
+\MPnumerator=\count360
+\makeMPintoPDFobject=\count361
+\everyMPtoPDFconversion=\toks40
 ) (/usr/share/texlive/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty
 Package: epstopdf-base 2020-01-24 v2.11 Base part for package epstopdf
 Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 485.
  (/usr/share/texlive/texmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Live
 ))
-\big@size=\dimen182
+\big@size=\dimen292
 Package babel Info: Main language set to 'english'.
-<img/RPTUlogo.pdf, id=4, 236.08202pt x 93.72516pt>
+<img/RPTUlogo.pdf, id=7, 236.08202pt x 93.72516pt>
 File: img/RPTUlogo.pdf Graphic file (type pdf)
 <use img/RPTUlogo.pdf>
 Package pdftex.def Info: img/RPTUlogo.pdf  used on input line 9.
@@ -581,101 +770,287 @@ LaTeX Font Info:    Font shape `T1/phv/m/sl' will be
 
 ] (./template_final.toc [3
 
-])
-\tf@toc=\write4
-\openout4 = `template_final.toc'.
+] [4])
+\tf@toc=\write5
+\openout5 = `template_final.toc'.
 
- [4]
+ [5]
 chapter 1.
 LaTeX Font Info:    Font shape `T1/phv/b/n' will be
-(Font)              scaled to size 16.41594pt on input line 40.
+(Font)              scaled to size 16.41594pt on input line 70.
 [1
 
 
 
-] [2] [3]
-chapter 2.
-[4
-
-]
-chapter 3.
-[5
-
-]
-chapter 4.
-LaTeX Font Info:    Font shape `T1/phv/m/n' will be
-(Font)              scaled to size 10.40245pt on input line 243.
-LaTeX Font Info:    Font shape `T1/phv/b/n' will be
-(Font)              scaled to size 10.40245pt on input line 243.
-LaTeX Font Info:    Font shape `T1/phv/b/n' will be
-(Font)              scaled to size 13.67995pt on input line 246.
-[6
-
-] [7]
-chapter 5.
-[8
-
-] [9]
-chapter 6.
-LaTeX Font Info:    Trying to load font information for TS1+ppl on input line 327.
-(/usr/share/texlive/texmf-dist/tex/latex/psnfss/ts1ppl.fd
+] [2]
+LaTeX Font Info:    Trying to load font information for TS1+ppl on input line 135.
+ (/usr/share/texlive/texmf-dist/tex/latex/psnfss/ts1ppl.fd
 File: ts1ppl.fd 2001/06/04 font definitions for TS1/ppl.
-) [10
+) [3] [4] [5] [6]
+chapter 2.
+[7
 
-] [11]
+] [8] [9] [10] [11] [12] [13]
+chapter 3.
+[14
+
+] [15]
+chapter 4.
+[16
+
+] [17] [18] [19] [20]
+chapter 5.
+[21
+
+] [22] [23]
+Underfull \hbox (badness 1168) in paragraph at lines 1041--1041
+[]|\T1/cmtt/m/n/10.95 mod_lua \T1/ppl/m/n/10.95 can-not add a sec-ond \T1/cmtt/m/n/10.95 Set-Cookie
+ []
+
+[24] [25]
+chapter 6.
+LaTeX Font Info:    Font shape `T1/phv/m/n' will be
+(Font)              scaled to size 10.40245pt on input line 1068.
+LaTeX Font Info:    Font shape `T1/phv/b/n' will be
+(Font)              scaled to size 10.40245pt on input line 1068.
+[26
+
+] [27]
 chapter 7.
-[12
+LaTeX Font Info:    Font shape `T1/phv/b/n' will be
+(Font)              scaled to size 13.67995pt on input line 1102.
+[28
 
-] [13] [14]
+] [29] [30] [31]
 chapter 8.
-[15
+[32
 
 ]
 chapter 9.
-[16
+[33
 
 ]
 chapter A.
-[17
+[34
 
 ]
 chapter B.
-[18
+[35
 
 ]
 chapter C.
-[19
+[36
 
 ]
 chapter D.
-(./template_final.bbl [20
-
-] [21
+(./template_final.bbl [37
 
 ]
-Underfull \hbox (badness 2318) in paragraph at lines 49--51
-[]\T1/ppl/m/n/12 G. Heiser, ``Sys-tems bench-mark-ing crimes.'' [][]$\T1/cmtt/m/n/12 https : / / gernot-[]heiser . org /
+Underfull \hbox (badness 10000) in paragraph at lines 4--6
+[]\T1/ppl/m/n/12 Verizon Busi-ness, ``2026 data breach in-ves-ti-ga-tions re-port.'' [][]$\T1/cmtt/m/n/12 https :
  []
 
-) [22] (./template_final.aux)
+
+Underfull \hbox (badness 10000) in paragraph at lines 4--6
+\T1/cmtt/m/n/12 / / web . archive . org / web / 20261014053535 / https : / / www . verizon . com /
+ []
+
+
+Underfull \hbox (badness 3098) in paragraph at lines 31--33
+[]\T1/ppl/m/n/12 nginx, ``Mod-ule ngx_http_proxy_module.'' [][]$\T1/cmtt/m/n/12 https : / / web . archive . org / web /
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 31--33
+\T1/cmtt/m/n/12 20261003190217 / https : / / nginx . org / en / docs / http / ngx _ http _ proxy _ module .
+ []
+
+
+Underfull \hbox (badness 3803) in paragraph at lines 35--37
+[]\T1/ppl/m/n/12 The Apache Soft-ware Foun-da-tion, ``Apache mod-ule \T1/cmtt/m/n/12 mod_proxy\T1/ppl/m/n/12 , apache
+ []
+
+
+Underfull \hbox (badness 2302) in paragraph at lines 35--37
+\T1/ppl/m/n/12 HTTP server ver-sion 2.4 doc-u-men-ta-tion.'' [][]$\T1/cmtt/m/n/12 https : / / web . archive . org / web /
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 35--37
+\T1/cmtt/m/n/12 20261005043655 / https : / / httpd . apache . org / docs / 2 . 4 / mod / mod _ proxy . html$[][]\T1/ppl/m/n/12 .
+ []
+
+
+Underfull \hbox (badness 6510) in paragraph at lines 39--41
+[]\T1/ppl/m/n/12 OpenResty, ``lua-nginx-module: Em-bed the power of Lua into NG-
+ []
+
+
+Underfull \hbox (badness 7814) in paragraph at lines 43--45
+[]\T1/ppl/m/n/12 The Apache Soft-ware Foun-da-tion, ``Apache mod-ule \T1/cmtt/m/n/12 mod_lua\T1/ppl/m/n/12 , apache
+ []
+
+
+Underfull \hbox (badness 2302) in paragraph at lines 43--45
+\T1/ppl/m/n/12 HTTP server ver-sion 2.4 doc-u-men-ta-tion.'' [][]$\T1/cmtt/m/n/12 https : / / web . archive . org / web /
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 43--45
+\T1/cmtt/m/n/12 20260915203410 / https : / / httpd . apache . org / docs / 2 . 4 / mod / mod _ lua . html$[][]\T1/ppl/m/n/12 .
+ []
+
+[38
+
+]
+Underfull \hbox (badness 10000) in paragraph at lines 47--49
+[][]$\T1/cmtt/m/n/12 https : / / web . archive . org / web / 20260415194608 / https : / / www . envoyproxy .
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 54--56
+[]\T1/ppl/m/n/12 OpenResty Inc., ``Open-Resty.'' [][]$\T1/cmtt/m/n/12 https : / / web . archive . org / web /
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 58--60
+[]\T1/ppl/m/n/12 Lua.org, PUC-Rio, ``About Lua.'' [][]$\T1/cmtt/m/n/12 https : / / web . archive . org / web /
+ []
+
+
+Underfull \hbox (badness 2189) in paragraph at lines 71--73
+[]\T1/ppl/m/n/12 WHATWG, ``HTML liv-ing stan-dard, sec-tion 4.10.22: Form sub-mis-sion.''
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 71--73
+[][]$\T1/cmtt/m/n/12 https : / / web . archive . org / web / 20261013090759 / https : / / html . spec . whatwg .
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 78--80
+[]\T1/ppl/m/n/12 WHATWG, ``HTML liv-ing stan-dard, sec-tion 13.1.6: Com-ments.''
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 78--80
+[][]$\T1/cmtt/m/n/12 https : / / web . archive . org / web / 20261013081125 / https : / / html . spec . whatwg .
+ []
+
+
+Underfull \hbox (badness 4505) in paragraph at lines 82--84
+[]\T1/ppl/m/n/12 WHATWG, ``HTML liv-ing stan-dard, sec-tion 4.10.5.1.1: Hid-den state.''
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 82--84
+[][]$\T1/cmtt/m/n/12 https : / / web . archive . org / web / 20261013122918 / https : / / html . spec . whatwg .
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 92--94
+[]\T1/ppl/m/n/12 nginx, ``ng-inx.'' [][]$\T1/cmtt/m/n/12 https : / / web . archive . org / web / 20261015150421 / https :
+ []
+
+
+Underfull \hbox (badness 2772) in paragraph at lines 96--98
+[]\T1/ppl/m/n/12 The En-voy Project Au-thors, ``HTTP fil-ters, en-voy 1.30 doc-u-men-ta-tion.''
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 96--98
+[][]$\T1/cmtt/m/n/12 https : / / web . archive . org / web / 20250615000955 / https : / / www . envoyproxy .
+ []
+
+[39]
+Underfull \hbox (badness 7203) in paragraph at lines 100--102
+[]\T1/ppl/m/n/12 The En-voy Project Au-thors, ``Lua fil-ter, en-voy 1.30 doc-u-men-ta-tion.''
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 100--102
+[][]$\T1/cmtt/m/n/12 https : / / web . archive . org / web / 20250810044910 / https : / / www . envoyproxy .
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 100--102
+\T1/cmtt/m/n/12 io / docs / envoy / v1 . 30 . 0 / configuration / http / http _ filters / lua _ filter$[][]\T1/ppl/m/n/12 .
+ []
+
+
+Underfull \hbox (badness 3849) in paragraph at lines 104--106
+[]\T1/ppl/m/n/12 The En-voy Project Au-thors, ``Wasm fil-ter, en-voy 1.30 doc-u-men-ta-tion.''
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 104--106
+[][]$\T1/cmtt/m/n/12 https : / / web . archive . org / web / 20250713074605 / https : / / www . envoyproxy .
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 104--106
+\T1/cmtt/m/n/12 io / docs / envoy / v1 . 30 . 0 / configuration / http / http _ filters / wasm _ filter$[][]\T1/ppl/m/n/12 .
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 108--110
+[]\T1/ppl/m/n/12 Proxy-Wasm Project, ``We-bAssem-bly for prox-ies (ABI spec-i-fi-ca-tion).''
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 108--110
+[][]$\T1/cmtt/m/n/12 https : / / web . archive . org / web / 20260830061200 / https : / / github . com /
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 112--114
+[]\T1/ppl/m/n/12 The En-voy Project Au-thors, ``Wasm, en-voy doc-u-men-ta-tion.'' [][]$\T1/cmtt/m/n/12 https :
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 112--114
+\T1/cmtt/m/n/12 / / web . archive . org / web / 20260513065059 / https : / / www . envoyproxy . io / docs /
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 133--135
+[]\T1/ppl/m/n/12 Docker Inc., ``What is Docker?.'' [][]$\T1/cmtt/m/n/12 https : / / web . archive . org / web /
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 133--135
+\T1/cmtt/m/n/12 20261012110729 / https : / / docs . docker . com / get-[]started / docker-[]overview/$[][]\T1/ppl/m/n/12 .
+ []
+
+
+Underfull \hbox (badness 7221) in paragraph at lines 137--139
+[]\T1/ppl/m/n/12 The Linux Ker-nel Doc-u-men-ta-tion, ``Con-trol group v2.'' [][]$\T1/cmtt/m/n/12 https : / / web .
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 137--139
+\T1/cmtt/m/n/12 archive . org / web / 20261007110448 / https : / / docs . kernel . org / admin-[]guide /
+ []
+
+[40]) [41] (./template_final.aux)
  ***********
 LaTeX2e <2026-06-01>
 L3 programming layer <2026-06-18>
  ***********
  ) 
 Here is how much of TeX's memory you used:
- 16429 strings out of 469105
- 294216 string characters out of 5458167
- 893277 words of memory out of 5000000
- 45073 multiletter control sequences out of 15000+600000
- 677054 words of font info for 109 fonts, out of 8000000 for 9000
+ 27630 strings out of 469105
+ 541464 string characters out of 5458167
+ 1112956 words of memory out of 5000000
+ 55975 multiletter control sequences out of 15000+600000
+ 682703 words of font info for 117 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 122i,10n,121p,11323b,667s stack positions out of 10000i,1000n,20000p,200000b,200000s
- </home/kali/.texlive2026/texmf-var/fonts/pk/ljfour/jknappen/ec/ectt1095.600pk> </home/kali/.texlive2026/texmf-var/fonts/pk/ljfour/jknappen/ec/ectt1200.600pk></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvb8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvro8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on template_final.pdf (28 pages, 182669 bytes).
+ 122i,11n,121p,11323b,817s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ </home/kali/.texlive2026/texmf-var/fonts/pk/ljfour/jknappen/ec/ectt1000.600pk> </home/kali/.texlive2026/texmf-var/fonts/pk/ljfour/jknappen/ec/ectt1095.600pk> </home/kali/.texlive2026/texmf-var/fonts/pk/ljfour/jknappen/ec/ectt1200.600pk></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvb8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvro8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/palatino/uplri8a.pfb>
+Output written on template_final.pdf (48 pages, 256504 bytes).
 PDF statistics:
- 722 PDF objects out of 1000 (max. 8388607)
- 569 compressed objects within 6 object streams
- 119 named destinations out of 1000 (max. 500000)
- 566 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 1153 PDF objects out of 1200 (max. 8388607)
+ 928 compressed objects within 10 object streams
+ 196 named destinations out of 1000 (max. 500000)
+ 602 words of extra memory for PDF output out of 10000 (max. 10000000)
 

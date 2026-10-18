@@ -25,6 +25,11 @@ Three things happen here that the previous analysis could not do:
      latency tail more than it shifts the middle (p90 deltas are 1.3-2.6x the median delta), so a
      median-only report understates what a client experiences.
 
+  5. **The no-proxy floor is paired too.** Where the run has an origin tier (k6 straight to the
+     origin, edge idle, same replicate), bare - origin is what putting the proxy in the path costs
+     and silent - origin what the deployed stack costs, with the same statistics as silent - bare.
+     Edge CPU is not compared against it: the origin tier has no edge to measure.
+
 The slot table is a harness self-check, not a result: with `WADM_ORDER=rotate` every probe spends
 an equal number of iterations in every position, so the eight slot medians must agree. A spread
 there means the arrival pattern is still shaping the per-probe figures.
@@ -52,7 +57,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from edge_specs import EDGE_KEYS, EDGES, VARIANT_KEYS
+from edge_specs import EDGE_KEYS, EDGES, ORIGIN_TIER, PAIRED_TIERS, VARIANT_KEYS, WADM_TIERS
 from wadm_timings import (
     ALL_KINDS,
     assess_run,
@@ -231,6 +236,44 @@ def paired_get_mean(
         if all(w is not None and b is not None for w, b in per_probe):
             deltas.append(statistics.fmean(w - b for w, b in per_probe))
     return paired_delta(deltas)
+
+
+def paired_get_relative(
+    doc: dict[str, Any], rate: int, low: str = "bare", high: str = "wadm"
+) -> dict[str, Any]:
+    """Per-replicate median latency added per GET, as a percentage of that replicate's `low` level.
+
+    Both sides are the mean of the four GET probes' medians, so the ratio is "how much slower is a
+    GET" rather than an average of four ratios dominated by whichever probe is fastest.
+    """
+    deltas = []
+    for b_cell, w_cell in paired_pairs(doc, rate, low, high):
+        b, w = get_level(b_cell), get_level(w_cell)
+        if b and w is not None:
+            deltas.append(100.0 * (w - b) / b)
+    return paired_delta(deltas)
+
+
+def get_level(cell: dict[str, Any], stat: str = "med") -> float | None:
+    """One cell's latency per GET in ms: the mean over the four GET probes of each one's `stat`."""
+    values = [trend_stat(cell, m, stat) for m in GET_METRICS]
+    return statistics.fmean(values) if all(v is not None for v in values) else None
+
+
+def latency_levels(doc: dict[str, Any], rate: int) -> dict[str, Any]:
+    """Absolute median latency per GET for every tier, spread across valid replicates.
+
+    Descriptive, not a comparison: each tier's level is summarised on its own, so two tiers' levels
+    differ by session drift as well as by what the tiers do. The paired differences answer the
+    question; this says where the floor and each tier sit, and the per-edge origin levels show how
+    much the floor itself moved between the four edges' sessions.
+    """
+    out = {}
+    for tier in tiers_of(doc):
+        values = [v for v in (get_level(c) for c in valid_cells(doc, tier, rate)) if v is not None]
+        if values:
+            out[tier] = paired_delta(values)
+    return out
 
 
 def latency_quantile_deltas(
@@ -462,11 +505,15 @@ def internal_stats(doc: dict[str, Any], rate: int) -> dict[str, Any]:
 # Every difference the analysis reports, as (name, lower tier, higher tier). `silent` is WADM as a
 # deployment would run it (no benchmark timing lines), so silent - bare is the headline cost of
 # WADM; wadm - silent is the cost of the instrumentation; wadm - bare is what the two-tier harness
-# reported, kept for continuity with earlier results.
+# reported, kept for continuity with earlier results. The two origin comparisons place both against
+# the no-proxy floor: bare - origin is the proxy alone, silent - origin the deployed stack. They come
+# last so headline_pair never picks one while an edge-to-edge comparison exists.
 COMPARISONS = [
     ("silent_minus_bare", "bare", "silent"),
     ("wadm_minus_silent", "silent", "wadm"),
     ("wadm_minus_bare", "bare", "wadm"),
+    ("bare_minus_origin", ORIGIN_TIER, "bare"),
+    ("silent_minus_origin", ORIGIN_TIER, "silent"),
 ]
 
 # Alert and trap lines one iteration of the `all` mix should produce on a WADM tier: the
@@ -480,12 +527,19 @@ COMPARISON_LABELS = {
     "silent_minus_bare": "WADM (silent) - bare",
     "wadm_minus_silent": "timing lines (wadm - silent)",
     "wadm_minus_bare": "WADM (instrumented) - bare",
+    "bare_minus_origin": "bare proxy - origin",
+    "silent_minus_origin": "WADM (silent) - origin",
 }
 
 
 def tiers_of(doc: dict[str, Any]) -> list[str]:
     present = {c["tier"] for c in doc["cells"]}
-    return [t for t in ("bare", "silent", "wadm") if t in present]
+    return [t for t in PAIRED_TIERS if t in present]
+
+
+def edge_tiers_of(doc: dict[str, Any]) -> list[str]:
+    """The tiers that have an edge in the request path, and so an edge CPU counter to compare."""
+    return [t for t in tiers_of(doc) if t != ORIGIN_TIER]
 
 
 def headline_pair(doc: dict[str, Any]) -> tuple[str, str, str]:
@@ -498,19 +552,22 @@ def headline_pair(doc: dict[str, Any]) -> tuple[str, str, str]:
 
 
 def comparison_block(doc: dict[str, Any], rate: int, low: str, high: str) -> dict[str, Any]:
-    return {
+    block = {
         "replicates_paired": len(paired_pairs(doc, rate, low, high)),
         "latency_delta_ms": {
             m: paired_latency(doc, rate, m, "med", low, high) for m in E2E_METRICS
         },
         "latency_delta_pct": {m: paired_relative(doc, rate, m, low, high) for m in E2E_METRICS},
+        "latency_delta_pct_per_get": paired_get_relative(doc, rate, low, high),
         "latency_delta_quantiles_ms": latency_quantile_deltas(doc, rate, low, high),
-        "cpu_delta_us_per_request": paired_cpu(doc, rate, "cpu_us_per_request", low, high),
-        "cpu_delta_split_us_per_request": {
+    }
+    if low != ORIGIN_TIER:
+        block["cpu_delta_us_per_request"] = paired_cpu(doc, rate, "cpu_us_per_request", low, high)
+        block["cpu_delta_split_us_per_request"] = {
             field.removesuffix("_us_per_request"): paired_cpu(doc, rate, field, low, high)
             for field in CPU_FIELDS[1:]
-        },
-    }
+        }
+    return block
 
 
 def _median(values: list[float]) -> float | None:
@@ -561,14 +618,14 @@ def functional_stats(doc: dict[str, Any], rate: int) -> dict[str, Any]:
                 iterations = (c.get("k6") or {}).get("iterations")
                 if counted is None or not iterations:
                     continue
-                expected = 0 if tier == "bare" else per_iteration * iterations
+                expected = per_iteration * iterations if tier in WADM_TIERS else 0
                 ratios.append(counted / expected if expected else float(counted))
             if ratios:
                 recall[kind] = {
                     "median": _median(ratios),
-                    "worst": round(min(ratios) if tier != "bare" else max(ratios), 4),
-                    "meaning": "lines logged (bare: count, expected 0)" if tier == "bare"
-                               else "lines logged / lines expected",
+                    "worst": round(min(ratios) if tier in WADM_TIERS else max(ratios), 4),
+                    "meaning": "lines logged / lines expected" if tier in WADM_TIERS
+                               else f"lines logged ({tier}: count, expected 0)",
                 }
         timing = [c.get("timing_lines") for c in cells if c.get("timing_lines") is not None]
         out[tier] = {
@@ -601,8 +658,10 @@ def resources(doc: dict[str, Any], rate: int) -> dict[str, Any]:
 def analyse_edge(doc: dict[str, Any]) -> dict[str, Any]:
     rates = sorted({c["rate"] for c in doc["cells"]})
     tiers = tiers_of(doc)
+    edge_tiers = edge_tiers_of(doc)
     head_name, head_low, head_high = headline_pair(doc)
     comparisons = [(n, lo, hi) for n, lo, hi in COMPARISONS if lo in tiers and hi in tiers]
+    edge_comparisons = [(n, lo, hi) for n, lo, hi in comparisons if lo != ORIGIN_TIER]
     per_rate: dict[str, Any] = {}
     for rate in rates:
         cells = [c for c in doc["cells"] if c["rate"] == rate]
@@ -640,8 +699,9 @@ def analyse_edge(doc: dict[str, Any]) -> dict[str, Any]:
             "functional": functional_stats(doc, rate),
             "resources": resources(doc, rate),
             "cpu_absolute_us_per_request": {
-                tier: absolute_cpu(doc, tier, rate) for tier in tiers
+                tier: absolute_cpu(doc, tier, rate) for tier in edge_tiers
             },
+            "latency_levels_ms": latency_levels(doc, rate),
             "slot_balance": slot_balance(doc, rate),
             "internal_us": internal_stats(doc, rate),
         }
@@ -650,8 +710,8 @@ def analyse_edge(doc: dict[str, Any]) -> dict[str, Any]:
         "tiers": tiers,
         "headline_comparison": head_name,
         "cpu_marginal": {
-            "per_tier": {tier: marginal_cpu(doc, tier) for tier in tiers},
-            **{name: paired_marginal_cpu(doc, lo, hi) for name, lo, hi in comparisons},
+            "per_tier": {tier: marginal_cpu(doc, tier) for tier in edge_tiers},
+            **{name: paired_marginal_cpu(doc, lo, hi) for name, lo, hi in edge_comparisons},
             "headline": paired_marginal_cpu(doc, head_low, head_high),
         },
         "rates": per_rate,
@@ -724,6 +784,8 @@ def report(summary: dict[str, Any]) -> None:
             print(f"    ~ WARN {item['tier']} rep{item['replicate']}: {'; '.join(item['warnings'])}")
 
         for name, block in (data.get("comparisons") or {}).items():
+            if "cpu_delta_us_per_request" not in block:
+                continue
             cpu = block["cpu_delta_us_per_request"]
             split = block["cpu_delta_split_us_per_request"]
             parts = ", ".join(
@@ -748,10 +810,11 @@ def report(summary: dict[str, Any]) -> None:
                 flag = "   (common-mode under rotation, cancels in the delta)"
             print(f"    Slot spread:       {slots['spread_ratio']}x across 8 positions{flag}")
 
+        head_low = next(lo for n, lo, _ in COMPARISONS if n == data.get("headline_comparison"))
         print(f"    End-to-end latency delta ({head_label}), median request:")
         for metric, delta in data["latency_delta_ms"].items():
             pct = data["latency_delta_pct"][metric]
-            pct_s = f"  [{pct['median']:+.0f}% of bare]" if pct.get("n") else ""
+            pct_s = f"  [{pct['median']:+.0f}% of {head_low}]" if pct.get("n") else ""
             print(f"      {metric:24s} {verdict(delta, ' ms')}{pct_s}")
 
         per_get = data["latency_delta_quantiles_ms"]["per_get"]
@@ -760,6 +823,19 @@ def report(summary: dict[str, Any]) -> None:
                 f"{stat}={d['median'] * 1000:+.0f}us" for stat, d in per_get.items() if d.get("n")
             )
             print(f"    Latency added per GET, by quantile (shift function): {cols}")
+
+        floor = [(n, b) for n, b in (data.get("comparisons") or {}).items()
+                 if n.endswith("_minus_origin")]
+        if floor:
+            levels = data.get("latency_levels_ms") or {}
+            origin = levels.get(ORIGIN_TIER) or {}
+            level_s = (f", origin itself {origin['median'] * 1000:.0f}us" if origin.get("n") else "")
+            print(f"    Above the origin floor, latency added per GET at the median{level_s}:")
+            for name, block in floor:
+                delta = block["latency_delta_quantiles_ms"]["per_get"]["med"]
+                pct = block["latency_delta_pct_per_get"]
+                pct_s = f"  [{pct['median']:+.0f}% of origin]" if pct.get("n") else ""
+                print(f"      {COMPARISON_LABELS[name]:24s} {verdict(delta, ' ms')}{pct_s}")
 
         probe_effect = (data.get("comparisons") or {}).get("wadm_minus_silent")
         if probe_effect:
@@ -776,9 +852,10 @@ def report(summary: dict[str, Any]) -> None:
             worst = [(n, v["intact_worst"]) for n, v in probes.items() if v["intact_worst"] is not None]
             conn = [(n, v["new_conn_median"]) for n, v in probes.items()
                     if v["new_conn_median"]]
-            bad_ref = [n for n, v in probes.items() if tier == "bare" and v["matches_origin_all"] is False]
+            bad_ref = [n for n, v in probes.items()
+                       if tier not in WADM_TIERS and v["matches_origin_all"] is False]
             no_bait = [n for n, v in probes.items()
-                       if tier != "bare" and v["baited"] and v["bait_all_present"] is False]
+                       if tier in WADM_TIERS and v["baited"] and v["bait_all_present"] is False]
             alerts = f.get("alerts") or {}
             line = f"    Functional {tier:6s}: "
             line += (f"worst intact {min(w for _, w in worst):.2%}" if worst else "intact n/a")

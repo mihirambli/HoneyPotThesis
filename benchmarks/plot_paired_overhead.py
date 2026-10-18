@@ -45,7 +45,7 @@ from matplotlib.colors import LinearSegmentedColormap, LogNorm
 from matplotlib.lines import Line2D
 
 from analyze_paired import GET_METRICS, analyse_edge, load_paired
-from edge_specs import EDGE_KEYS, EDGES
+from edge_specs import EDGE_KEYS, EDGES, WADM_TIERS
 from plot_common import COLORS, INK, INK_MUTED, _style_frame
 from wadm_timings import PHASES
 
@@ -409,7 +409,7 @@ def functional_rows(summaries: dict[str, Any], rates: list[int]) -> list[dict[st
                     ),
                     "bait_on_every_proxied_probe": (
                         all(v["bait_all_present"] for v in probes.values() if v["baited"])
-                        if tier != "bare" else None
+                        if tier in WADM_TIERS else None
                     ),
                     "timing_lines": f.get("timing_lines_max"),
                     "alert_recall": (alerts.get("alert") or {}).get("worst"),
@@ -494,7 +494,9 @@ def write_functional(rows: list[dict[str, Any]], results_dir: Path) -> list[Path
         "logged in the measured window ÷ the lines the probes should trigger (7 ALERT and 2 TRAP "
         "per iteration); on bare it is the raw count, which must be 0. *Timing lines* is the most any "
         "cell of that tier logged: it must be 0 on bare and silent, which is the check that the "
-        "tier switch did what it says.",
+        "tier switch did what it says. The origin tier sends the probes to the origin with the edge "
+        "idle, so it has no alerts or timing lines to count and only its `intact` and reconnect "
+        "columns apply; its reconnect rate is the origin's own keep-alive behaviour.",
         "",
         "| Edge | Rate | Tier | Worst intact | (probe) | Requests that reconnected | "
         "Bare = origin | Baits present | Alert recall | Trap recall | Timing lines |",

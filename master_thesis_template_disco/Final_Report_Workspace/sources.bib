@@ -59,8 +59,10 @@
 @inproceedings{vanderkouwe2019sok,
   author    = {Erik van der Kouwe and Gernot Heiser and Dennis Andriesse and Herbert Bos and Cristiano Giuffrida},
   title     = {{SoK}: Benchmarking Flaws in Systems Security},
-  booktitle = {IEEE European Symposium on Security and Privacy (EuroS\&P)},
-  year      = {2019}
+  booktitle = {Proceedings of the IEEE European Symposium on Security and Privacy (EuroS\&P)},
+  pages     = {310--325},
+  year      = {2019},
+  doi       = {10.1109/EuroSP.2019.00031}
 }
 
 @misc{heiser_crimes,
@@ -169,6 +171,306 @@
   author       = {{OWASP Foundation}},
   title        = {Web Security Testing Guide, Version 4.2},
   year         = {2020},
-  note         = {Tests WSTG-INFO-03 and WSTG-INFO-05. Release of 03.12.2020:
+  note         = {Tests WSTG-INFO-03, WSTG-INFO-05 and WSTG-INPV-05. Release of 03.12.2020:
                   \url{https://github.com/OWASP/wstg/releases/tag/v4.2}. Accessed: 12.10.2026}
+}
+
+@misc{rfc9110,
+  author       = {Roy T. Fielding and Mark Nottingham and Julian Reschke},
+  title        = {{HTTP} Semantics},
+  howpublished = {RFC 9110, Internet Engineering Task Force},
+  month        = jun,
+  year         = {2022},
+  doi          = {10.17487/RFC9110}
+}
+
+@misc{rfc9112,
+  author       = {Roy T. Fielding and Mark Nottingham and Julian Reschke},
+  title        = {{HTTP/1.1}},
+  howpublished = {RFC 9112, Internet Engineering Task Force},
+  month        = jun,
+  year         = {2022},
+  doi          = {10.17487/RFC9112}
+}
+
+@misc{luanginx,
+  author       = {{OpenResty}},
+  title        = {lua-nginx-module: Embed the Power of {Lua} into {NGINX} {HTTP} Servers},
+  howpublished = {\url{https://web.archive.org/web/20260905133050/https://github.com/openresty/lua-nginx-module}},
+  note         = {Accessed: 13.10.2026}
+}
+
+@misc{envoy_httpfilters,
+  author       = {{The Envoy Project Authors}},
+  title        = {{HTTP} Filters, Envoy 1.30 Documentation},
+  howpublished = {\url{https://web.archive.org/web/20250615000955/https://www.envoyproxy.io/docs/envoy/v1.30.0/intro/arch_overview/http/http_filters}},
+  note         = {Accessed: 13.10.2026}
+}
+
+@misc{envoy_lua,
+  author       = {{The Envoy Project Authors}},
+  title        = {{Lua} Filter, Envoy 1.30 Documentation},
+  howpublished = {\url{https://web.archive.org/web/20250810044910/https://www.envoyproxy.io/docs/envoy/v1.30.0/configuration/http/http_filters/lua_filter}},
+  note         = {Accessed: 13.10.2026}
+}
+
+@misc{envoy_listener,
+  author       = {{The Envoy Project Authors}},
+  title        = {Listener Configuration ({API} v3), Envoy 1.30 Documentation},
+  howpublished = {\url{https://web.archive.org/web/20250515152359/https://www.envoyproxy.io/docs/envoy/v1.30.0/api-v3/config/listener/v3/listener.proto}},
+  note         = {Field \texttt{per\_connection\_buffer\_limit\_bytes}. Accessed: 13.10.2026}
+}
+
+@misc{envoy_wasm_filter,
+  author       = {{The Envoy Project Authors}},
+  title        = {Wasm Filter, Envoy 1.30 Documentation},
+  howpublished = {\url{https://web.archive.org/web/20250713074605/https://www.envoyproxy.io/docs/envoy/v1.30.0/configuration/http/http_filters/wasm_filter}},
+  note         = {Accessed: 13.10.2026}
+}
+
+@misc{envoy_wasm,
+  author       = {{The Envoy Project Authors}},
+  title        = {Wasm, Envoy Documentation},
+  howpublished = {\url{https://web.archive.org/web/20260513065059/https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/advanced/wasm}},
+  note         = {Accessed: 13.10.2026}
+}
+
+@misc{proxywasm_spec,
+  author       = {{Proxy-Wasm Project}},
+  title        = {{WebAssembly} for Proxies ({ABI} Specification)},
+  howpublished = {\url{https://web.archive.org/web/20260830061200/https://github.com/proxy-wasm/spec}},
+  note         = {Accessed: 13.10.2026}
+}
+
+@misc{apache_modlua,
+  author       = {{The Apache Software Foundation}},
+  title        = {Apache Module \texttt{mod\_lua}, Apache {HTTP} Server Version 2.4 Documentation},
+  howpublished = {\url{https://web.archive.org/web/20260915203410/https://httpd.apache.org/docs/2.4/mod/mod_lua.html}},
+  note         = {Accessed: 13.10.2026}
+}
+
+@misc{luajit,
+  author       = {Mike Pall},
+  title        = {{LuaJIT}},
+  howpublished = {\url{https://web.archive.org/web/20261012063453/https://luajit.org/luajit.html}},
+  note         = {Accessed: 13.10.2026}
+}
+
+@misc{luajit_running,
+  author       = {Mike Pall},
+  title        = {Running {LuaJIT}},
+  howpublished = {\url{https://web.archive.org/web/20261011192338/https://luajit.org/running.html}},
+  note         = {Option \texttt{-O}, parameter \texttt{hotloop}. Accessed: 13.10.2026}
+}
+
+@article{ierusalimschy2005lua,
+  author  = {Roberto Ierusalimschy and Luiz Henrique de Figueiredo and Waldemar Celes},
+  title   = {The Implementation of {Lua} 5.0},
+  journal = {Journal of Universal Computer Science},
+  volume  = {11},
+  number  = {7},
+  pages   = {1159--1176},
+  year    = {2005}
+}
+
+@inproceedings{haas2017wasm,
+  author    = {Andreas Haas and Andreas Rossberg and Derek L. Schuff and Ben L. Titzer and Michael Holman and Dan Gohman and Luke Wagner and Alon Zakai and J. F. Bastien},
+  title     = {Bringing the Web up to Speed with {WebAssembly}},
+  booktitle = {Proceedings of the 38th ACM SIGPLAN Conference on Programming Language Design and Implementation (PLDI)},
+  pages     = {185--200},
+  year      = {2017},
+  doi       = {10.1145/3062341.3062363}
+}
+
+@inproceedings{jangda2019wasm,
+  author    = {Abhinav Jangda and Bobby Powers and Emery D. Berger and Arjun Guha},
+  title     = {Not So Fast: Analyzing the Performance of {WebAssembly} vs.\ Native Code},
+  booktitle = {Proceedings of the USENIX Annual Technical Conference (USENIX ATC)},
+  pages     = {107--120},
+  year      = {2019}
+}
+
+@inproceedings{sahin2020sundew,
+  author    = {Merve Sahin and C{\'e}dric Hebert and Anderson Santana de Oliveira},
+  title     = {Lessons Learned from {SunDEW}: A Self Defense Environment for Web Applications},
+  booktitle = {Proceedings of the Workshop on Measurements, Attacks, and Defenses for the Web (MADWeb)},
+  year      = {2020},
+  doi       = {10.14722/madweb.2020.23005}
+}
+
+@inproceedings{kahlhofer2025koney,
+  author    = {Mario Kahlhofer and Matteo Golinelli and Stefan Rass},
+  title     = {Koney: A Cyber Deception Orchestration Framework for {Kubernetes}},
+  booktitle = {Proceedings of the IEEE European Symposium on Security and Privacy Workshops (EuroS\&PW)},
+  pages     = {690--702},
+  year      = {2025},
+  doi       = {10.1109/EuroSPW67616.2025.00084}
+}
+
+@inproceedings{mytkowicz2009wrong,
+  author    = {Todd Mytkowicz and Amer Diwan and Matthias Hauswirth and Peter F. Sweeney},
+  title     = {Producing Wrong Data Without Doing Anything Obviously Wrong!},
+  booktitle = {Proceedings of the 14th International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS)},
+  pages     = {265--276},
+  year      = {2009},
+  doi       = {10.1145/1508244.1508275}
+}
+
+@misc{verizon2026dbir,
+  author       = {{Verizon Business}},
+  title        = {2026 Data Breach Investigations Report},
+  howpublished = {\url{https://web.archive.org/web/20261014053535/https://www.verizon.com/business/resources/reports/dbir/}},
+  year         = {2026},
+  note         = {Accessed: 18.10.2026}
+}
+
+@article{zhang2021three,
+  author  = {Li Zhang and Vrizlynn L. L. Thing},
+  title   = {Three Decades of Deception Techniques in Active Cyber Defense -- Retrospect and Outlook},
+  journal = {Computers \& Security},
+  volume  = {106},
+  pages   = {102288},
+  year    = {2021},
+  doi     = {10.1016/j.cose.2021.102288}
+}
+
+@article{denning2014framework,
+  author  = {Dorothy E. Denning},
+  title   = {Framework and Principles for Active Cyber Defense},
+  journal = {Computers \& Security},
+  volume  = {40},
+  pages   = {108--113},
+  year    = {2014},
+  doi     = {10.1016/j.cose.2013.11.004}
+}
+
+@article{axelsson2000base,
+  author  = {Stefan Axelsson},
+  title   = {The Base-Rate Fallacy and the Difficulty of Intrusion Detection},
+  journal = {ACM Transactions on Information and System Security},
+  volume  = {3},
+  number  = {3},
+  pages   = {186--205},
+  year    = {2000},
+  doi     = {10.1145/357830.357849}
+}
+
+@misc{rfc3986,
+  author       = {Tim Berners-Lee and Roy T. Fielding and Larry Masinter},
+  title        = {Uniform Resource Identifier ({URI}): Generic Syntax},
+  howpublished = {RFC 3986, Internet Engineering Task Force},
+  month        = jan,
+  year         = {2005},
+  doi          = {10.17487/RFC3986}
+}
+
+@misc{rfc6265,
+  author       = {Adam Barth},
+  title        = {{HTTP} State Management Mechanism},
+  howpublished = {RFC 6265, Internet Engineering Task Force},
+  month        = apr,
+  year         = {2011},
+  doi          = {10.17487/RFC6265}
+}
+
+@misc{whatwg_syntax,
+  author       = {{WHATWG}},
+  title        = {{HTML} Living Standard, Section 13.1.6: Comments},
+  howpublished = {\url{https://web.archive.org/web/20261013081125/https://html.spec.whatwg.org/multipage/syntax.html}},
+  note         = {Accessed: 18.10.2026}
+}
+
+@misc{whatwg_input,
+  author       = {{WHATWG}},
+  title        = {{HTML} Living Standard, Section 4.10.5.1.1: Hidden State},
+  howpublished = {\url{https://web.archive.org/web/20261013122918/https://html.spec.whatwg.org/multipage/input.html}},
+  note         = {Accessed: 18.10.2026}
+}
+
+@misc{whatwg_forms,
+  author       = {{WHATWG}},
+  title        = {{HTML} Living Standard, Section 4.10.22: Form Submission},
+  howpublished = {\url{https://web.archive.org/web/20261013090759/https://html.spec.whatwg.org/multipage/form-control-infrastructure.html}},
+  note         = {Accessed: 18.10.2026}
+}
+
+@misc{nginx_about,
+  author       = {{nginx}},
+  title        = {nginx},
+  howpublished = {\url{https://web.archive.org/web/20261015150421/https://nginx.org/en/}},
+  note         = {Accessed: 18.10.2026}
+}
+
+@misc{nginx_proxy,
+  author       = {{nginx}},
+  title        = {Module ngx\_http\_proxy\_module},
+  howpublished = {\url{https://web.archive.org/web/20261003190217/https://nginx.org/en/docs/http/ngx_http_proxy_module.html}},
+  note         = {Accessed: 18.10.2026}
+}
+
+@misc{apache_modproxy,
+  author       = {{The Apache Software Foundation}},
+  title        = {Apache Module \texttt{mod\_proxy}, Apache {HTTP} Server Version 2.4 Documentation},
+  howpublished = {\url{https://web.archive.org/web/20261005043655/https://httpd.apache.org/docs/2.4/mod/mod_proxy.html}},
+  note         = {Accessed: 18.10.2026}
+}
+
+@misc{envoy_what,
+  author       = {{The Envoy Project Authors}},
+  title        = {What Is {Envoy}, Envoy 1.30 Documentation},
+  howpublished = {\url{https://web.archive.org/web/20260415194608/https://www.envoyproxy.io/docs/envoy/v1.30.0/intro/what_is_envoy}},
+  note         = {Accessed: 18.10.2026}
+}
+
+@misc{openresty_about,
+  author       = {{OpenResty Inc.}},
+  title        = {{OpenResty}},
+  howpublished = {\url{https://web.archive.org/web/20261013082229/https://openresty.org/en/}},
+  note         = {Accessed: 18.10.2026}
+}
+
+@misc{lua_about,
+  author       = {{Lua.org, PUC-Rio}},
+  title        = {About {Lua}},
+  howpublished = {\url{https://web.archive.org/web/20261008163524/https://www.lua.org/about.html}},
+  note         = {Accessed: 18.10.2026}
+}
+
+@misc{owasp_about,
+  author       = {{OWASP Foundation}},
+  title        = {About the {OWASP} Foundation},
+  howpublished = {\url{https://web.archive.org/web/20261013085208/https://owasp.org/about/}},
+  note         = {Accessed: 18.10.2026}
+}
+
+@misc{kernel_cgroup2,
+  author       = {{The Linux Kernel Documentation}},
+  title        = {Control Group v2},
+  howpublished = {\url{https://web.archive.org/web/20261007110448/https://docs.kernel.org/admin-guide/cgroup-v2.html}},
+  note         = {Accessed: 18.10.2026}
+}
+
+@misc{docker_overview,
+  author       = {{Docker Inc.}},
+  title        = {What Is {Docker}?},
+  howpublished = {\url{https://web.archive.org/web/20261012110729/https://docs.docker.com/get-started/docker-overview/}},
+  note         = {Accessed: 18.10.2026}
+}
+
+@inproceedings{hoefler2015scientific,
+  author    = {Torsten Hoefler and Roberto Belli},
+  title     = {Scientific Benchmarking of Parallel Computing Systems: Twelve Ways to Tell the Masses when Reporting Performance Results},
+  booktitle = {Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis (SC)},
+  pages     = {1--12},
+  year      = {2015},
+  doi       = {10.1145/2807591.2807644}
+}
+
+@misc{ambli2026expose,
+  author       = {Mihir Mahesh Ambli},
+  title        = {Expos{\'e}: Master Thesis},
+  howpublished = {Rheinland-Pf{\"a}lzische Technische Universit{\"a}t Kaiserslautern-Landau (RPTU)},
+  month        = jan,
+  year         = {2026},
+  note         = {Unpublished thesis proposal}
 }

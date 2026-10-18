@@ -1,0 +1,13 @@
+2026-10-14T20:38:39Z START paired suite 20261014T203839Z
+2026-10-14T22:11:20Z OK     python3 benchmarks/run_paired_benchmark.py --preset full --edge openresty
+2026-10-14T23:44:24Z OK     python3 benchmarks/run_paired_benchmark.py --preset full --edge wasm
+2026-10-15T01:17:15Z OK     python3 benchmarks/run_paired_benchmark.py --preset full --edge apache_lua
+2026-10-15T02:49:18Z OK     python3 benchmarks/run_paired_benchmark.py --preset full --edge envoy_lua
+2026-10-15T02:49:54Z OK     python3 benchmarks/analyze_paired.py
+2026-10-15T02:50:30Z OK     python3 benchmarks/plot_paired_overhead.py
+2026-10-15T02:51:08Z OK     python3 benchmarks/plot_by_rate.py
+2026-10-15T02:51:10Z OK     python3 benchmarks/plot_cost_attribution.py
+2026-10-15T02:51:11Z OK     python3 benchmarks/plot_mechanisms.py
+2026-10-15T02:51:12Z OK     python3 benchmarks/plot_remediation.py
+2026-10-15T02:51:15Z OK     python3 benchmarks/plot_origin_floor.py
+2026-10-15T02:51:15Z DONE

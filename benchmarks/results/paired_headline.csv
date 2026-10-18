@@ -1,13 +1,13 @@
 edge,rate_iter_per_s,replicates,comparison,get_p50_added_us,get_p95_added_us,get_p50_added_pct,get_p50_resolved,cpu_added_us_per_req,cpu_user_us,cpu_system_us,cpu_marginal_added_us,probe_effect_get_p50_us,probe_effect_cpu_us_per_req,coverage_worst
-OpenResty,1,5,silent_minus_bare,166,591,19,5/5,41,39,-10,33,103,63,1.0
-OpenResty,10,5,silent_minus_bare,114,192,13,5/5,24,29,-12,33,85,38,1.0
-OpenResty,100,5,silent_minus_bare,109,422,20,5/5,33,25,8,33,56,44,1.0
-WASM (Envoy),1,5,silent_minus_bare,149,242,13,5/5,136,185,-17,123,144,56,1.0
-WASM (Envoy),10,5,silent_minus_bare,144,866,14,5/5,133,94,39,123,67,15,1.0
-WASM (Envoy),100,5,silent_minus_bare,134,1067,20,5/5,123,69,54,123,100,63,1.0
-Apache+Lua,1,5,silent_minus_bare,218,507,23,5/5,113,98,24,200,178,57,1.0
-Apache+Lua,10,5,silent_minus_bare,162,320,17,5/5,139,103,33,200,104,28,1.0
-Apache+Lua,100,4,silent_minus_bare,2174,158377,334,4/4,881,154,727,200,,,
-Envoy+Lua,1,5,silent_minus_bare,208,478,20,5/5,88,119,16,41,120,-7,1.0
-Envoy+Lua,10,5,silent_minus_bare,163,466,16,5/5,42,28,14,41,71,41,1.0
-Envoy+Lua,100,5,silent_minus_bare,136,351,21,5/5,42,27,11,41,94,52,1.0
+OpenResty,1,5,silent_minus_bare,145,674,18,5/5,61,68,9,31,88,28,1.0
+OpenResty,10,5,silent_minus_bare,114,331,15,5/5,31,39,-3,31,65,38,1.0
+OpenResty,100,5,silent_minus_bare,111,335,21,5/5,31,28,4,31,62,36,1.0
+WASM (Envoy),1,5,silent_minus_bare,150,303,17,5/5,121,86,34,108,53,35,1.0
+WASM (Envoy),10,5,silent_minus_bare,110,246,12,5/5,109,90,28,108,88,49,1.0
+WASM (Envoy),100,5,silent_minus_bare,121,435,18,5/5,108,61,49,108,96,64,1.0
+Apache+Lua,1,5,silent_minus_bare,233,1162,27,5/5,295,173,85,,81,-121,1.0
+Apache+Lua,10,5,silent_minus_bare,189,371,20,5/5,129,88,60,,69,41,0.9956
+Apache+Lua,100,5,silent_minus_bare,295,83946,48,5/5,495,132,375,,417,438,0.996
+Envoy+Lua,1,5,silent_minus_bare,203,243,22,5/5,42,37,-4,45,36,31,1.0
+Envoy+Lua,10,5,silent_minus_bare,170,134,18,5/5,55,43,10,45,59,26,1.0
+Envoy+Lua,100,5,silent_minus_bare,147,334,22,5/5,45,33,13,45,82,41,1.0

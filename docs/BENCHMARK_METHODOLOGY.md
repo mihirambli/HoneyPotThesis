@@ -279,14 +279,14 @@ two concurrent runs measure each other.
 | # | Command | Time | What it does | Needed? |
 |---|---|---|---|---|
 | 1 | `sudo ./benchmarks/tune_guest.sh apply` | seconds | Disables THP and swap, widens the accept queue and ephemeral port range, stops the apt/man-db timers. Fully reversible. | Once per session, before 2–7 |
-| 2 | `run_paired_benchmark.py --preset smoke --all --results <scratch>` | **~30 min** | The whole pipeline at 1 replicate and short windows. Proves the harness works before you commit hours to it. Its numbers are **not reportable** — one replicate cannot produce an interval — and `--results` keeps it away from the dataset. | Once, the first time |
+| 2 | `run_paired_benchmark.py --preset smoke --all --results <scratch>` | **~40 min** | The whole pipeline at 1 replicate and short windows. Proves the harness works before you commit hours to it. Its numbers are **not reportable** — one replicate cannot produce an interval — and `--results` keeps it away from the dataset. | Once, the first time |
 | 3 | `functional_matrix.py` | ~10 min | WADM vs bare across 13 response shapes on all four edges (§7.3). | Yes |
-| 4 | `run_paired_benchmark.py --preset full --all` | **~4.5 h** | The reportable dataset: 5 replicates × 3 rates × 3 tiers (bare, silent, wadm) × 4 edges, paired, order-balanced, gated and functionally checked. | Yes — this is the dataset |
+| 4 | `run_paired_suite.sh` (or `run_paired_benchmark.py --preset full --all`) | **~6.5 h** | The reportable dataset: 5 replicates × 3 rates × 4 tiers (origin, bare, silent, wadm) × 4 edges, paired, order-balanced, gated and functionally checked. The script also archives the previous dataset first and regenerates every table and figure drawn from it (§9). | Yes — this is the dataset |
 | 5 | `run_paired_benchmark.py --all --mix get --rates 100 --replicates 3` and `--mix size --rates 10 --replicates 3` | ~1 h | The GET-only run that separates the trap's CPU from the GET path's, and the page-size sweep (§7.5). | For per-mechanism and size claims |
 | 5b | `run_sqli_suite.sh` | **~1.5 h** | The SQLi trap's cost per hit and per miss, interleaved, 5 replicates of 20 s (§7.5). | For any SQLi hit/miss claim |
 | 6 | `run_capacity_benchmark.py --all` | **~2.5 h** | The saturation ladder with per-container utilisation, bisection and 3 replicates per step (§7.4). | Yes, for any capacity claim |
 | 7 | `run_paired_benchmark.py --edge apache_lua_conn --tiers bare,wadm` | ~45 min | The Apache remediation variant, re-measured under the same order and checks (§4c). | For the remediation figure |
-| 8 | `analyze_paired.py`, then `plot_paired_overhead.py`, `plot_cost_attribution.py`, `plot_mechanisms.py`, `plot_remediation.py`, `report_capacity.py` | ~1 min total | The console report, every figure and every table (§6.6, §7.6). | Yes |
+| 8 | `analyze_paired.py`, then `plot_paired_overhead.py`, `plot_by_rate.py`, `plot_cost_attribution.py`, `plot_mechanisms.py`, `plot_remediation.py`, `plot_origin_floor.py`, `report_capacity.py` | ~5 min total | The console report, every figure and every table (§6.6, §7.6). | Yes |
 | 9 | `sudo ./benchmarks/tune_guest.sh revert` | seconds | Puts the guest back. | When you are done |
 
 Steps 2–3 are a rehearsal and a one-shot check. Steps 4–7 are the long ones and can be left
@@ -307,7 +307,7 @@ on. Each edge writes its own file and `analyze_paired.py` reads whatever is pres
 # Once per session, before measuring (guest side).
 sudo ./benchmarks/tune_guest.sh apply
 
-# Prove the harness works end to end. ~30 minutes, not reportable — one replicate
+# Prove the harness works end to end. ~40 minutes, not reportable — one replicate
 # cannot produce an interval — and written to a scratch directory so it cannot overwrite results/.
 python3 benchmarks/run_paired_benchmark.py --preset smoke --all --results /tmp/wadm-smoke
 python3 benchmarks/analyze_paired.py --results /tmp/wadm-smoke
@@ -315,8 +315,9 @@ python3 benchmarks/analyze_paired.py --results /tmp/wadm-smoke
 # Does WADM break what the server did without it? ~10 minutes.
 python3 benchmarks/functional_matrix.py
 
-# The reportable run: three tiers, five replicates. ~4.5 hours for four edges.
-python3 benchmarks/run_paired_benchmark.py --preset full --all
+# The reportable run: four tiers (origin, bare, silent, wadm), five replicates. ~6.5 hours for four
+# edges. run_paired_suite.sh does the same, archives the previous dataset first, and redraws its figures.
+./benchmarks/run_paired_suite.sh
 
 # Per-mechanism CPU (GET path vs. trap) and the page-size sweep. ~1 hour.
 python3 benchmarks/run_paired_benchmark.py --all --mix get --rates 100 --replicates 3
@@ -331,9 +332,11 @@ python3 benchmarks/run_paired_benchmark.py --edge apache_lua_conn --tiers bare,w
 # Report, figures and tables.
 python3 benchmarks/analyze_paired.py
 python3 benchmarks/plot_paired_overhead.py    # latency added, shift function, timers, tables
+python3 benchmarks/plot_by_rate.py            # one measure per figure, per rate
 python3 benchmarks/plot_cost_attribution.py   # timers vs CPU vs latency, and the probe effect
 python3 benchmarks/plot_mechanisms.py         # CPU per mechanism, latency vs page size
 python3 benchmarks/plot_remediation.py        # Apache LuaScope thread vs conn (section 4c)
+python3 benchmarks/plot_origin_floor.py       # bare and WADM against the no-proxy floor (section 9)
 python3 benchmarks/report_capacity.py         # capacity with its binding resource
 
 sudo ./benchmarks/tune_guest.sh revert
@@ -883,6 +886,9 @@ across replicates (`tier_order`): with three tiers it cycles through all six ord
 occupies every position twice in six replicates. The edge-side switch, and the WASM timer
 correction made at the same time, are recorded in `docs/EDGE_LEVELING.md`.
 
+Since 2026-10-13 the reportable `all` mix runs a fourth tier, `origin`, in the same replicates: the
+same probes sent to the origin directly, with no proxy in the path. It is described in §9.
+
 ### 7.2 A probe order that balances the preceding request
 
 `test.js` defaults to `WADM_ORDER=williams`: rotating Williams' base sequence `0, 1, 7, 2, 6, 3, 5,
@@ -1115,3 +1121,184 @@ pairs: OpenResty 4 hit / 3 miss, WASM 4 / 4, Apache 7 / 7, Envoy+Lua 4 / 3. `sql
   bare). The signature scan itself is never the difference — a hit's scan is 0.6-4.2 µs *shorter*
   than a miss's, as it stops at the first matching signature.
 * **Detection:** exactly one ALERT per hit and one TRAP per miss on every edge, no ALERT on a miss.
+
+## 9. The origin floor (2026-10-13)
+
+Every latency figure up to §8 is a difference between two configurations of the same edge. It says
+what WADM costs on top of a proxy, and nothing about what the proxy itself costs. The pre-paired
+harness did measure a no-proxy tier (`run_baseline_benchmark.py --edge origin`), but in a session of
+its own, so any difference against it carried the drift §1.3 describes; it was retired with that
+harness and its files are in `archive/2026-10-05-legacy-unused/`. The reportable `all` mix now
+measures the same floor again, inside the paired design.
+
+### 9.1 How the origin tier runs
+
+| | Origin tier | Proxied tiers (bare, silent, wadm) |
+|---|---|---|
+| k6 sends to | `http://backend:80` | the edge, which forwards to `http://backend:80` |
+| Iteration | identical: priming GET, four GETs, four SQLi POSTs, Williams order | same |
+| Rate, window, warm-up, start delay, seed | identical | same |
+| Load generator, cores, network | identical (`load-tester`, cores 4-7, `honeypot` bridge) | same |
+| Edge container | left running from the previous tier, idle, out of the path | serves every request |
+| Recorded | k6 trends, reconnects, integrity, origin CPU | additionally edge CPU, alert and timing-line counts |
+
+* It is a fourth tier in every replicate of every edge's run, ordered with the other three by
+  `tier_order`. Over eight replicates every tier holds every position twice; the five replicates of
+  the full preset cover five rows of that cycle, so position is spread but not perfectly balanced.
+* `bare − origin` and `silent − origin` are therefore paired exactly as `silent − bare` is: within a
+  replicate, minutes apart, summarised as the median of the per-replicate differences with their
+  range and sign agreement.
+* There are four floors, one per edge run. They should agree; the spread between them is a direct
+  reading of how far the floor moved between the four edges' sessions, which is what pairing removes
+  from the differences.
+* The edge is neither started nor stopped for the origin tier. Recreating it would cost the next
+  proxied tier the warm state that a targeted `up -d` preserves. The idle edge sits on cores 1-2,
+  disjoint from the origin (3) and the load generator (4-7).
+* Edge CPU, alert counts and timing-line counts are not recorded for the origin tier, because each
+  would be a vacuous zero or an idle reading divided by requests the edge never served. The origin
+  CPU control (§1.6c) and every other validity gate apply unchanged.
+* The tier is the default for `--mix all` only. The GET-only and page-size runs keep three tiers.
+  The SQLi mixes refuse it: the origin has no trap, so it has nothing to compare the trap's answer
+  against.
+
+### 9.2 What the differences mean, and what they do not
+
+* **bare − origin** is what putting the proxy, without WADM, in the request path adds on this host.
+  It includes the proxy's own request handling, forwarding and upstream connection pool, *and* one
+  extra pass across the Docker bridge in each direction. It is a property of this topology (three
+  containers on one bridge), not of the proxy software alone. A proxy on another machine would
+  replace the bridge pass with a real network hop.
+* **silent − origin** is the deployed stack: proxy plus WADM, without the benchmark's timing lines.
+* **silent − bare** is the unchanged headline, shown beside the other two as "of which WADM". Each of
+  the three is its own median of paired values. Within one replicate
+  `silent − origin = (bare − origin) + (silent − bare)` holds exactly, but the medians across
+  replicates need not add up.
+* **The relative figures depend on the origin.** The origin is static nginx serving HTML files of
+  864–1,396 B, so its own latency is a fraction of a millisecond, and any fixed cost is a large
+  percentage of it. The same absolute cost in front of an application that takes tens of
+  milliseconds would be a few percent. Quote the absolute µs as the result and the percentage as
+  "relative to this origin".
+* **Client connections terminate somewhere different.** In the origin tier, k6's keep-alive
+  connections end at the origin's nginx, which runs its default policy (`keepalive_timeout 75s`,
+  `keepalive_requests 1000`; `backend/nginx.conf` sets neither). In the proxied tiers they end at the
+  edge, under that edge's client-side keep-alive settings. Any difference in reconnects is part of
+  bare − origin. `new_conn_<probe>` is recorded for every tier, so it can be checked rather than
+  assumed.
+* **The SQLi POSTs are sent but not reported.** They stay in the origin tier's iteration so that
+  every tier offers the same load, but against the origin they are 404s for a route that does not
+  exist. `paired_summary.json` holds their `* − origin` differences (the proxy's cost of forwarding a
+  404), and no figure or table draws them.
+
+### 9.3 What has to be re-measured
+
+**The main paired dataset, all four edges, all four tiers: yes.** A difference is trustworthy here
+because both members of a pair are measured minutes apart in the same replicate. Origin cells run now
+cannot be paired with the bare and silent cells of the 2026-10-04 suite. A cross-session difference
+is exactly the failure of §1.3: session drift of 100–500 µs, set against a proxy cost that the
+retired unpaired runs put at roughly 0.3–0.7 ms at 1 and 10 VUs. The drift would be a large, unknown
+fraction of the result. `merge_replicates.py` does not help either: it appends whole replicates, and never
+forms a pair across sessions.
+
+The three-tier data is not *wrong*. Its silent − bare is a valid paired measurement. But once the
+four-tier run exists, the thesis should quote one dataset throughout, and every number drawn from
+`paired_<edge>.json` will be re-derived from the new one: §8.1–8.3, the timer and cost-attribution
+figures, the by-rate figures, and the "all" side of the per-mechanism CPU split. The new values will
+differ from the old by about the spread of their replicates. `run_paired_suite.sh` (~6.5 h) copies the
+three-tier files and figures to `archive/<date>-pre-origin-tier/` first, so the old numbers stay
+traceable.
+
+**Everything else: no.**
+
+| Dataset | Re-measure? | Why |
+|---|---|---|
+| `functional_matrix.json` | No | A functional check, WADM vs bare per response shape. No timing and no origin tier. |
+| `sqli-hit_` / `sqli-miss_` | No | Excluded by design. A self-contained paired run whose question (the trap against the same edge proxying the POST) has no origin-side counterpart. |
+| `get_` / `size_` mixes | No | Self-contained paired runs with no origin tier. `plot_mechanisms.py` subtracts the GET-only run from the main one, but each side is a within-replicate difference before they are combined, and the two were already measured hours apart in the 2026-10-04 suite. Re-run the GET-only mix (~45 min) only if the per-mechanism CPU split is quoted and both sides should come from one session. |
+| `paired_apache_lua_conn` | No (optional, ~45 min) | Its own paired run. `plot_remediation.py` sets its paired delta beside `apache_lua`'s, two within-replicate differences from different runs, as before. |
+| `capacity_*` | No | A separate runner with no origin tier, and its own caveats (§6.5). |
+
+### 9.4 Where the results appear
+
+* `analyze_paired.py` adds two comparisons per rate, `bare_minus_origin` and `silent_minus_origin`,
+  with the same per-probe, per-GET, quantile and relative statistics as every other comparison, but
+  no CPU block, since the origin tier has no edge. It also adds `latency_levels_ms`, each tier's
+  absolute median latency per GET. The console report prints an "Above the origin floor" line per
+  rate.
+* `plot_origin_floor.py` writes `plots/origin_floor/<rate>_per_s.png` (per edge, the latency added per
+  GET above the origin by the bare proxy and by proxy + WADM, with "of which WADM"),
+  `plots/origin_floor/tier_comparison.png` (origin vs bare proxy vs proxy + WADM as absolute
+  latency per GET, grouped by edge, one panel per rate), `plots/origin_floor/latency_levels.png`
+  (the same levels as a dot plot, descriptive), and
+  `origin_floor.md` / `.csv` (per GET and per GET probe). The table also gives WADM's share of the
+  latency the deployed stack adds above the origin, (silent − bare) ÷ (silent − origin), taken within
+  each replicate and then summarised. A ratio of two medians would mix replicates.
+* "Per GET" is the mean of the four GET probes' medians, differenced within each replicate, the same
+  definition as `paired_headline.md`'s "Δ p50 per GET".
+
+### 9.5 Verification (smoke run, 2026-10-13)
+
+`run_paired_benchmark.py --preset smoke --all` with four tiers, into a scratch directory: one
+replicate, 20 s windows, rates 1/10/100, all four edges, on an untuned guest. It took 40 minutes.
+
+* **47 of 48 cells valid; all 12 origin cells valid.** Every origin cell met its offered rate with
+  every response intact. The one rejection was Apache's instrumented tier at 100/s (0.54 % failed
+  requests and a preemption tail), the mod_lua crash of §4b, unrelated to the origin tier.
+* **The four floors agree.** Origin latency per GET was 508–561 µs at 1/s, 522–560 µs at 10/s and
+  341–350 µs at 100/s across the four edges' runs. That is the cross-session consistency the paired
+  design relies on.
+* **The whole pipeline runs on four-tier data:** `analyze_paired.py`, `plot_paired_overhead.py`
+  (the origin tier's functional row shows no bait or alert check, as intended), `plot_by_rate.py`,
+  `plot_cost_attribution.py` and `plot_origin_floor.py`.
+* **The three-tier analysis is unchanged.** Re-running `analyze_paired.py` on the committed
+  2026-10-04 files reproduces the committed `paired_summary.json` exactly, apart from the two keys
+  added (`latency_delta_pct_per_get`, `latency_levels_ms`).
+
+A single replicate gives point estimates without an interval. Its bare − origin values
+(+0.21 to +0.58 ms per GET) only show that the effect is in the range §9.3 expected, and are not
+results.
+
+### 9.6 Results of the four-tier run (2026-10-14/15)
+
+`paired_suite_20261014T203839Z` (`run_paired_suite.sh`), guest tuned, 20:38–02:51 UTC, every step
+OK. The kernel log shows no soft lockup or clock jump inside the window. The three-tier dataset it
+replaced is in `archive/2026-10-14-pre-origin-tier/`.
+
+**Validity.** 236 of 240 cells were valid: OpenResty, WASM and Envoy+Lua 60/60, Apache 56/60. The four
+rejections are all Apache's instrumented tier at 100/s, on the preemption-tail gate (one also dropped
+1.7 % of iterations). Every origin, bare and silent cell is valid, so every origin-floor and headline
+figure rests on 5 paired replicates. Apache's in-edge timers at 100/s rest on a single replicate.
+
+**The origin floor** (`origin_floor.md`, median per GET, 5/5 replicates agree in sign everywhere):
+
+| Edge | Bare proxy − origin (1 / 10 / 100 per s) | Proxy + WADM − origin | of which WADM | WADM share |
+|---|---|---|---|---|
+| OpenResty | +260 / +255 / +184 µs | +409 / +388 / +294 µs | +145 / +114 / +111 µs | 35 / 31 / 37 % |
+| WASM | +372 / +369 / +319 | +500 / +484 / +442 | +150 / +110 / +121 | 29 / 23 / 28 % |
+| Apache+Lua | +324 / +372 / +279 | +545 / +553 / +580 | +233 / +189 / +295 | 42 / 33 / 51 % |
+| Envoy+Lua | +396 / +389 / +309 | +571 / +557 / +455 | +203 / +170 / +147 | 34 / 30 / 32 % |
+
+The origin itself answered a GET in 516–552 µs at 1 and 10/s and 346–350 µs at 100/s, and the four
+edges' floors agree within 36 µs at every rate. The proxy without WADM adds 184–396 µs per GET;
+WADM adds 110–295 µs on top. Outside Apache at 100/s, WADM is 23–42 % of what the deployed stack adds
+above the origin, and the proxy is the rest.
+
+**Reproducibility against the three-tier run.** The silent − bare headline moved by less than the
+replicate spread in most cells (for example OpenResty +114/+111 µs at 10/100 per s in both runs,
+Envoy+Lua +208→+203 and +163→+170). Two quantities did not reproduce, and the thesis must not quote
+them as point values:
+
+* **Apache's median at 100/s.** It was +2,174 µs in the three-tier run (per-replicate +605, +26,332,
+  +2,658, +1,691) and is +295 µs now (+235, +295, +544, +509, +291), with the same crash count
+  (12–16 segfaults per silent run in both). Crash-recovery stalls sit in the tail of the
+  distribution, and whether they reach the median depends on the run. The tail did reproduce: the
+  p90 added per GET is +1.5 to +78 ms now and was +89 to +229 ms before. The reportable statement is
+  "the latency tail grows by tens of milliseconds and the median by 0.2–26 ms depending on the run",
+  not a single median.
+* **Apache's marginal CPU.** The fit of CPU against requests is rejected as unphysical for both WADM
+  tiers in all five replicates (the unconstrained fit needs an idle cost of −6,600 µs/s). WADM-tier
+  CPU per request *rises* at 100/s (722 µs, against 430 µs at 10/s) because respawning crashed workers
+  costs CPU, so a straight line through the three rates does not describe it. The bare tier fits
+  cleanly at 226 µs/request in every replicate. The earlier "+200 µs" came from a run in which the
+  same model happened to stay physical. Quote Apache's CPU added per rate (+295, +129, +495 µs/request
+  at 1, 10 and 100/s) instead. Marginal CPU for the other three: OpenResty +31 (was +33), WASM +108
+  (+123), Envoy+Lua +45 (+41) µs/request.

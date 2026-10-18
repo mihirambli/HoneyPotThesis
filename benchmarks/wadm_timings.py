@@ -1044,7 +1044,9 @@ def tier_order(tiers: list[str], replicate: int) -> list[str]:
     Rotates the list by one every two replicates and reverses it on even replicates. For two tiers
     that alternates which goes first; for three it cycles through all six orders, so every tier
     occupies every position twice in six replicates and none is systematically the one that runs
-    after a particular other.
+    after a particular other. For four (the origin floor plus the three edge tiers) every tier
+    occupies every position twice in eight replicates; five replicates cover the first five rows of
+    that cycle, so balance is partial but no tier is pinned to one position.
     """
     k = (replicate - 1) // 2 % len(tiers)
     order = tiers[k:] + tiers[:k]

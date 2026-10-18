@@ -19,6 +19,10 @@ What this script does differently:
   three-tier  bare (no WADM), silent (WADM without the benchmark's timing log lines) and wadm (the
               instrumented build the in-edge timers are read from). silent - bare is WADM's cost
               as deployed; wadm - silent is the cost of measuring it.
+  floored     The reportable mix adds a fourth tier, origin: k6 straight to the origin with the
+              edge idle, inside the same replicate. bare - origin is what the proxy alone adds and
+              silent - origin what the deployed stack adds, both paired like silent - bare. Not
+              run for the SQLi mixes, which have no origin-side counterpart to the trap.
   replicated  Each set is repeated `--replicates` times, and the tier order is balanced across
               replicates (tier_order) so that "whichever ran second" cannot become the result.
               The reported number is the median of the per-replicate differences with a bootstrap
@@ -68,6 +72,9 @@ from typing import Any
 from edge_specs import (
     EDGE_KEYS,
     EDGES,
+    ORIGIN_SERVICE,
+    ORIGIN_TIER,
+    PAIRED_TIERS,
     RUNNABLE_KEYS,
     TIERS,
     EdgeSpec,
@@ -116,6 +123,13 @@ TIMING_LINE_RE = re.compile(r"execution time \(us\):|WADM TOKEN \w+ (?:detect|in
 WARMUP_FRACTION = 0.4
 MIN_WARMUP_S = 8
 
+# Mixes that get the origin tier unless --tiers says otherwise. Only the reportable mix: the GET-only
+# and size runs answer questions about WADM's mechanisms that the floor does not change.
+ORIGIN_DEFAULT_MIXES = {"all"}
+# The SQLi experiment compares the trap with the same edge proxying the POST; the origin has no
+# /api/login and no trap, so it has no counterpart to measure.
+ORIGIN_EXCLUDED_MIXES = {"sqli-hit", "sqli-miss"}
+
 # Presets. `smoke` exists to prove the harness end to end before committing hours to it: same code
 # path, same gating, same outputs, short windows and a single replicate. Its numbers are not
 # reportable — one replicate cannot produce an interval.
@@ -146,7 +160,7 @@ def base_env(spec: EdgeSpec, trigger: str, tier: str) -> dict[str, str]:
     recreates it underneath the measurement.
     """
     env = strip_k6_option_env(os.environ.copy())
-    env["TARGET"] = spec.target
+    env["TARGET"] = spec.target_for(tier)
     env["TRIGGER_KEYWORD"] = trigger
     env.update(spec.tier_env(tier))
     return env
@@ -163,6 +177,18 @@ def start_edge(spec: EdgeSpec, env: dict[str, str], build: bool = False) -> int:
     if build and spec.needs_build:
         command.append("--build")
     return run_cmd(command, env=env).returncode
+
+
+def start_tier(spec: EdgeSpec, tier: str, env: dict[str, str]) -> int:
+    """Make sure what this tier sends traffic to is running.
+
+    The origin tier only needs the origin. The edge is neither started nor stopped for it: whatever
+    tier ran before stays up idle, and recreating it here would only cost the next edge tier the
+    warm state a targeted `up -d` preserves.
+    """
+    if tier == ORIGIN_TIER:
+        return run_cmd(["docker", "compose", "up", "-d", ORIGIN_SERVICE], env=env).returncode
+    return start_edge(spec, env)
 
 
 def edge_logs(spec: EdgeSpec, env: dict[str, str], since: str) -> str:
@@ -204,20 +230,21 @@ def subsample(values: list[int], cap: int = 20000) -> list[int]:
     return [values[int(i * step)] for i in range(cap)]
 
 
-def make_sampler(spec: EdgeSpec, env: dict[str, str]) -> CgroupSampler:
-    """Sampler over the edge, the origin, and the load generator once it is created."""
+def make_sampler(spec: EdgeSpec, env: dict[str, str], with_edge: bool = True) -> CgroupSampler:
+    """Sampler over the edge, the origin, and the load generator once it is created.
+
+    `with_edge` is False for the origin tier: the edge serves no request there, so its counter
+    divided by the requests k6 sent would be idle CPU passed off as a per-request cost.
+    """
     loadgen_env = {**env}
 
     def loadgen_dir():
         return cgroup_dir(container_id("load-tester", loadgen_env, "loadtest"))
 
-    return CgroupSampler(
-        {
-            "edge": cgroup_dir(container_id(spec.service, env, spec.profile)),
-            "origin": cgroup_dir(container_id("backend", env)),
-        },
-        late={"loadgen": loadgen_dir},
-    )
+    directories = {"origin": cgroup_dir(container_id(ORIGIN_SERVICE, env))}
+    if with_edge:
+        directories["edge"] = cgroup_dir(container_id(spec.service, env, spec.profile))
+    return CgroupSampler(directories, late={"loadgen": loadgen_dir})
 
 
 def run_cell(
@@ -234,11 +261,15 @@ def run_cell(
     """One (edge, tier, rate, replicate) measurement, start to finish."""
     env = base_env(spec, trigger, tier)
     label = f"{spec.key}/{tier} rate={rate} rep={replicate}"
+    proxied = tier != ORIGIN_TIER
 
-    if start_edge(spec, env) != 0:
+    if start_tier(spec, tier, env) != 0:
         return {
             "tier": tier, "rate": rate, "replicate": replicate,
-            "validity": {"valid": False, "reasons": ["edge failed to start"]},
+            "validity": {
+                "valid": False,
+                "reasons": ["edge failed to start" if proxied else "origin failed to start"],
+            },
         }
 
     warm = warmup_duration(duration)
@@ -250,19 +281,21 @@ def run_cell(
         **env, **k6_env(rate, duration, start_delay, seed=replicate, mix=mix, prime=prime)
     }
     print(f"    {label}: measuring {duration}...", flush=True)
-    sampler = make_sampler(spec, env)
+    sampler = make_sampler(spec, env, with_edge=proxied)
     # The exec-based reads are kept only as a fallback for a host whose cgroup tree the sampler
     # cannot find; they bracket the whole load-tester lifecycle rather than the measured window.
-    cpu_before = read_container_cpu(spec.service, env, spec.profile)
-    origin_cpu_before = read_container_cpu("backend", env)
+    cpu_before = read_container_cpu(spec.service, env, spec.profile) if proxied else None
+    origin_cpu_before = read_container_cpu(ORIGIN_SERVICE, env)
     with sampler:
         wait_result, run_start = cycle_loadtester(measure_env)
-    cpu_after = read_container_cpu(spec.service, env, spec.profile)
-    origin_cpu_after = read_container_cpu("backend", env)
+    cpu_after = read_container_cpu(spec.service, env, spec.profile) if proxied else None
+    origin_cpu_after = read_container_cpu(ORIGIN_SERVICE, env)
 
     since = run_start.strftime("%Y-%m-%dT%H:%M:%SZ")
     k6_summary, k6_logs = fetch_k6_summary(measure_env, since)
-    stamped = edge_logs(spec, measure_env, since)
+    # No edge logs in the origin tier: the idle edge logged nothing for this window, and scanning it
+    # would make the alert and timing-line counts below look like checks that had passed.
+    stamped = edge_logs(spec, measure_env, since) if proxied else ""
     logs = lines_since(stamped, 0.0)
 
     # Everything the edge logged before k6's first measured iteration — setup()'s reference
@@ -283,7 +316,7 @@ def run_cell(
     tail_pct, tail_count = worst_tail(token_summary) if token_summary else (None, 0)
 
     requests = (k6_summary or {}).get("edge_requests") or (k6_summary or {}).get("http_reqs")
-    if window_start and sampler.samples.get("edge"):
+    if window_start and sampler.samples.get("edge" if proxied else "origin"):
         edge_cpu = sampler.window("edge", window_start, window_end, requests)
         origin_cpu = sampler.window("origin", window_start, window_end, requests)
         loadgen_cpu = sampler.window("loadgen", window_start, window_end, None)
@@ -293,6 +326,11 @@ def run_cell(
         origin_cpu = cpu_cost_per_request(origin_cpu_before, origin_cpu_after, requests)
         loadgen_cpu = {"available": False}
     lifecycle_cpu = cpu_cost_per_request(cpu_before, cpu_after, requests)
+    if not proxied:
+        edge_cpu = lifecycle_cpu = {
+            "available": False, "cpu_us_per_request": None,
+            "reason": "origin tier: the edge is not in the request path",
+        }
 
     # The warm-up's last seconds are included: an edge resuming from a freeze is not yet in the state
     # the measurement assumes.
@@ -339,9 +377,9 @@ def run_cell(
             "loadgen": loadgen_cpu,
             "edge_lifecycle": lifecycle_cpu,
         },
-        "alerts": count_alerts(window_logs) if window_start else None,
+        "alerts": count_alerts(window_logs) if window_start and proxied else None,
         # Self-check on the tier switch: bare and silent must log none of these.
-        "timing_lines": len(TIMING_LINE_RE.findall(window_logs)),
+        "timing_lines": len(TIMING_LINE_RE.findall(window_logs)) if proxied else None,
         "errors": {
             "compose_exit_code": wait_result.returncode,
             "logs_stderr": k6_logs.stderr.strip(),
@@ -400,6 +438,7 @@ def run_edge(
             "wadm_config": spec.wadm_config,
             "bare_config": spec.bare_config,
             "tiers": args.tiers,
+            "origin_target": EDGES["origin"].target if ORIGIN_TIER in args.tiers else None,
             "mix": args.mixes[0],
             "prime": not args.no_prime,
             "rates": args.rates,
@@ -411,8 +450,9 @@ def run_edge(
                 "Paired cells, one per tier per replicate. Latency trends are MILLISECONDS (k6); "
                 "internal token timings are MICROSECONDS (edge logs, wadm tier only); "
                 "cpu.*.cpu_us_per_request is CPU microseconds over the measured window from the "
-                "host cgroup sampler, divided by k6.edge_requests. Only cells with validity.valid "
-                "may be reported."
+                "host cgroup sampler, divided by k6.edge_requests. The origin tier sends the same "
+                "probes to the origin directly, with the edge idle: it has no cpu.edge, alerts or "
+                "timing_lines. Only cells with validity.valid may be reported."
             ),
         },
         "cells": [],
@@ -500,8 +540,9 @@ def main() -> int:
     parser.add_argument("--start-delay", default=DEFAULT_START_DELAY)
     parser.add_argument("--trigger", default=os.getenv("TRIGGER_KEYWORD", DEFAULT_TRIGGER))
     parser.add_argument(
-        "--tiers", default=",".join(TIERS),
-        help="Comma-separated subset of bare,silent,wadm (default: all three).",
+        "--tiers", default=None,
+        help=f"Comma-separated subset of {','.join(PAIRED_TIERS)}. Default: all four for the `all` "
+             f"mix, {','.join(TIERS)} for every other mix. `origin` is refused for the SQLi mixes.",
     )
     parser.add_argument(
         "--results", default=None,
@@ -524,14 +565,25 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    args.tiers = [t for t in TIERS if t in {x.strip() for x in args.tiers.split(",")}]
     valid_mixes = {"all", "get", "post", "size", "sqli-hit", "sqli-miss"}
     args.mixes = [m.strip() for m in args.mixes.split(",")] if args.mixes else [args.mix]
     if not set(args.mixes) <= valid_mixes or len(set(args.mixes)) != len(args.mixes):
         print(f"Error: --mixes must be distinct values from {sorted(valid_mixes)}.", file=sys.stderr)
         return 2
+    if args.tiers is None:
+        args.tiers = ",".join(PAIRED_TIERS if set(args.mixes) <= ORIGIN_DEFAULT_MIXES else TIERS)
+    requested = {x.strip() for x in args.tiers.split(",")}
+    unknown = requested - set(PAIRED_TIERS)
+    if unknown:
+        print(f"Error: unknown tier(s) {sorted(unknown)}; expected {PAIRED_TIERS}.", file=sys.stderr)
+        return 2
+    args.tiers = [t for t in PAIRED_TIERS if t in requested]
     if "bare" not in args.tiers or len(args.tiers) < 2:
-        print("Error: --tiers must include bare and at least one WADM tier.", file=sys.stderr)
+        print("Error: --tiers must include bare and at least one other tier.", file=sys.stderr)
+        return 2
+    if ORIGIN_TIER in args.tiers and set(args.mixes) & ORIGIN_EXCLUDED_MIXES:
+        print("Error: the origin tier is not run for the SQLi mixes: the origin has no trap, so "
+              "there is nothing on it to compare the trap's answer against.", file=sys.stderr)
         return 2
 
     preset = PRESETS[args.preset]
