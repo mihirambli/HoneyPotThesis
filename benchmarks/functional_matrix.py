@@ -10,8 +10,10 @@ HTTP/1.0 client. Reading the edge code predicted breakage in several of these (n
 guard; baits on every response; full-body buffering bounded at 1 MiB on Envoy); this measures it.
 
 The reference is each edge's BARE tier — the same server, same config, minus WADM — because that is
-what "existing functionality" means for the thesis. For every case and edge the WADM response is
-classified:
+what "existing functionality" means for the thesis. That holds for the two in-server variants too:
+their reference is the same web server serving backend/www itself without the module, so their
+columns say what WADM changes in that deployment, not how they differ from a proxy. For every case
+and variant the WADM response is classified:
 
     not exercised    the bare edge itself refuses the request (Envoy answers HTTP/1.0 with 426), so
                      there is no existing behaviour for WADM to preserve or break
@@ -48,11 +50,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from edge_specs import EDGE_KEYS, EDGES, write_silent_config
+from edge_specs import EDGE_KEYS, EDGES, INSERVER_KEYS, write_silent_config
 from wadm_timings import ensure_compose_cleanup, ensure_test_pages, lines_since, run_cmd
 
-# Host ports docker-compose.yml publishes for each edge, so all four can be probed at once.
-PORTS = {"openresty": 8080, "envoy_lua": 8081, "wasm": 8082, "apache_lua": 8083}
+# Host ports docker-compose.yml publishes for each edge, so all six can be probed at once.
+PORTS = {
+    "openresty": 8080, "envoy_lua": 8081, "wasm": 8082, "apache_lua": 8083,
+    "openresty_inserver": 8084, "apache_inserver": 8085,
+}
+
+# The four proxy edges first, so their columns keep the order of earlier matrices.
+MATRIX_KEYS = EDGE_KEYS + INSERVER_KEYS
 
 # Strings an injected insertion is expected to carry: the comment token, the decoy link's target,
 # and the hidden form field. An insertion containing none of them is not WADM's and is reported.
@@ -264,16 +272,16 @@ def judge(
 
 def bring_up(tier: str, env: dict[str, str]) -> bool:
     tier_env = dict(env)
-    for key in EDGE_KEYS:
+    for key in MATRIX_KEYS:
         tier_env.update(EDGES[key].tier_env(tier))
     command = ["docker", "compose"]
-    for key in EDGE_KEYS:
+    for key in MATRIX_KEYS:
         command += ["--profile", EDGES[key].profile]
     result = run_cmd(command + ["up", "-d", "--build"], env=tier_env)
     if result.returncode != 0:
         print(f"Failed to start the {tier} tier:\n{result.stderr}", file=sys.stderr)
         return False
-    for key in EDGE_KEYS:
+    for key in MATRIX_KEYS:
         deadline = time.monotonic() + 120
         while time.monotonic() < deadline:
             if fetch(PORTS[key], Case("up", "/")).status == 200:
@@ -297,7 +305,7 @@ def alert_count(service: str, profile: str, since: float, env: dict[str, str]) -
 def probe_tier(tier: str, env: dict[str, str], etags: dict[str, str]) -> dict[str, Any]:
     """Every case against every edge, with the alerts each one produced."""
     out: dict[str, Any] = {}
-    for key in EDGE_KEYS:
+    for key in MATRIX_KEYS:
         spec = EDGES[key]
         out[key] = {}
         for case in CASES:
@@ -332,7 +340,7 @@ def main() -> int:
     try:
         for tier in ("bare", "wadm"):
             ensure_compose_cleanup(env)
-            print(f"Bringing up all four edges, {tier} tier...")
+            print(f"Bringing up all six variants, {tier} tier...")
             if not bring_up(tier, env):
                 return 2
             tiers[tier] = probe_tier(tier, env, etags)
@@ -350,7 +358,7 @@ def main() -> int:
         "edges": {},
     }
     rows = []
-    for key in EDGE_KEYS:
+    for key in MATRIX_KEYS:
         doc["edges"][key] = {}
         for case in CASES:
             bare, _ = tiers["bare"][key][case.name]
@@ -384,11 +392,11 @@ def main() -> int:
         "client gets something bare would not have produced and cannot use. Reasons are below "
         "the table.",
         "",
-        "| Case | " + " | ".join(EDGES[k].label for k in EDGE_KEYS) + " |",
-        "|---|" + "---|" * len(EDGE_KEYS),
+        "| Case | " + " | ".join(EDGES[k].label for k in MATRIX_KEYS) + " |",
+        "|---|" + "---|" * len(MATRIX_KEYS),
     ]
     for case in CASES:
-        cells = [doc["edges"][k][case.name]["verdict"] for k in EDGE_KEYS]
+        cells = [doc["edges"][k][case.name]["verdict"] for k in MATRIX_KEYS]
         lines.append(f"| {case.name} | " + " | ".join(
             f"**{c}**" if c == "BROKEN" else c for c in cells) + " |")
     lines += ["", "## Reasons", ""]
@@ -399,7 +407,7 @@ def main() -> int:
 
     print("\n".join(lines))
     broken = sum(1 for _, _, v, _ in rows if v == "BROKEN")
-    print(f"\n{broken} broken case(s) across {len(EDGE_KEYS)} edges. "
+    print(f"\n{broken} broken case(s) across {len(MATRIX_KEYS)} variants. "
           f"Saved {results_dir / 'functional_matrix.md'}")
     return 0
 

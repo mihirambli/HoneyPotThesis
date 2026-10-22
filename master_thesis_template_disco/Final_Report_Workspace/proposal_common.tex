@@ -6,9 +6,15 @@
 \usepackage{enumitem}
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta,shapes.geometric}
+\usepackage{listings}
+% Configuration excerpts: copied verbatim from config.json, so no syntax colouring that could suggest
+% more structure than the file has.
+\lstset{basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true, breaklines=true,
+  frame=single, framesep=4pt, xleftmargin=4pt, xrightmargin=4pt, captionpos=b,
+  aboveskip=10pt, belowskip=6pt}
 
 % The class loads its logo as img/RPTUlogo, kept alongside in img/.
-\graphicspath{{./}}
+\graphicspath{{./}{figures/}}
 
 \definecolor{materialgray}{gray}{0.38}
 \newcommand{\material}[1]{\par{\raggedright\small\sffamily\color{materialgray}\textbf{Material:} #1\par}}
@@ -32,3 +38,12 @@
 \supervisor{Prof. Dr.-Ing. Jens B. Schmitt}
 \secondsupervisor{M. Sc. Daniel Reti}
 
+
+% Section references name the section's heading as well, so the reader need not page back.
+\newcommand{\secref}[1]{Section~\ref{#1} (\emph{\nameref{#1}})}
+\newcommand{\secrefp}[1]{Section~\ref{#1}, \emph{\nameref{#1}}}
+
+% Pages that hold only floats start at the top instead of centring the float vertically.
+\makeatletter
+\setlength{\@fptop}{0pt}
+\makeatother

@@ -28,6 +28,7 @@ step() {
         echo "$(date -u +%FT%TZ) FAILED attempt $attempt: $*" >> "$STATUS"
         # A failed step can leave containers behind that the next attempt would trip over.
         docker compose --profile openresty --profile envoy --profile wasm --profile apache \
+            --profile openresty-inserver --profile apache-inserver \
             --profile loadtest down --remove-orphans >> "$LOG" 2>&1 || true
     done
     echo "$(date -u +%FT%TZ) GAVE UP $*" >> "$STATUS"

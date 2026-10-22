@@ -40,7 +40,7 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 from analyze_paired import cell_by_replicate, paired_latency, tiers_of
-from edge_specs import EDGE_KEYS, EDGES
+from edge_specs import EDGE_KEYS, EDGES, INSERVER_KEYS
 from plot_common import COLORS, INK, INK_MUTED, _style_frame
 from wadm_timings import paired_delta
 
@@ -256,7 +256,8 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     costs, sizes = {}, {}
-    for edge in EDGE_KEYS:
+    # In-server variants are appended rather than mixed in, so the four proxy rows keep their order.
+    for edge in EDGE_KEYS + INSERVER_KEYS:
         full, get_only = load(results_dir, f"paired_{edge}.json"), load(results_dir, f"get_{edge}.json")
         if full and get_only:
             result = mechanism_costs(full, get_only)

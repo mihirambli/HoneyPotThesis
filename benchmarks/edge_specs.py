@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Single registry of the four edges and the origin floor, shared by every runner.
+"""Single registry of the edges (four proxy edges, their variants, two in-server variants) and the
+origin floor, shared by every runner.
 
 The four `run_internal_<edge>_benchmark.py` scripts each carried their own copy of this table
 (profile, service name, target URL, config paths, html_comments regexes). Keeping four copies is
@@ -30,6 +31,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 #           iteration. This is the WADM a deployment would run, so silent - bare is the headline.
 #   wadm    full WADM with the timing lines on: the only tier the in-edge timers can be read from.
 #           wadm - silent is the cost of the instrumentation itself.
+#
+# For an in-server variant (deployment == "inserver") `bare` is the web server serving the pages
+# itself without the module, and the origin tier below is still k6 -> the shared nginx:alpine origin
+# with the in-server container idle. bare - origin there is therefore "OpenResty/Apache as a file
+# server versus nginx:alpine", not "the proxy hop".
 TIERS = ["bare", "silent", "wadm"]
 WADM_TIERS = ("silent", "wadm")
 
@@ -67,6 +73,9 @@ class EdgeSpec:
     # bare tier with that edge, so its WADM-vs-bare difference is measured on the same floor and
     # the two can be compared directly.
     variant_of: str | None = None
+    # "proxy": the module runs in a reverse proxy in front of the origin. "inserver": it runs in
+    # the web server that serves the pages, so the origin is never contacted on an edge tier.
+    deployment: str = "proxy"
 
     def compose_prefix(self) -> list[str]:
         command = ["docker", "compose"]
@@ -162,6 +171,23 @@ EDGES: dict[str, EdgeSpec] = {
         wadm_config="./httpd-conn.conf", bare_config="./httpd-baseline.conf",
         detect_re=_APACHE_RES[0], inject_re=_APACHE_RES[1], variant_of="apache_lua",
     ),
+    # In-server variants: the same server image and the same module code as the proxy edge they are
+    # paired with in INSERVER_COUNTERPART, but serving backend/www themselves with no proxy hop.
+    "openresty_inserver": EdgeSpec(
+        key="openresty_inserver", label="OpenResty (in-server)", profile="openresty-inserver",
+        service="openresty-inserver", target="http://openresty-inserver:80",
+        config_env="OPENRESTY_INSERVER_CONF",
+        wadm_config="./nginx/nginx-inserver.conf",
+        bare_config="./nginx/nginx-inserver-baseline.conf",
+        detect_re=_OPENRESTY_RES[0], inject_re=_OPENRESTY_RES[1], deployment="inserver",
+    ),
+    "apache_inserver": EdgeSpec(
+        key="apache_inserver", label="Apache (in-server)", profile="apache-inserver",
+        service="apache-inserver", target="http://apache-inserver:80",
+        config_env="HTTPD_INSERVER_CONF",
+        wadm_config="./httpd-inserver.conf", bare_config="./httpd-inserver-baseline.conf",
+        detect_re=_APACHE_RES[0], inject_re=_APACHE_RES[1], deployment="inserver",
+    ),
     "origin": EdgeSpec(
         key="origin", label="Origin only", profile=None, service=ORIGIN_SERVICE,
         target=ORIGIN_TARGET, config_env=None,
@@ -180,8 +206,15 @@ EDGE_KEYS = ["openresty", "wasm", "apache_lua", "envoy_lua"]
 
 VARIANT_KEYS = ["apache_lua_conn"]
 
+# The in-server deployment. Kept out of EDGE_KEYS for the same reason as the variants: --all, the
+# four-way figures and every plotter that loops over EDGE_KEYS describe the proxy deployment, and
+# must stay exactly as they were. These are compared with their proxy counterpart instead
+# (compare_deployments.py), as paired differences from separate sessions.
+INSERVER_KEYS = ["openresty_inserver", "apache_inserver"]
+INSERVER_COUNTERPART = {"openresty_inserver": "openresty", "apache_inserver": "apache_lua"}
+
 # Everything a runner may be pointed at with --edge.
-RUNNABLE_KEYS = EDGE_KEYS + VARIANT_KEYS
+RUNNABLE_KEYS = EDGE_KEYS + VARIANT_KEYS + INSERVER_KEYS
 
 # Patterns that mean the edge process itself failed during a run, not that it was merely slow.
 # Apache children have been observed to segfault and corrupt their Lua state at high rates, after

@@ -403,8 +403,12 @@ def functional_rows(summaries: dict[str, Any], rates: list[int]) -> list[dict[st
                     "reconnecting_probes": ", ".join(
                         f"{n} {r:.0%}" for n, r in sorted(reconnect.items(), key=lambda kv: -kv[1])
                     ) or None,
+                    # In-server variants render their own error pages, so only probes the
+                    # origin answered with 200 are expected to match it there.
                     "bare_matches_origin": (
-                        all(v["matches_origin_all"] for v in probes.values())
+                        all(v["matches_origin_all"] for v in probes.values()
+                            if EDGES[edge].deployment != "inserver"
+                            or v.get("origin_status") == 200)
                         if tier == "bare" else None
                     ),
                     "bait_on_every_proxied_probe": (

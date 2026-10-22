@@ -1302,3 +1302,220 @@ them as point values:
   same model happened to stay physical. Quote Apache's CPU added per rate (+295, +129, +495 µs/request
   at 1, 10 and 100/s) instead. Marginal CPU for the other three: OpenResty +31 (was +33), WASM +108
   (+123), Envoy+Lua +45 (+41) µs/request.
+
+## 10. The in-server deployment (2026-10-18)
+
+Every variant up to §9 runs the module in a **reverse proxy** in front of the `backend` origin.
+OpenResty (nginx) and Apache httpd are web servers that act as reverse proxies only through their
+proxy modules, and their Lua hooks (lua-nginx-module's phase handlers; mod_lua's hooks and output
+filters) run on the responses the server produces itself, files served from disk included. So the
+same module can run **inside the server that serves the pages**, with no proxy hop. Two variants
+measure that deployment:
+
+| Key | Service, port | Serves | Module code |
+|---|---|---|---|
+| `openresty_inserver` | `openresty-inserver`, 8084 | `backend/www` at `/srv/www` | `nginx/nginx-inserver.conf`: `nginx.conf`'s Lua block verbatim, machine-checked |
+| `apache_inserver` | `apache-inserver`, 8085 | `backend/www` at `/srv/www` | `httpd-inserver.conf` + the shared `apache_scripts/` |
+
+Envoy has no in-server variant: it is a dedicated proxy, with no file-serving handler to run the
+module over. The four proxy variants, their configs and the 2026-10-15 dataset are unchanged; the
+in-server keys sit outside `EDGE_KEYS`, so `--all` and the four-way figures do not include them.
+`docs/EDGE_LEVELING.md` ("In-server deployment") records how the variants were levelled.
+
+### 10.1 What the tiers mean in-server
+
+| Tier | Proxy deployment | In-server deployment |
+|---|---|---|
+| `origin` | k6 → `backend` (nginx:alpine), edge idle | identical: k6 → the shared `backend`, in-server container idle |
+| `bare` | the proxy without the module, forwarding to `backend` | OpenResty / Apache serving `backend/www` itself, without the module |
+| `silent` / `wadm` | proxy + module | server + module, serving its own pages |
+
+* **silent − bare** is the module's cost in both deployments: the same server, with and without the
+  same module code.
+* **bare − origin** changes meaning. In the proxy deployment it is the proxy hop (§9.2). In-server
+  there is no hop: it is **OpenResty or Apache serving files, against nginx:alpine serving the same
+  files** (the "server swap"). `analyze_paired.py` labels it `bare server - origin` for in-server
+  keys.
+* **silent − origin** is the deployed stack in both deployments: proxy + module + origin, or server
+  + module. In-server it contains the server swap, so a difference between the deployments in
+  silent − origin is partly a difference between the file servers. That confound is largest for
+  Apache, whose file serving is not nginx's. `compare_deployments.py` prints bare − origin beside
+  silent − origin so the two can be read together.
+* `backend` stays up through `depends_on` on every tier, because the origin tier and the cgroup
+  sampler use it. On the in-server edge tiers it serves nothing, and its CPU per request should be
+  about zero. `compare_deployments.py` prints that as a sanity row: it shows that nothing was
+  proxied.
+
+### 10.2 Comparing the deployments: paired differences from separate sessions
+
+The proxy edge and its in-server counterpart are measured in **different sessions**: the proxy
+edges in `paired_suite_20261014T203839Z`, the in-server variants in `run_inserver_suite.sh`. Each
+deployment's differences are paired inside its own session. A comparison of the deployments is
+therefore a comparison of **two paired differences**, each the median of its replicates with its
+replicate range. It is never a subtraction of raw latencies taken in different sessions, which §1.3
+showed is dominated by session drift (100–500 µs). `compare_deployments.py` reports whether the two
+replicate ranges overlap. Non-overlapping ranges mean the deployments differ by more than either
+session's replicate spread. Overlapping ranges mean this harness cannot order them. It does not
+print a difference of the two medians.
+
+### 10.3 CPU allocation, and why capacity is not compared
+
+Both deployments use the same cpusets (`EDGE_CPUS` 1-2, `BACKEND_CPUS` 3, `LOADGEN_CPUS` 4-7). In the
+proxy deployment the request's server-side work is spread over **three** cores: the proxy on 1-2,
+the origin on 3. In-server, all of it (request handling, the module, and reading and sending the
+file) runs on the **two** `EDGE_CPUS` cores, while the origin's core sits idle. At the measured rates
+neither deployment is near saturation, so latency and CPU per request are comparable. **Capacity is
+not**: an in-server ladder would compare two cores against three. No in-server capacity run was made.
+
+The worker counts are inherited unchanged, because the images are the same: OpenResty (glibc)
+still starts 8 workers on its 2 pinned cores (§4.4b), and Apache (musl) uses its compiled event-MPM
+defaults. Both cancel within a deployment's paired difference, as they do for the proxy variants.
+
+### 10.4 Stack CPU
+
+For silent − origin and bare − origin, the CPU of a single container no longer means the same thing
+in the two deployments: the proxy deployment splits the work between the proxy and the origin, while
+in-server it is all in one container. `compare_deployments.py` therefore reports **stack CPU**: host
+container + origin container, each integrated over the measured window and divided by k6's
+`edge_requests`. On the origin tier only the origin serves, and the idle host container is not
+counted, as in `analyze_paired.py`. silent − bare keeps the host container's CPU alone, because there
+the origin is the same in both tiers.
+
+### 10.5 Measured functional differences in the in-server deployment
+
+From `functional_matrix.md` (2026-10-18; each variant against its own bare tier) and manual probes.
+The four proxy columns are identical, verdicts and reasons, to the 2026-10-04 matrix in
+`archive/2026-10-18-pre-inserver/`.
+
+| Case | OpenResty proxy | OpenResty in-server | Apache proxy | Apache in-server |
+|---|---|---|---|---|
+| HTML, gzip-encoded | BROKEN (tokens spliced into compressed bytes) | injected (decodes) | BROKEN | injected (decodes) |
+| HEAD | changed (Content-Length dropped) | changed (same) | BROKEN (HEAD length ≠ GET length) | preserved (HEAD advertises the injected length) |
+| Range `bytes=0-99` | BROKEN (206, modified partial body) | BROKEN by the matrix's rule: 206 → 200, full injected page | BROKEN | preserved (206 of the injected page; `Content-Range: bytes 0-99/975`) |
+| 204 | changed (bait header) | changed (bait header) | changed | preserved (answered before the access hook) |
+| 404 page | injected | injected | injected | preserved: bait header and cookie, **no body tokens** |
+
+Two of these need care in the write-up:
+
+* **Apache does not inject into its own error pages.** `ap_send_error_response`
+  (`modules/http/http_protocol.c`) resets `r->output_filters` to the protocol filters, "to get rid of
+  any RESOURCE filters", and mod_lua registers `LuaOutputFilter` as `AP_FTYPE_RESOURCE`
+  (`modules/lua/mod_lua.c`). Headers staged in `err_headers_out` survive. In the proxy deployment
+  the 404 came from the origin as an ordinary proxied response and was injected. Two of the four
+  benchmark GETs (`detect_query`, `token_decoy`) are 404s, so Apache in-server injects into **three**
+  of the five HTML responses per iteration rather than five. Its wadm-tier html_comments and
+  decoy_paths inject coverage is therefore 3/5 by construction, its `BAIT MISSING` lines for those
+  two probes are expected, and its silent − bare covers less body-injection work than the proxy
+  variant's. `compare_deployments.py` prints the coverage beside the costs for this reason.
+* **OpenResty's range answer is valid HTTP.** The matrix classifies any status change as BROKEN, but
+  a server may ignore `Range` and send the full representation with 200 (RFC 9110 §14.2). What
+  changed is that the client gets the whole injected page instead of the requested part.
+
+### 10.6 Verification (2026-10-18)
+
+* Config syntax: `openresty -t` and `httpd -t` pass for both tiers of both variants. nginx warns
+  `duplicate MIME type "text/html"` for the gz location's `gzip_types text/html`, which is
+  harmless (text/html is always included) and mirrors `backend/nginx.conf`.
+* Manual probes, WADM tier: `/` returns 200 with the comment token, `X-Backend-Server` and the
+  `admin_ui` cookie. One trigger request to `/` or `/about.html` raises **exactly one** `WADM ALERT`,
+  so the `/` mapping does not re-run the access phase. The decoy path returns 404 with one ALERT.
+  The SQLi hit returns 500 with the fake MySQL error and an ALERT, and a clean login returns 401
+  with a TRAP. The gzip page decodes. `/test/empty` returns 204. Bare tier: same pages, no tokens,
+  no WADM lines; `/` is byte-identical to `index.html`.
+* `parity_check.py` (`results/parity_check_2026-10-18.txt`): the Lua-sync check passes (754
+  lines); Envoy+Lua, Envoy+WASM and Apache are identical to OpenResty as before; both in-server
+  variants are identical under the in-server rules, with the same 12 alert/trap lines and **no**
+  origin requests.
+* No file the proxy variants depend on changed (`git diff` on `nginx/nginx.conf`,
+  `nginx/nginx-baseline.conf`, `httpd*.conf`, `envoy*`, `wasm-filter/`, `apache_scripts/`,
+  `config.json`, `benchmarks/test.js`, `backend/` is empty). `analyze_paired.py`, after the
+  in-server changes, reproduces the archived `paired_summary.json` byte for byte from the unchanged
+  `paired_<edge>.json` files (the bootstrap is seeded).
+* Images (not re-pulled; the same local images as the proxy variants):
+  `openresty/openresty:latest` `sha256:12c49073…` (2026-02-13), `httpd:2.4-alpine` `sha256:c9e51ef5…`
+  (Apache 2.4.67, 2026-05-05), `nginx:alpine` `sha256:d0c78077…`, `grafana/k6:latest` `sha256:9adaede0…`.
+* The `/` mapping, tested both ways. With an `index`-based copy of the OpenResty in-server config,
+  one trigger to `/` raised **two** alerts (the internal redirect re-runs the access phase). With
+  mod_dir resolving `/` in a copy of the Apache in-server config, it raised **one**, and
+  `detect.lua` ran once. The shipped mappings raise one on both; Apache's `AliasMatch` is kept for
+  symmetry, not because Apache needs it.
+* Harness smoke (`--preset smoke`, scratch results, `openresty_inserver`, `apache_inserver`,
+  `openresty`) on an **untuned, busy guest** (THP `[always]`, swap on, load 7.5–10; the origin
+  control burned 280–1,520 µs/request against 153–287 in the tuned 2026-10-15 run, so every smoke
+  CPU figure is inflated 2–6×). 8/12, 7/12 and 9/12 cells valid; every rejection is at 100/s or a
+  host-contention gate. Self-checks hold: 7 ALERT + 2 TRAP per iteration on silent/wadm, 0 on bare;
+  timing lines only on wadm; origin CPU 0.0 on every in-server edge tier; no crash indicator;
+  coverage complete except Apache in-server's html_comments/decoy_paths inject at 0.600 (§10.5).
+  **Apache in-server's WADM tiers collapsed at 100/s** (19–20 % of the offered rate, 500 VUs, bare
+  at 100 %). This was one contended replicate. **The full run on the tuned guest sustained 100/s on
+  every Apache in-server tier (3,000 iterations, 100 % of offered; §10.7), so the collapse was host
+  contention**, not a property of the variant.
+
+### 10.7 Results of the in-server run (2026-10-18/19)
+
+`inserver_suite_20261018T214050Z` (`run_inserver_suite.sh`), guest tuned (THP never, swap off,
+load ≈ 1 at start), 21:40–00:47 UTC, every step OK. No soft lockup or clock jump in the kernel log
+and no host stall in any cell. **120 of 120 cells valid**: 5/5 replicates in every tier and rate of
+both variants. Apache in-server's workers segfaulted 9–12 times per WADM run at 100/s and 2–3 times
+in three WADM runs at 10/s, never on bare; the gate kept those cells with a warning, as it does for
+proxy Apache. `analyze_paired.py` reproduced all five earlier entries of `paired_summary.json` byte
+for byte. On every in-server edge tier the origin's CPU was 0.00–0.61 µs/request: nothing was
+proxied.
+
+From `deployment_comparison.md` (median per GET of the paired differences, replicate range in
+brackets; proxy figures are the 2026-10-15 run):
+
+| | 1 / 10 / 100 per s | proxy | in-server | ranges overlap? |
+|---|---|---|---|---|
+| OpenResty | silent − bare, latency | +145 / +114 / +111 µs | +69 / +81 / +72 µs | no / no / no |
+| | silent − bare, CPU | +61 / +31 / +31 µs/req | +26 / +19 / +32 µs/req | yes / yes / yes |
+| | silent − origin, latency | +409 / +388 / +294 µs | +12 (spans 0) / +29 / +82 µs | no / no / no |
+| | bare − origin, latency | +260 / +255 / +184 (proxy hop) | −58 / −49 / +10 (server swap) | no / no / no |
+| | silent − origin, stack CPU | +203 / +113 / +114 µs/req | −0.6 (spans 0) / −28 / +21 µs/req | no / no / no |
+| Apache | silent − bare, latency | +233 / +189 / +295 µs | +244 / +198 / +183 µs | yes / yes / no |
+| | silent − bare, p95 at 100/s | +83,946 µs | +1,491 µs | no |
+| | silent − bare, CPU | +295 / +129 / +495 µs/req | +279 / +183 / +260 µs/req | yes / yes / yes |
+| | silent − origin, latency | +545 / +553 / +580 µs | +286 / +271 / +224 µs | no / no / no |
+| | bare − origin, latency | +324 / +372 / +279 (proxy hop) | +46 / +71 / +35 (server swap) | no / no / no |
+| | silent − origin, stack CPU | +484 / +294 / +812 µs/req | +360 / +276 / +290 µs/req | yes / yes / no |
+
+Read with these caveats:
+
+* Apache proxy's 100/s **median** is not stable (+2,174 µs and +295 µs in two runs, §9.6), so the
+  100/s comparison for Apache rests on the tail.
+* Apache in-server's wadm-tier html_comments/decoy_paths inject coverage is 0.60 at every rate
+  (§10.5), so its silent − bare covers less body-injection work than the proxy variant's.
+  OpenResty's coverage is complete in both deployments.
+* In-server silent − origin includes the server swap (bare − origin in-server), which for Apache
+  is +35–71 µs at the median. That is Apache serving files rather than nginx, not a cost of HDM.
+* The two sessions' origin floors agree: at 10/s the origin answered a GET in 0.551 ms in both
+  in-server sessions and in 0.543/0.545 ms in the OpenResty/Apache proxy sessions. The comparison
+  still uses only the paired differences.
+* The measurements do not explain why the same OpenResty code adds less latency in-server (the
+  ranges do not overlap; their medians are not subtracted across sessions). No mechanism is claimed.
+
+Functional checks under load (paired cells): OpenResty in-server is 100 % intact with recall 1.0 at
+every rate. Apache in-server's worst intact share is 99.78 % (10/s) and 99.63 % (100/s), with alert
+recall ≥ 0.9978 and trap recall ≥ 0.998 (proxy Apache: 99.36–99.78 %, 0.9979–0.9997). Its
+`BAIT MISSING` on `detect_query` and `token_decoy` is the error-page residual.
+
+### 10.8 The thesis report's scope, and the parity reference (2026-10-19)
+
+The thesis report covers four variants: **Envoy+Lua and Envoy+WASM (proxy deployment), OpenResty
+in-server and Apache in-server**. The OpenResty and Apache proxy variants stay in the repository,
+with their data, but the report no longer includes them. Two consequences:
+
+* `parity_check.py` now uses **OpenResty in-server** as its reference, so the report needs no proxy
+  variant of OpenResty. Responses and alerts are compared against it (body hash only where it
+  answered 200). Origin traffic cannot be compared against an in-server reference, so the in-server
+  variants must send nothing, and the proxy variants must forward the same requests as each other
+  with no `html_comments` keyword left in any forwarded query. Result
+  (`results/parity_check_2026-10-19.txt`): all four identical; 11 ALERT + 1 TRAP lines each; both
+  Envoy variants forwarded the same 11 requests, none carrying a keyword; the in-server variants
+  sent none. `--all` adds the two proxy variants.
+* The capacity experiment (§7.4) is not part of the report: in-server variants run on two cores,
+  Envoy on two plus the origin's one (§10.3). The GET-only and page-size runs (§7.5) exist for the
+  Envoy variants from 2026-10-05 and are re-run for the in-server variants. The SQLi hit/miss
+  experiment (§7.5) covers only proxy variants; the report answers its question from the main
+  run's per-arm scan timers, which exist for all four variants.
+

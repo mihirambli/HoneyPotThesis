@@ -64,12 +64,64 @@ python3 benchmarks/plot_remediation.py
 See `docs/BENCHMARK_METHODOLOGY.md` §4b for the crash investigation and §4c for how the variant is
 wired and presented.
 
+### The in-server variants
+
+OpenResty and Apache httpd are web servers as well as reverse proxies, so the same module also runs
+**inside the server that serves the pages**, with no proxy hop. Two keys measure that deployment:
+
+| Key | Service (port) | WADM / bare config | Proxy counterpart |
+|---|---|---|---|
+| `openresty_inserver` | `openresty-inserver` (8084) | `nginx/nginx-inserver.conf` / `nginx/nginx-inserver-baseline.conf` | `openresty` |
+| `apache_inserver` | `apache-inserver` (8085) | `httpd-inserver.conf` / `httpd-inserver-baseline.conf` | `apache_lua` |
+
+They are registered in `edge_specs.py` as `INSERVER_KEYS` (with `deployment="inserver"`) and, like
+the remediation variant, are **not** in `EDGE_KEYS`, so `--all`, the four-way figures and every
+plotter that loops over `EDGE_KEYS` are unchanged. `analyze_paired.py`, `functional_matrix.py` and
+`parity_check.py` include them.
+
+What the tiers mean in-server:
+
+| Tier | Proxy deployment | In-server deployment |
+|---|---|---|
+| `origin` | k6 → nginx:alpine origin, edge idle | the same: k6 → the shared nginx:alpine origin, in-server container idle |
+| `bare` | the proxy without the module, forwarding to the origin | the web server serving `backend/www` itself, without the module |
+| `silent`, `wadm` | the proxy with the module | the web server with the module, serving its own pages |
+
+So `silent − bare` is the module's cost in both deployments, but `bare − origin` changes meaning:
+in the proxy deployment it is the proxy hop; in-server it is **OpenResty or Apache serving files
+against nginx:alpine** (the "server swap"), and it is part of the in-server `silent − origin`. The
+report labels it `bare server - origin`.
+
+```bash
+./benchmarks/run_inserver_suite.sh                 # ~3.3 h: both variants, --preset full, then the comparison
+./benchmarks/run_inserver_suite.sh --with-size     # + the page-size mix at the proxy runs' settings
+python3 benchmarks/compare_deployments.py          # proxy vs in-server, from the paired files
+```
+
+`compare_deployments.py` puts each in-server variant beside its proxy counterpart per rate: module
+cost (`silent − bare`: Δp50/Δp95 per GET and host-container CPU per request), the deployed stack
+above the shared origin (`silent − origin`: latency and stack CPU = host + origin container per
+request), `bare − origin` for both, a sanity row (origin CPU per request on the in-server edge tiers,
+which must be about zero) and the wadm tier's timing coverage. It writes
+`results/deployment_comparison.md/.csv` and `results/plots/deployment_comparison.png`.
+
+The two deployments are measured in **separate sessions**, so the comparison is between two paired
+differences, each with its own replicate range. Never subtract raw latencies across the two
+sessions; `docs/BENCHMARK_METHODOLOGY.md` ("In-server deployment") explains why, and why capacity is
+not compared across deployments.
+
+Known in-server differences (functional matrix, `docs/EDGE_LEVELING.md`): Apache does not inject into
+its own error pages (so its `detect_query` and `token_decoy` GETs, both 404s, get headers but no body
+tokens, and the html_comments/decoy_paths inject coverage is 3/5); Apache's `/test/empty` 204 is
+answered before the access hook.
+
 ```bash
 sudo ./benchmarks/tune_guest.sh apply          # guest-side noise reduction
 
 python3 benchmarks/run_paired_benchmark.py --preset smoke --all --results /tmp/wadm-smoke  # ~40 min
 python3 benchmarks/functional_matrix.py                           # ~10 min, does WADM break things
 ./benchmarks/run_paired_suite.sh                                  # ~6.5 h, reportable, 4 tiers, + figures
+./benchmarks/run_inserver_suite.sh                                # ~3.3 h, the two in-server variants
 python3 benchmarks/run_paired_benchmark.py --all --mix get  --rates 100 --replicates 3   # trap vs GET CPU
 python3 benchmarks/run_paired_benchmark.py --all --mix size --rates 10  --replicates 3   # page-size sweep
 ./benchmarks/run_sqli_suite.sh                                    # ~1.5 h, SQLi hit vs miss per edge
@@ -83,6 +135,7 @@ python3 benchmarks/plot_mechanisms.py          # CPU per mechanism, latency vs p
 python3 benchmarks/plot_sqli.py                # SQLi hit vs miss: latency, CPU, scan time
 python3 benchmarks/plot_remediation.py         # Apache LuaScope thread vs conn
 python3 benchmarks/plot_origin_floor.py        # bare proxy and WADM against the no-proxy origin
+python3 benchmarks/compare_deployments.py      # proxy vs in-server deployment of OpenResty/Apache
 python3 benchmarks/report_capacity.py          # capacity with the resource that limited it
 
 sudo ./benchmarks/tune_guest.sh revert
@@ -852,24 +905,37 @@ guarantees (all four edges obey them):
 ## Behavioural parity check
 
 The latency comparison assumes every edge does the same work. `parity_check.py` verifies it
-functionally: it brings all four edges up at once (their host ports differ), sends each the same
+functionally: it brings the variants up at once (their host ports differ), sends each the same
 fixed set of requests (the four benchmark GETs, exact-path pages, order-preserving strip,
 `%XX`- and `+`-encoded keywords, a duplicated form field, a decoy sub-path, and a SQLi hit and miss),
-and diffs three things against OpenResty:
+and compares three things. The reference is **OpenResty in-server**, the reference variant of the
+thesis report (since 2026-10-19; before that it was the OpenResty proxy):
 
-- what the attacker sees — status, `X-Backend-Server`, `Set-Cookie`, body hash;
-- what the edge alerts on — every `WADM ALERT` / `WADM TRAP` line, IPs normalised;
-- what reached the origin — the request lines in the origin's access log, attributed to an edge by
-  its container IP, which shows whether a trigger keyword was stripped.
+- what the attacker sees — status, `X-Backend-Server`, `Set-Cookie` on every probe, and the body
+  hash where the reference answered 200 (error pages are rendered by whichever server produced
+  them);
+- what the edge alerts on — every `WADM ALERT` / `WADM TRAP` line, IPs normalised, identical to
+  the reference;
+- what reached the origin — attributed to an edge by its container IP. In-server variants must send
+  nothing. Proxy variants must forward the same requests as the first proxy edge of the run, and no
+  forwarded query may still carry an `html_comments` trigger keyword (the strip check).
 
 ```bash
-python3 benchmarks/parity_check.py          # exit 0 = identical, 1 = mismatch (printed)
+python3 benchmarks/parity_check.py          # the four report variants; exit 0 = identical
+python3 benchmarks/parity_check.py --all    # also the OpenResty and Apache proxy variants
 python3 benchmarks/parity_check.py --keep   # leave the stack up for inspection
 ```
 
 It excludes only the documented residuals: response framing (chunked vs `Content-Length`), the
-Envoy+WASM SQLi trap contacting the origin, and Apache forwarding `path?` when every parameter is
-stripped. Run it after any change to an edge, before benchmarking. It shares the Compose project
+Envoy+WASM SQLi trap contacting the origin, and (with `--all`) Apache proxy forwarding `path?` when
+every parameter is stripped.
+
+The two in-server variants are diffed under their own rules: status, `X-Backend-Server` and
+`Set-Cookie` on every probe; body hash and length only where OpenResty answered 200 (their 404 pages
+are the host server's own); the alert lines must be **identical**; and the origin must receive
+**nothing** from them. Before probing, `assert_inserver_lua_in_sync()` checks that
+`nginx/nginx-inserver.conf` carries `nginx/nginx.conf`'s `lua_shared_dict` + `init_by_lua_block`
+byte for byte, and stops with a unified diff if not. Run it after any change to an edge, before benchmarking. It shares the Compose project
 with the runners, so never run it (or anything else that calls `docker compose down`) while a
 benchmark is in progress.
 
@@ -881,11 +947,15 @@ benchmark is in progress.
 | [run_paired_benchmark.py](run_paired_benchmark.py) | The reportable runner: bare, silent and instrumented tiers paired per replicate, host-side CPU and memory over the measured window, validity gates, functional checks and alert counts. Writes `paired_<edge>.json` (or `<mix>_<edge>.json`). |
 | [analyze_paired.py](analyze_paired.py) | Paired statistics for every tier comparison, the shift function, CPU split, coverage, functional checks and resources; console report and `paired_summary.json`. |
 | [run_capacity_benchmark.py](run_capacity_benchmark.py) | Capacity ladder with bisection, replicates, a worst-GET p95 SLO and per-container utilisation, naming the resource that limits each tier. Writes `capacity_<edge>.json`. |
-| [functional_matrix.py](functional_matrix.py) | WADM vs bare on all four edges across thirteen response shapes the probes never exercise (gzip, HEAD, range, 204, non-HTML, >1 MiB, HTTP/1.0…). Writes `functional_matrix.md/.json`. |
+| [functional_matrix.py](functional_matrix.py) | WADM vs bare on the four proxy edges and the two in-server variants across thirteen response shapes the probes never exercise (gzip, HEAD, range, 204, non-HTML, >1 MiB, HTTP/1.0…). Writes `functional_matrix.md/.json`. |
 | [run_full_suite.sh](run_full_suite.sh) | Every reportable measurement in order (functional matrix, paired, GET-only, size, SQLi, Apache variant, capacity), then every analysis and plot; unattended, with per-step retry and a status file. |
 | [run_paired_suite.sh](run_paired_suite.sh) | The reportable four-tier paired run on all four edges, after archiving the dataset it replaces to `results/archive/<date>-pre-origin-tier/`, then every analysis and figure drawn from it. |
+| [run_inserver_size.sh](run_inserver_size.sh) | The page-size runs (`--mix size`, 10/s, 3 replicates) of the two in-server variants, then `analyze_paired.py` and `plot_mechanisms.py`. `--detach` re-runs it under setsid/nohup so it survives a closed shell or session; refuses an untuned guest. ~30 min. |
+| [run_report_suite.sh](run_report_suite.sh) | Every dataset of the thesis report, re-measured in one session for its four variants (Envoy+Lua, Envoy+WASM, OpenResty and Apache in-server): parity check, functional matrix, the four-tier `--preset full` runs, the GET-only (100/s) and page-size (10/s) mixes with 3 replicates, then `analyze_paired.py` and `plot_mechanisms.py`. Archives the files it overwrites to `results/archive/<date>-pre-report-suite/`, records the image identifiers, and refuses an untuned guest (`--allow-untuned`). ~8 h. |
+| [run_inserver_suite.sh](run_inserver_suite.sh) | The same four-tier `--preset full` run for the two in-server variants (new files, nothing archived), then `analyze_paired.py` and `compare_deployments.py`; `--with-size` adds the page-size mix. |
+| [compare_deployments.py](compare_deployments.py) | Proxy vs in-server deployment of the same server, as paired differences from separate sessions: module cost, cost above the origin, bare − origin, origin-CPU sanity and coverage. Writes `deployment_comparison.md/.csv` and `plots/deployment_comparison.png`. |
 | [run_sqli_suite.sh](run_sqli_suite.sh) | The SQLi hit-vs-miss experiment: per edge, hit-only and miss-only cells interleaved in every replicate and tier (20 s, 5 replicates), then `plot_sqli.py`. |
-| [suite_common.sh](suite_common.sh) | Shared by both suite scripts: the guest-tuning warning and the retry-once-then-move-on step runner. |
+| [suite_common.sh](suite_common.sh) | Shared by the suite scripts: the guest-tuning warning and the retry-once-then-move-on step runner. |
 | [plot_sqli.py](plot_sqli.py) | The SQLi trap per edge, hit vs. miss: latency added, CPU added and scan time (`sqli_hit_miss.png`, `sqli.md`), from the `sqli-hit_` / `sqli-miss_` runs. |
 | [plot_mechanisms.py](plot_mechanisms.py) | CPU per mechanism (GET path vs. SQLi trap) and latency added vs. page size, from the `get_` and `size_` runs. |
 | [report_capacity.py](report_capacity.py) | Capacity table and figure, each capacity stated with its binding resource. |
@@ -895,7 +965,7 @@ benchmark is in progress.
 | [run_internal_envoy_lua_benchmark.py](run_internal_envoy_lua_benchmark.py) | Orchestrates internal Envoy Lua microsecond profiling runs and writes summary + raw JSON results. |
 | [run_internal_apache_lua_benchmark.py](run_internal_apache_lua_benchmark.py) | Orchestrates internal Apache mod_lua microsecond profiling runs and writes summary + raw JSON results. |
 | [run_internal_wasm_benchmark.py](run_internal_wasm_benchmark.py) | Orchestrates internal Envoy WASM microsecond profiling runs and writes summary + raw JSON results. |
-| [parity_check.py](parity_check.py) | Functional check that all four edges produce identical responses, alert lines and origin requests for a fixed probe set; run before benchmarking after any edge change. |
+| [parity_check.py](parity_check.py) | Functional check that the four report variants (and, with `--all`, the two proxy variants of OpenResty and Apache) produce identical responses and alert lines, and the expected origin requests, for a fixed probe set, against OpenResty in-server as the reference; also the Lua-block sync check. Run before benchmarking after any edge change. |
 | [wadm_timings.py](wadm_timings.py) | Shared by every runner: Compose driving (cleanup, stack start, load-tester cycling), summary statistics, the cross-edge `WADM TOKEN <kind> <phase> (us):` scraper, the k6 end-to-end summary scraper, and the end-to-end result-document builders. |
 | [plot_paired_overhead.py](plot_paired_overhead.py) | From the paired data: latency added per probe (forest plot), the shift function by quantile, the in-edge timer heatmap, and the headline table (`results/paired_headline.md/.csv`). |
 | [plot_origin_floor.py](plot_origin_floor.py) | Latency each edge adds above the no-proxy origin, bare and with WADM, paired per replicate: `plots/origin_floor/<rate>_per_s.png`, `plots/origin_floor/latency_levels.png`, `results/origin_floor.md/.csv`. GETs only. |

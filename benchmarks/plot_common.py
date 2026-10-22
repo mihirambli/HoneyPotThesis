@@ -40,6 +40,12 @@ COLORS = {
     "WASM (Envoy)": "#eb6834",
     "Apache+Lua": "#1baf7a",
     "Envoy+Lua": "#eda100",
+    # In-server variants keep their proxy counterpart's colour: colour is the server, and the
+    # deployment is drawn as fill (solid = proxy, hollow and hatched = in-server). Lighter or darker
+    # steps of the same hue were tried and fail the palette validator's normal-vision floor against
+    # their parent (worst ΔE 12.8 for a tint), so hue alone could not tell the two apart.
+    "OpenResty (in-server)": "#2a78d6",
+    "Apache (in-server)": "#1baf7a",
 }
 
 INK = "#0b0b0b"

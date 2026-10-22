@@ -1,0 +1,6 @@
+2026-10-18T21:40:50Z START inserver suite 20261018T214050Z (with_size=0)
+2026-10-18T23:13:29Z OK     python3 -u benchmarks/run_paired_benchmark.py --preset full --edge openresty_inserver
+2026-10-19T00:45:59Z OK     python3 -u benchmarks/run_paired_benchmark.py --preset full --edge apache_inserver
+2026-10-19T00:46:56Z OK     python3 -u benchmarks/analyze_paired.py
+2026-10-19T00:47:33Z OK     python3 -u benchmarks/compare_deployments.py
+2026-10-19T00:47:33Z DONE

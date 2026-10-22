@@ -29,6 +29,8 @@ Three things happen here that the previous analysis could not do:
      origin, edge idle, same replicate), bare - origin is what putting the proxy in the path costs
      and silent - origin what the deployed stack costs, with the same statistics as silent - bare.
      Edge CPU is not compared against it: the origin tier has no edge to measure.
+     For an in-server variant there is no proxy: bare - origin is the web server serving its own
+     pages against the nginx:alpine origin, and is labelled "bare server - origin".
 
 The slot table is a harness self-check, not a result: with `WADM_ORDER=rotate` every probe spends
 an equal number of iterations in every position, so the eight slot medians must agree. A spread
@@ -57,7 +59,15 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from edge_specs import EDGE_KEYS, EDGES, ORIGIN_TIER, PAIRED_TIERS, VARIANT_KEYS, WADM_TIERS
+from edge_specs import (
+    EDGE_KEYS,
+    EDGES,
+    INSERVER_KEYS,
+    ORIGIN_TIER,
+    PAIRED_TIERS,
+    VARIANT_KEYS,
+    WADM_TIERS,
+)
 from wadm_timings import (
     ALL_KINDS,
     assess_run,
@@ -531,6 +541,19 @@ COMPARISON_LABELS = {
     "silent_minus_origin": "WADM (silent) - origin",
 }
 
+# In the in-server deployment the bare tier is not a proxy: it is the web server serving the pages
+# itself, so bare - origin compares two file servers rather than measuring a proxy hop.
+INSERVER_LABELS = {"bare_minus_origin": "bare server - origin"}
+
+
+def is_inserver(doc_or_summary: dict[str, Any]) -> bool:
+    spec = EDGES.get((doc_or_summary.get("metadata") or {}).get("edge", ""))
+    return bool(spec and spec.deployment == "inserver")
+
+
+def comparison_label(name: str, inserver: bool) -> str:
+    return (INSERVER_LABELS.get(name) if inserver else None) or COMPARISON_LABELS[name]
+
 
 def tiers_of(doc: dict[str, Any]) -> list[str]:
     present = {c["tier"] for c in doc["cells"]}
@@ -590,6 +613,7 @@ def functional_stats(doc: dict[str, Any], rate: int) -> dict[str, Any]:
     produce (detection recall) — zero expected on bare.
     """
     out: dict[str, Any] = {}
+    inserver = is_inserver(doc)
     for tier in tiers_of(doc):
         cells = valid_cells(doc, tier, rate)
         if not cells:
@@ -610,6 +634,11 @@ def functional_stats(doc: dict[str, Any], rate: int) -> dict[str, Any]:
                     all(all((r.get("bait") or {}).values()) for r in refs) if refs else None
                 ),
             }
+            if inserver:
+                # An in-server variant generates its own error pages, so a non-200 probe's body
+                # differs from nginx:alpine's by construction; the report skips those.
+                statuses = {(r.get("origin") or {}).get("status") for r in refs}
+                probes[name]["origin_status"] = statuses.pop() if len(statuses) == 1 else None
         recall: dict[str, Any] = {}
         for kind, per_iteration in EXPECTED_ALERTS_PER_ITERATION.items():
             ratios = []
@@ -753,6 +782,7 @@ def verdict(delta: dict[str, Any], unit: str) -> str:
 
 def report(summary: dict[str, Any]) -> None:
     label = summary["metadata"]["label"]
+    inserver = is_inserver(summary)
     print(f"\n{'=' * 78}\n{label}\n{'=' * 78}")
 
     marginal = summary["cpu_marginal"]
@@ -770,12 +800,13 @@ def report(summary: dict[str, Any]) -> None:
         delta = marginal.get(name)
         if delta and delta.get("n"):
             tag = "  <- headline" if name == head else ""
-            print(f"  Marginal CPU, {COMPARISON_LABELS[name]}: {verdict(delta, ' us/req')}{tag}")
+            print(f"  Marginal CPU, {comparison_label(name, inserver)}: "
+                  f"{verdict(delta, ' us/req')}{tag}")
     if not any((marginal.get(n) or {}).get("n") for n, _, _ in COMPARISONS):
         print("  Marginal CPU: needs two or more RATES to separate idle from per-request cost")
 
     for rate, data in summary["rates"].items():
-        head_label = COMPARISON_LABELS[data.get("headline_comparison", "wadm_minus_bare")]
+        head_label = comparison_label(data.get("headline_comparison", "wadm_minus_bare"), inserver)
         print(f"\n  rate {rate}/s — {data['replicates_paired']} paired replicates "
               f"(headline: {head_label})")
         for item in data["rejected_cells"]:
@@ -791,7 +822,7 @@ def report(summary: dict[str, Any]) -> None:
             parts = ", ".join(
                 f"{part} {d['median']:+.1f}" for part, d in split.items() if d.get("n")
             )
-            print(f"    CPU, {COMPARISON_LABELS[name]:28s} {verdict(cpu, ' us/req')}"
+            print(f"    CPU, {comparison_label(name, inserver):28s} {verdict(cpu, ' us/req')}"
                   + (f"  [{parts}]" if parts else ""))
         for tier, abs_cpu in data["cpu_absolute_us_per_request"].items():
             if abs_cpu.get("n"):
@@ -835,7 +866,7 @@ def report(summary: dict[str, Any]) -> None:
                 delta = block["latency_delta_quantiles_ms"]["per_get"]["med"]
                 pct = block["latency_delta_pct_per_get"]
                 pct_s = f"  [{pct['median']:+.0f}% of origin]" if pct.get("n") else ""
-                print(f"      {COMPARISON_LABELS[name]:24s} {verdict(delta, ' ms')}{pct_s}")
+                print(f"      {comparison_label(name, inserver):24s} {verdict(delta, ' ms')}{pct_s}")
 
         probe_effect = (data.get("comparisons") or {}).get("wadm_minus_silent")
         if probe_effect:
@@ -853,7 +884,8 @@ def report(summary: dict[str, Any]) -> None:
             conn = [(n, v["new_conn_median"]) for n, v in probes.items()
                     if v["new_conn_median"]]
             bad_ref = [n for n, v in probes.items()
-                       if tier not in WADM_TIERS and v["matches_origin_all"] is False]
+                       if tier not in WADM_TIERS and v["matches_origin_all"] is False
+                       and (not inserver or v.get("origin_status") == 200)]
             no_bait = [n for n, v in probes.items()
                        if tier in WADM_TIERS and v["baited"] and v["bait_all_present"] is False]
             alerts = f.get("alerts") or {}
@@ -1096,7 +1128,7 @@ def main() -> int:
     # know about it in advance. Main edges lead so the four-way comparison reads first.
     present = [k for k in EDGE_KEYS if (results_dir / f"paired_{k}.json").exists()]
     present += [
-        k for k in VARIANT_KEYS if (results_dir / f"paired_{k}.json").exists()
+        k for k in VARIANT_KEYS + INSERVER_KEYS if (results_dir / f"paired_{k}.json").exists()
     ]
     for k in EDGE_KEYS:
         if k not in present:

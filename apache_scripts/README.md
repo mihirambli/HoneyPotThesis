@@ -1,7 +1,7 @@
 <!-- apache_scripts/README.md: documents mod_lua WADM scripts for the Apache edge (Compose profile: apache). -->
 # apache_scripts (Apache mod_lua WADM filter)
 
-Scripts mounted read-only at `/usr/local/apache2/scripts/` for the **Apache + mod_lua** edge. They implement the same canonical detection and injection mechanism as the other three edges; `docs/EDGE_LEVELING.md` ("Behavioural equivalence and latency pass") defines it. The scripts are split across Apache's processing phases.
+Scripts mounted read-only at `/usr/local/apache2/scripts/` for **both** Apache services: the proxy edge `apache` (`httpd.conf`) and the in-server variant `apache-inserver` (`httpd-inserver.conf`). They are shared files, not copies, so both deployments run the same module code. They implement the same canonical detection and injection mechanism as the other three edges; `docs/EDGE_LEVELING.md` ("Behavioural equivalence and latency pass") defines it. The scripts are split across Apache's processing phases.
 
 ## Files and mounts (bind-mounted by docker-compose.yml)
 
@@ -52,6 +52,16 @@ Client request
                                ▼
                              Client
 ```
+
+## In-server behaviour (`apache-inserver`, `httpd-inserver.conf`)
+
+In the in-server variant Apache serves `backend/www` (mounted at `/srv/www`) itself; there is no `ProxyPass`. The hooks are registered exactly as in `httpd.conf`, and behave as follows:
+
+- **`detect.lua`** runs unchanged. It still assigns `r.args` after a strip; with no proxy, nothing reads it, so the strip is verified only through the alert lines. `err_headers_out` baits are sent on served files and on Apache's own error pages alike.
+- **`login.lua`** answers the trap as before. For anything it does not own it returns `DECLINED`, and the core serves the file or answers 404, as it would without WADM.
+- **`inject.lua`** runs on every response that passes through the normal output-filter chain: served HTML files and the gzip test page (it is a resource filter, so it runs before `DEFLATE`). It does **not** run on Apache's own error pages. `ap_send_error_response` (modules/http/http_protocol.c) resets `r->output_filters` to the protocol filters, "to get rid of any RESOURCE filters", and mod_lua registers `LuaOutputFilter` as `AP_FTYPE_RESOURCE`. A 404 therefore carries the bait header and cookie but no body tokens. In the proxy deployment the 404 came from the origin as an ordinary proxied response and was injected. Two of the benchmark's four GETs (`detect_query` and `token_decoy`) end in 404, so in this deployment the module injects into three of the five HTML responses per iteration rather than five.
+- **`/`** is mapped to `index.html` with `AliasMatch`, as the OpenResty in-server variant must map it with `try_files` (nginx's `index` makes an internal redirect that re-runs detection: measured, two alerts for one trigger). In Apache the mapping is a matter of symmetry, not of correctness: with mod_dir resolving `/` instead, one trigger still raised one alert and `detect.lua` ran once (one header-staging timing line), measured on 2026-10-18.
+- **`/test/empty`** is answered by `RedirectMatch 204`, at translate-name time, before the access hook. That 204 therefore carries no bait header and raises no alert. Both deployments still serve 204.
 
 ## Hook details
 

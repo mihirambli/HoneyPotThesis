@@ -1,0 +1,15 @@
+2026-10-19T21:35:23Z START report suite 20261019T213523Z
+2026-10-19T21:35:49Z OK     bash -c set -o pipefail; python3 -u benchmarks/parity_check.py | tee benchmarks/results/parity_check_2026-10-19.txt
+2026-10-19T21:37:09Z OK     python3 -u benchmarks/functional_matrix.py
+2026-10-19T23:39:36Z OK     python3 -u benchmarks/run_paired_benchmark.py --preset full --edge wasm
+2026-10-20T02:00:04Z OK     python3 -u benchmarks/run_paired_benchmark.py --preset full --edge envoy_lua
+2026-10-20T04:23:06Z OK     python3 -u benchmarks/run_paired_benchmark.py --preset full --edge openresty_inserver
+2026-10-20T06:41:19Z OK     python3 -u benchmarks/run_paired_benchmark.py --preset full --edge apache_inserver
+2026-10-20T06:50:54Z OK     python3 -u benchmarks/run_paired_benchmark.py --edge wasm --mix get --rates 100 --replicates 3
+2026-10-20T07:18:16Z OK     python3 -u benchmarks/run_paired_benchmark.py --edge wasm --mix size --rates 10 --replicates 3
+2026-10-20T07:27:42Z OK     python3 -u benchmarks/run_paired_benchmark.py --edge envoy_lua --mix get --rates 100 --replicates 3
+2026-10-20T07:54:55Z OK     python3 -u benchmarks/run_paired_benchmark.py --edge envoy_lua --mix size --rates 10 --replicates 3
+2026-10-20T08:04:35Z OK     python3 -u benchmarks/run_paired_benchmark.py --edge openresty_inserver --mix get --rates 100 --replicates 3
+2026-10-20T08:33:01Z OK     python3 -u benchmarks/run_paired_benchmark.py --edge openresty_inserver --mix size --rates 10 --replicates 3
+2026-10-20T08:44:43Z OK     python3 -u benchmarks/run_paired_benchmark.py --edge apache_inserver --mix get --rates 100 --replicates 3
+2026-10-20T08:49:57Z STOPPED by user (apache_inserver size run interrupted; analysis not run)

@@ -6,6 +6,34 @@ This directory is **not** stock nginx: the Compose service uses **`openresty/ope
 
 `nginx-baseline.conf` is the same edge with every WADM block deleted, used by the no-WADM baseline suite (see `docs/EDGE_LEVELING.md`).
 
+## In-server files
+
+`nginx-inserver.conf` and `nginx-inserver-baseline.conf` configure the `openresty-inserver` service (port 8084): OpenResty serving `backend/www` (mounted at `/srv/www`) itself, with no proxy hop.
+
+| File | What it is | How it differs from the proxy pair |
+|---|---|---|
+| `nginx-inserver.conf` | The module running inside the web server that serves the pages | `lua_shared_dict` and `init_by_lua_block` copied **verbatim** from `nginx.conf`. `benchmarks/parity_check.py` diffs the two blocks before every run and refuses to continue if they differ. The `upstream` block and every `proxy_*` directive are gone; a `root /srv/www` and the locations below replace them. The three phase hooks sit at server level, so every location inherits them. |
+| `nginx-inserver-baseline.conf` | The bare in-server tier: the same file without the module | Every line except the module's (`lua_shared_dict`, `init_by_lua_block`, the three `*_by_lua_block` hooks) is identical, including the locations and `sendfile on`. |
+
+The locations, and why each one is written the way it is:
+
+- `location = / { try_files /index.html =404; }`. A plain `index` would resolve `/` by an **internal redirect**, which runs the access phase a second time and clears `ngx.ctx`. Detection would then run twice per request. `try_files` serves the file in place.
+- `location /test/gz/` with `gzip on` mirrors `backend/nginx.conf`, so the functional matrix exercises the same compressed-page case. `gzip_proxied` is not needed because nothing is proxied.
+- `location = /test/empty { try_files /__no_such_file__ =204; }` produces the 204 case. `try_files` runs **after** the access phase, so detection and the header baits apply as they did when the proxy forwarded this request. `return 204` would answer in the rewrite phase and skip the access phase.
+
+### Internal data flow, in-server
+
+The same four phases run, with one change of source: the response comes from the static-file handler (or nginx's own error page) instead of from `proxy_pass`.
+
+```
+request ──> access_by_lua (wadm.access: trap, detection, strip, IP record)
+        ──> try_files / static handler reads /srv/www/<path>   (no upstream)
+        ──> header_filter_by_lua (baits; Content-Length cleared for HTML)
+        ──> body_filter_by_lua (buffer, splice tokens)  ──> gzip (gz location only) ──> client
+```
+
+The keyword strip still rewrites the query (`ngx.req.set_uri_args`), but nothing downstream reads it, so in this deployment it is verified only through the `WADM ALERT` lines. lua-nginx-module's body filter runs before nginx's gzip filter, so a compressed page is injected before it is compressed; the functional matrix records this as `injected`, where every proxy variant breaks the encoded body.
+
 The detection and injection behaviour is the cross-edge canonical mechanism shared with Envoy+Lua, Apache and Envoy+WASM; `docs/EDGE_LEVELING.md` ("Behavioural equivalence and latency pass") defines it.
 
 ## Internal data flow

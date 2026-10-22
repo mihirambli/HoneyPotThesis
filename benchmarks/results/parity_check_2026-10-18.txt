@@ -1,0 +1,44 @@
+# parity_check.py run on 2026-10-18: the four proxy variants (code unchanged since 2026-10-03) plus
+# the two in-server variants (nginx/nginx-inserver.conf, httpd-inserver.conf), in-server rules applied.
+Lua sync: nginx-inserver.conf carries nginx.conf's WADM block verbatim (754 lines)
+Probing OpenResty...
+Probing Envoy+Lua...
+Probing Envoy+WASM...
+Probing Apache...
+Probing OpenResty in-server...
+Probing Apache in-server...
+
+Reference (OpenResty): 12 alert/trap lines, 11 origin requests
+  WADM ALERT: honeytoken triggered by <ip> — keyword 'internal-admin.example.com' found in query param 'password=internal-admin.example.com'
+  WADM ALERT: honeytoken triggered by <ip> — http_header value 'app-07.internal.example.com' replayed in request
+  WADM ALERT: honeytoken triggered by <ip> — cookie 'admin_ui' tampered (got '1', expected '0')
+  WADM ALERT: honeytoken triggered by <ip> — form field 'is_admin' tampered (got '1', expected '0')
+  WADM ALERT: honeytoken triggered by <ip> — decoy path '/api/v1/debug' requested (/api/v1/debug)
+  WADM ALERT: honeytoken triggered by <ip> — keyword 'internal-admin.example.com' found in query param 'password=internal-admin.example.com'
+  WADM ALERT: honeytoken triggered by <ip> — keyword 'internal-admin.example.com' found in query param 'q=internal-admin.example.com'
+  WADM ALERT: honeytoken triggered by <ip> — keyword 'abc123' found in query param 'note=key abc123 here'
+  WADM ALERT: honeytoken triggered by <ip> — form field 'is_admin' tampered (got '2', expected '0')
+  WADM ALERT: honeytoken triggered by <ip> — decoy path '/api/v1/debug' requested (/api/v1/debug/users)
+  WADM ALERT: honeytoken triggered by <ip> — sql_injection signature '' or ' in field 'username' on POST /api/login (payload 'admin' OR 1=1--')
+  WADM TRAP: <ip> POST /api/login answered locally with 401 (no signature matched)
+  origin: GET / HTTP/1.1 -> 200 xff="<ip>"
+  origin: GET /api/login HTTP/1.1 -> 404 xff="<ip>"
+  origin: GET /login.html?is_admin=1&probe=app-07.internal.example.com HTTP/1.1 -> 200 xff="<ip>"
+  origin: GET /api/v1/debug HTTP/1.1 -> 404 xff="<ip>"
+  origin: GET /index.html HTTP/1.1 -> 200 xff="<ip>"
+  origin: GET /dashboard.html HTTP/1.1 -> 200 xff="<ip>"
+  origin: GET /about.html?a=1&b=2 HTTP/1.1 -> 200 xff="<ip>"
+  origin: GET /about.html HTTP/1.1 -> 200 xff="<ip>"
+  origin: GET /about.html HTTP/1.1 -> 200 xff="<ip>"
+  origin: GET /login.html?is_admin=0&is_admin=2 HTTP/1.1 -> 200 xff="<ip>"
+  origin: GET /api/v1/debug/users HTTP/1.1 -> 404 xff="<ip>"
+
+Envoy+Lua: identical to OpenResty
+
+Envoy+WASM: identical to OpenResty
+
+Apache: identical to OpenResty
+
+OpenResty in-server: identical to OpenResty under the in-server rules (no origin requests)
+
+Apache in-server: identical to OpenResty under the in-server rules (no origin requests)

@@ -1,0 +1,1809 @@
+{
+  "metadata": {
+    "generated_at": "2026-10-04T20:37:42.670854+00:00",
+    "script": "benchmarks/functional_matrix.py",
+    "reference": "each edge's bare tier",
+    "cases": [
+      "HTML page",
+      "HTML, gzip-encoded",
+      "HEAD of an HTML page",
+      "conditional GET (If-None-Match)",
+      "range request (bytes=0-99)",
+      "204 No Content",
+      "404 page",
+      "JSON",
+      "binary",
+      "HTML without </body>",
+      "HTML, 768 KiB",
+      "HTML, 2 MiB (above Envoy's 1 MiB buffer)",
+      "HTTP/1.0 client"
+    ]
+  },
+  "edges": {
+    "openresty": {
+      "HTML page": {
+        "verdict": "injected",
+        "reasons": [
+          "body changed but the origin's ETag kept: a cache or client can treat the modified page as the original",
+          "framing: content-length '864' -> None, transfer-encoding 'chunked'"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "864",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 864,
+          "body_sha256": "207d40ac642727fd",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "transfer-encoding": "chunked",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 975,
+          "body_sha256": "fafae438c2d92636",
+          "decoded_bytes": null
+        }
+      },
+      "HTML, gzip-encoded": {
+        "verdict": "BROKEN",
+        "reasons": [
+          "gzip body does not decode: BadGzipFile"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-encoding": "gzip",
+            "transfer-encoding": "chunked",
+            "etag": "W/\"6ac2b8d9-1000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 325,
+          "body_sha256": "92aa666b09ea86d0",
+          "decoded_bytes": 4096
+        },
+        "wadm": {
+          "status": 200,
+          "error": "gzip body does not decode: BadGzipFile",
+          "headers": {
+            "content-type": "text/html",
+            "content-encoding": "gzip",
+            "transfer-encoding": "chunked",
+            "etag": "W/\"6ac2b8d9-1000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 372,
+          "body_sha256": "bc68c0e5f969c642",
+          "decoded_bytes": null
+        }
+      },
+      "HEAD of an HTML page": {
+        "verdict": "changed",
+        "reasons": [
+          "framing: content-length '864' -> None, transfer-encoding None"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "864",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        }
+      },
+      "conditional GET (If-None-Match)": {
+        "verdict": "changed",
+        "reasons": [
+          "bait header added to a non-HTML response"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 304,
+          "error": null,
+          "headers": {
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 304,
+          "error": null,
+          "headers": {
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        }
+      },
+      "range request (bytes=0-99)": {
+        "verdict": "BROKEN",
+        "reasons": [
+          "partial-content body modified: the client reassembles a corrupt resource",
+          "framing: content-length '100' -> None, transfer-encoding 'chunked'"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 206,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "100",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "content-range": "bytes 0-99/864",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 100,
+          "body_sha256": "44e355d7c1878c16",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 206,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "transfer-encoding": "chunked",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "content-range": "bytes 0-99/864",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 147,
+          "body_sha256": "b1f67e57ddc84f01",
+          "decoded_bytes": null
+        }
+      },
+      "204 No Content": {
+        "verdict": "changed",
+        "reasons": [
+          "bait header added to a non-HTML response"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 204,
+          "error": null,
+          "headers": {
+            "connection": "keep-alive"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 204,
+          "error": null,
+          "headers": {
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        }
+      },
+      "404 page": {
+        "verdict": "injected",
+        "reasons": [
+          "framing: content-length '153' -> None, transfer-encoding 'chunked'"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 404,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "153",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 153,
+          "body_sha256": "eda336b0ba6d1927",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 404,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "transfer-encoding": "chunked",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 264,
+          "body_sha256": "5d7203c6b78da9a4",
+          "decoded_bytes": null
+        }
+      },
+      "JSON": {
+        "verdict": "changed",
+        "reasons": [
+          "bait header added to a non-HTML response"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "1187",
+            "etag": "\"6ac2b8d9-4a3\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 1187,
+          "body_sha256": "1656cb53005f3144",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "1187",
+            "etag": "\"6ac2b8d9-4a3\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 1187,
+          "body_sha256": "1656cb53005f3144",
+          "decoded_bytes": null
+        }
+      },
+      "binary": {
+        "verdict": "changed",
+        "reasons": [
+          "bait header added to a non-HTML response"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "application/octet-stream",
+            "content-length": "32768",
+            "etag": "\"6ac2b8d9-8000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 32768,
+          "body_sha256": "5be63fe67c24b490",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "application/octet-stream",
+            "content-length": "32768",
+            "etag": "\"6ac2b8d9-8000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 32768,
+          "body_sha256": "5be63fe67c24b490",
+          "decoded_bytes": null
+        }
+      },
+      "HTML without </body>": {
+        "verdict": "injected",
+        "reasons": [
+          "body changed but the origin's ETag kept: a cache or client can treat the modified page as the original",
+          "framing: content-length '157' -> None, transfer-encoding 'chunked'"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "157",
+            "etag": "\"6ac2b8d9-9d\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 157,
+          "body_sha256": "d9940119c9f16bee",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "transfer-encoding": "chunked",
+            "etag": "\"6ac2b8d9-9d\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 204,
+          "body_sha256": "0ffc59ca94cc48fb",
+          "decoded_bytes": null
+        }
+      },
+      "HTML, 768 KiB": {
+        "verdict": "injected",
+        "reasons": [
+          "body changed but the origin's ETag kept: a cache or client can treat the modified page as the original",
+          "framing: content-length '786432' -> None, transfer-encoding 'chunked'"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "786432",
+            "etag": "\"6ac2b8d9-c0000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 786432,
+          "body_sha256": "715d620d2d99b79e",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "transfer-encoding": "chunked",
+            "etag": "\"6ac2b8d9-c0000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 786543,
+          "body_sha256": "045611f5fc8e1254",
+          "decoded_bytes": null
+        }
+      },
+      "HTML, 2 MiB (above Envoy's 1 MiB buffer)": {
+        "verdict": "injected",
+        "reasons": [
+          "body changed but the origin's ETag kept: a cache or client can treat the modified page as the original",
+          "framing: content-length '2097152' -> None, transfer-encoding 'chunked'"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "2097152",
+            "etag": "\"6ac2b8d9-200000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 2097152,
+          "body_sha256": "8a381e38cc5db1a8",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "transfer-encoding": "chunked",
+            "etag": "\"6ac2b8d9-200000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax",
+            "connection": "keep-alive"
+          },
+          "body_bytes": 2097263,
+          "body_sha256": "df52d2c575bcd70d",
+          "decoded_bytes": null
+        }
+      },
+      "HTTP/1.0 client": {
+        "verdict": "injected",
+        "reasons": [
+          "body changed but the origin's ETag kept: a cache or client can treat the modified page as the original",
+          "framing: content-length '864' -> None, transfer-encoding None"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "864",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "connection": "close"
+          },
+          "body_bytes": 864,
+          "body_sha256": "207d40ac642727fd",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax",
+            "connection": "close"
+          },
+          "body_bytes": 975,
+          "body_sha256": "fafae438c2d92636",
+          "decoded_bytes": null
+        }
+      }
+    },
+    "wasm": {
+      "HTML page": {
+        "verdict": "injected",
+        "reasons": [
+          "body changed but the origin's ETag kept: a cache or client can treat the modified page as the original",
+          "framing: content-length '864' -> None, transfer-encoding 'chunked'"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "864",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT"
+          },
+          "body_bytes": 864,
+          "body_sha256": "207d40ac642727fd",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "transfer-encoding": "chunked",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 975,
+          "body_sha256": "fafae438c2d92636",
+          "decoded_bytes": null
+        }
+      },
+      "HTML, gzip-encoded": {
+        "verdict": "BROKEN",
+        "reasons": [
+          "gzip body does not decode: BadGzipFile"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-encoding": "gzip",
+            "transfer-encoding": "chunked",
+            "etag": "W/\"6ac2b8d9-1000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 325,
+          "body_sha256": "92aa666b09ea86d0",
+          "decoded_bytes": 4096
+        },
+        "wadm": {
+          "status": 200,
+          "error": "gzip body does not decode: BadGzipFile",
+          "headers": {
+            "content-type": "text/html",
+            "content-encoding": "gzip",
+            "transfer-encoding": "chunked",
+            "etag": "W/\"6ac2b8d9-1000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 372,
+          "body_sha256": "bc68c0e5f969c642",
+          "decoded_bytes": null
+        }
+      },
+      "HEAD of an HTML page": {
+        "verdict": "changed",
+        "reasons": [
+          "framing: content-length '864' -> None, transfer-encoding 'chunked'"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "864",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "transfer-encoding": "chunked",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        }
+      },
+      "conditional GET (If-None-Match)": {
+        "verdict": "changed",
+        "reasons": [
+          "bait header added to a non-HTML response"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 304,
+          "error": null,
+          "headers": {
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 304,
+          "error": null,
+          "headers": {
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        }
+      },
+      "range request (bytes=0-99)": {
+        "verdict": "BROKEN",
+        "reasons": [
+          "partial-content body modified: the client reassembles a corrupt resource",
+          "framing: content-length '100' -> None, transfer-encoding 'chunked'"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 206,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "100",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "content-range": "bytes 0-99/864"
+          },
+          "body_bytes": 100,
+          "body_sha256": "44e355d7c1878c16",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 206,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "transfer-encoding": "chunked",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "content-range": "bytes 0-99/864",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 147,
+          "body_sha256": "b1f67e57ddc84f01",
+          "decoded_bytes": null
+        }
+      },
+      "204 No Content": {
+        "verdict": "changed",
+        "reasons": [
+          "bait header added to a non-HTML response"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 204,
+          "error": null,
+          "headers": {},
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 204,
+          "error": null,
+          "headers": {
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        }
+      },
+      "404 page": {
+        "verdict": "injected",
+        "reasons": [
+          "framing: content-length '153' -> None, transfer-encoding 'chunked'"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 404,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "153"
+          },
+          "body_bytes": 153,
+          "body_sha256": "eda336b0ba6d1927",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 404,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "transfer-encoding": "chunked",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 264,
+          "body_sha256": "5d7203c6b78da9a4",
+          "decoded_bytes": null
+        }
+      },
+      "JSON": {
+        "verdict": "changed",
+        "reasons": [
+          "bait header added to a non-HTML response"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "1187",
+            "etag": "\"6ac2b8d9-4a3\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 1187,
+          "body_sha256": "1656cb53005f3144",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "1187",
+            "etag": "\"6ac2b8d9-4a3\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 1187,
+          "body_sha256": "1656cb53005f3144",
+          "decoded_bytes": null
+        }
+      },
+      "binary": {
+        "verdict": "changed",
+        "reasons": [
+          "bait header added to a non-HTML response"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "application/octet-stream",
+            "content-length": "32768",
+            "etag": "\"6ac2b8d9-8000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 32768,
+          "body_sha256": "5be63fe67c24b490",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "application/octet-stream",
+            "content-length": "32768",
+            "etag": "\"6ac2b8d9-8000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 32768,
+          "body_sha256": "5be63fe67c24b490",
+          "decoded_bytes": null
+        }
+      },
+      "HTML without </body>": {
+        "verdict": "injected",
+        "reasons": [
+          "body changed but the origin's ETag kept: a cache or client can treat the modified page as the original",
+          "framing: content-length '157' -> None, transfer-encoding 'chunked'"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "157",
+            "etag": "\"6ac2b8d9-9d\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 157,
+          "body_sha256": "d9940119c9f16bee",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "transfer-encoding": "chunked",
+            "etag": "\"6ac2b8d9-9d\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 204,
+          "body_sha256": "0ffc59ca94cc48fb",
+          "decoded_bytes": null
+        }
+      },
+      "HTML, 768 KiB": {
+        "verdict": "injected",
+        "reasons": [
+          "body changed but the origin's ETag kept: a cache or client can treat the modified page as the original",
+          "framing: content-length '786432' -> None, transfer-encoding 'chunked'"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "786432",
+            "etag": "\"6ac2b8d9-c0000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 786432,
+          "body_sha256": "715d620d2d99b79e",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "transfer-encoding": "chunked",
+            "etag": "\"6ac2b8d9-c0000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 786543,
+          "body_sha256": "045611f5fc8e1254",
+          "decoded_bytes": null
+        }
+      },
+      "HTML, 2 MiB (above Envoy's 1 MiB buffer)": {
+        "verdict": "BROKEN",
+        "reasons": [
+          "body read failed: IncompleteRead",
+          "1 span(s) of the original body removed or replaced",
+          "body changed but the origin's ETag kept: a cache or client can treat the modified page as the original",
+          "framing: content-length '2097152' -> None, transfer-encoding 'chunked'"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "2097152",
+            "etag": "\"6ac2b8d9-200000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 2097152,
+          "body_sha256": "8a381e38cc5db1a8",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": "body read failed: IncompleteRead",
+          "headers": {
+            "content-type": "text/html",
+            "transfer-encoding": "chunked",
+            "etag": "\"6ac2b8d9-200000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        }
+      },
+      "HTTP/1.0 client": {
+        "verdict": "not exercised",
+        "reasons": [
+          "the bare edge itself answers 426"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 426,
+          "error": null,
+          "headers": {
+            "content-type": "text/plain",
+            "content-length": "16",
+            "connection": "close"
+          },
+          "body_bytes": 16,
+          "body_sha256": "16487236d4ed74ed",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 426,
+          "error": null,
+          "headers": {
+            "content-type": "text/plain",
+            "content-length": "16",
+            "connection": "close"
+          },
+          "body_bytes": 16,
+          "body_sha256": "16487236d4ed74ed",
+          "decoded_bytes": null
+        }
+      }
+    },
+    "apache_lua": {
+      "HTML page": {
+        "verdict": "injected",
+        "reasons": [],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "864",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT"
+          },
+          "body_bytes": 864,
+          "body_sha256": "207d40ac642727fd",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "975",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 975,
+          "body_sha256": "fafae438c2d92636",
+          "decoded_bytes": null
+        }
+      },
+      "HTML, gzip-encoded": {
+        "verdict": "BROKEN",
+        "reasons": [
+          "gzip body does not decode: BadGzipFile",
+          "framing: content-length None -> '372', transfer-encoding None"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-encoding": "gzip",
+            "transfer-encoding": "chunked",
+            "etag": "W/\"6ac2b8d9-1000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 325,
+          "body_sha256": "92aa666b09ea86d0",
+          "decoded_bytes": 4096
+        },
+        "wadm": {
+          "status": 200,
+          "error": "gzip body does not decode: BadGzipFile",
+          "headers": {
+            "content-type": "text/html",
+            "content-encoding": "gzip",
+            "content-length": "372",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 372,
+          "body_sha256": "bc68c0e5f969c642",
+          "decoded_bytes": null
+        }
+      },
+      "HEAD of an HTML page": {
+        "verdict": "BROKEN",
+        "reasons": [
+          "HEAD advertises Content-Length 47 but a GET returns 975 bytes"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "864",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "47",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        }
+      },
+      "conditional GET (If-None-Match)": {
+        "verdict": "changed",
+        "reasons": [
+          "bait header added to a non-HTML response"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 304,
+          "error": null,
+          "headers": {
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 304,
+          "error": null,
+          "headers": {
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        }
+      },
+      "range request (bytes=0-99)": {
+        "verdict": "BROKEN",
+        "reasons": [
+          "partial-content body modified: the client reassembles a corrupt resource"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 206,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "100",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "content-range": "bytes 0-99/864"
+          },
+          "body_bytes": 100,
+          "body_sha256": "44e355d7c1878c16",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 206,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "147",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "content-range": "bytes 0-99/864",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 147,
+          "body_sha256": "b1f67e57ddc84f01",
+          "decoded_bytes": null
+        }
+      },
+      "204 No Content": {
+        "verdict": "changed",
+        "reasons": [
+          "bait header added to a non-HTML response"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 204,
+          "error": null,
+          "headers": {},
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 204,
+          "error": null,
+          "headers": {
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        }
+      },
+      "404 page": {
+        "verdict": "injected",
+        "reasons": [],
+        "alerts": 0,
+        "bare": {
+          "status": 404,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "153"
+          },
+          "body_bytes": 153,
+          "body_sha256": "eda336b0ba6d1927",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 404,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "264",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 264,
+          "body_sha256": "5d7203c6b78da9a4",
+          "decoded_bytes": null
+        }
+      },
+      "JSON": {
+        "verdict": "changed",
+        "reasons": [
+          "bait header added to a non-HTML response",
+          "framing: content-length '1187' -> None, transfer-encoding 'chunked'"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "1187",
+            "etag": "\"6ac2b8d9-4a3\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 1187,
+          "body_sha256": "1656cb53005f3144",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "application/json",
+            "transfer-encoding": "chunked",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 1187,
+          "body_sha256": "1656cb53005f3144",
+          "decoded_bytes": null
+        }
+      },
+      "binary": {
+        "verdict": "changed",
+        "reasons": [
+          "bait header added to a non-HTML response",
+          "framing: content-length '32768' -> None, transfer-encoding 'chunked'"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "application/octet-stream",
+            "content-length": "32768",
+            "etag": "\"6ac2b8d9-8000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 32768,
+          "body_sha256": "5be63fe67c24b490",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "application/octet-stream",
+            "transfer-encoding": "chunked",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 32768,
+          "body_sha256": "5be63fe67c24b490",
+          "decoded_bytes": null
+        }
+      },
+      "HTML without </body>": {
+        "verdict": "injected",
+        "reasons": [],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "157",
+            "etag": "\"6ac2b8d9-9d\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 157,
+          "body_sha256": "d9940119c9f16bee",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "204",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 204,
+          "body_sha256": "0ffc59ca94cc48fb",
+          "decoded_bytes": null
+        }
+      },
+      "HTML, 768 KiB": {
+        "verdict": "injected",
+        "reasons": [],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "786432",
+            "etag": "\"6ac2b8d9-c0000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 786432,
+          "body_sha256": "715d620d2d99b79e",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "786543",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 786543,
+          "body_sha256": "045611f5fc8e1254",
+          "decoded_bytes": null
+        }
+      },
+      "HTML, 2 MiB (above Envoy's 1 MiB buffer)": {
+        "verdict": "injected",
+        "reasons": [],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "2097152",
+            "etag": "\"6ac2b8d9-200000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 2097152,
+          "body_sha256": "8a381e38cc5db1a8",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "2097263",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 2097263,
+          "body_sha256": "df52d2c575bcd70d",
+          "decoded_bytes": null
+        }
+      },
+      "HTTP/1.0 client": {
+        "verdict": "injected",
+        "reasons": [],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "864",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "connection": "close"
+          },
+          "body_bytes": 864,
+          "body_sha256": "207d40ac642727fd",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "975",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax",
+            "connection": "close"
+          },
+          "body_bytes": 975,
+          "body_sha256": "fafae438c2d92636",
+          "decoded_bytes": null
+        }
+      }
+    },
+    "envoy_lua": {
+      "HTML page": {
+        "verdict": "injected",
+        "reasons": [
+          "body changed but the origin's ETag kept: a cache or client can treat the modified page as the original"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "864",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT"
+          },
+          "body_bytes": 864,
+          "body_sha256": "207d40ac642727fd",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "975",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 975,
+          "body_sha256": "fafae438c2d92636",
+          "decoded_bytes": null
+        }
+      },
+      "HTML, gzip-encoded": {
+        "verdict": "BROKEN",
+        "reasons": [
+          "gzip body does not decode: BadGzipFile",
+          "framing: content-length None -> '372', transfer-encoding None"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-encoding": "gzip",
+            "transfer-encoding": "chunked",
+            "etag": "W/\"6ac2b8d9-1000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 325,
+          "body_sha256": "92aa666b09ea86d0",
+          "decoded_bytes": 4096
+        },
+        "wadm": {
+          "status": 200,
+          "error": "gzip body does not decode: BadGzipFile",
+          "headers": {
+            "content-type": "text/html",
+            "content-encoding": "gzip",
+            "content-length": "372",
+            "etag": "W/\"6ac2b8d9-1000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 372,
+          "body_sha256": "bc68c0e5f969c642",
+          "decoded_bytes": null
+        }
+      },
+      "HEAD of an HTML page": {
+        "verdict": "BROKEN",
+        "reasons": [
+          "HEAD advertises Content-Length 864 but a GET returns 975 bytes"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "864",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "864",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        }
+      },
+      "conditional GET (If-None-Match)": {
+        "verdict": "changed",
+        "reasons": [
+          "bait header added to a non-HTML response"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 304,
+          "error": null,
+          "headers": {
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 304,
+          "error": null,
+          "headers": {
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        }
+      },
+      "range request (bytes=0-99)": {
+        "verdict": "BROKEN",
+        "reasons": [
+          "partial-content body modified: the client reassembles a corrupt resource"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 206,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "100",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "content-range": "bytes 0-99/864"
+          },
+          "body_bytes": 100,
+          "body_sha256": "44e355d7c1878c16",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 206,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "147",
+            "etag": "\"6a689cf9-360\"",
+            "last-modified": "Tue, 28 Jul 2026 12:13:45 GMT",
+            "content-range": "bytes 0-99/864",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 147,
+          "body_sha256": "b1f67e57ddc84f01",
+          "decoded_bytes": null
+        }
+      },
+      "204 No Content": {
+        "verdict": "changed",
+        "reasons": [
+          "bait header added to a non-HTML response"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 204,
+          "error": null,
+          "headers": {},
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 204,
+          "error": null,
+          "headers": {
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 0,
+          "body_sha256": "e3b0c44298fc1c14",
+          "decoded_bytes": null
+        }
+      },
+      "404 page": {
+        "verdict": "injected",
+        "reasons": [],
+        "alerts": 0,
+        "bare": {
+          "status": 404,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "153"
+          },
+          "body_bytes": 153,
+          "body_sha256": "eda336b0ba6d1927",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 404,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "264",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 264,
+          "body_sha256": "5d7203c6b78da9a4",
+          "decoded_bytes": null
+        }
+      },
+      "JSON": {
+        "verdict": "changed",
+        "reasons": [
+          "bait header added to a non-HTML response"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "1187",
+            "etag": "\"6ac2b8d9-4a3\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 1187,
+          "body_sha256": "1656cb53005f3144",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "1187",
+            "etag": "\"6ac2b8d9-4a3\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 1187,
+          "body_sha256": "1656cb53005f3144",
+          "decoded_bytes": null
+        }
+      },
+      "binary": {
+        "verdict": "changed",
+        "reasons": [
+          "bait header added to a non-HTML response"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "application/octet-stream",
+            "content-length": "32768",
+            "etag": "\"6ac2b8d9-8000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 32768,
+          "body_sha256": "5be63fe67c24b490",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "application/octet-stream",
+            "content-length": "32768",
+            "etag": "\"6ac2b8d9-8000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 32768,
+          "body_sha256": "5be63fe67c24b490",
+          "decoded_bytes": null
+        }
+      },
+      "HTML without </body>": {
+        "verdict": "injected",
+        "reasons": [
+          "body changed but the origin's ETag kept: a cache or client can treat the modified page as the original"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "157",
+            "etag": "\"6ac2b8d9-9d\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 157,
+          "body_sha256": "d9940119c9f16bee",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "204",
+            "etag": "\"6ac2b8d9-9d\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 204,
+          "body_sha256": "0ffc59ca94cc48fb",
+          "decoded_bytes": null
+        }
+      },
+      "HTML, 768 KiB": {
+        "verdict": "injected",
+        "reasons": [
+          "body changed but the origin's ETag kept: a cache or client can treat the modified page as the original"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "786432",
+            "etag": "\"6ac2b8d9-c0000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 786432,
+          "body_sha256": "715d620d2d99b79e",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "786543",
+            "etag": "\"6ac2b8d9-c0000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT",
+            "x-backend-server": "app-07.internal.example.com",
+            "set-cookie": "admin_ui=0; Path=/; SameSite=Lax"
+          },
+          "body_bytes": 786543,
+          "body_sha256": "045611f5fc8e1254",
+          "decoded_bytes": null
+        }
+      },
+      "HTML, 2 MiB (above Envoy's 1 MiB buffer)": {
+        "verdict": "BROKEN",
+        "reasons": [
+          "status 200 -> 500",
+          "6 span(s) of the original body removed or replaced",
+          "6 inserted span(s) carry no known token marker"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 200,
+          "error": null,
+          "headers": {
+            "content-type": "text/html",
+            "content-length": "2097152",
+            "etag": "\"6ac2b8d9-200000\"",
+            "last-modified": "Sun, 04 Oct 2026 20:36:41 GMT"
+          },
+          "body_bytes": 2097152,
+          "body_sha256": "8a381e38cc5db1a8",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 500,
+          "error": null,
+          "headers": {
+            "content-type": "text/plain",
+            "content-length": "21"
+          },
+          "body_bytes": 21,
+          "body_sha256": "e41656eb2ba6c629",
+          "decoded_bytes": null
+        }
+      },
+      "HTTP/1.0 client": {
+        "verdict": "not exercised",
+        "reasons": [
+          "the bare edge itself answers 426"
+        ],
+        "alerts": 0,
+        "bare": {
+          "status": 426,
+          "error": null,
+          "headers": {
+            "content-type": "text/plain",
+            "content-length": "16",
+            "connection": "close"
+          },
+          "body_bytes": 16,
+          "body_sha256": "16487236d4ed74ed",
+          "decoded_bytes": null
+        },
+        "wadm": {
+          "status": 426,
+          "error": null,
+          "headers": {
+            "content-type": "text/plain",
+            "content-length": "16",
+            "connection": "close"
+          },
+          "body_bytes": 16,
+          "body_sha256": "16487236d4ed74ed",
+          "decoded_bytes": null
+        }
+      }
+    }
+  }
+}

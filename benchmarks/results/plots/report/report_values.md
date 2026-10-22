@@ -1,0 +1,86 @@
+# Values plotted by plot_report.py
+
+Median [min..max] of paired replicates, µs.
+
+- latency_added med envoy_lua 1/s: +203 [+140..+210]
+- latency_added med envoy_lua 10/s: +170 [+120..+177]
+- latency_added med envoy_lua 100/s: +147 [+136..+152]
+- latency_added med wasm 1/s: +150 [+103..+180]
+- latency_added med wasm 10/s: +110 [+106..+128]
+- latency_added med wasm 100/s: +121 [+111..+136]
+- latency_added med openresty_inserver 1/s: +69 [+51..+97]
+- latency_added med openresty_inserver 10/s: +81 [+68..+89]
+- latency_added med openresty_inserver 100/s: +72 [+64..+78]
+- latency_added med apache_inserver 1/s: +244 [+185..+252]
+- latency_added med apache_inserver 10/s: +198 [+171..+206]
+- latency_added med apache_inserver 100/s: +183 [+170..+206]
+- latency_added p95 envoy_lua 1/s: +243 [-57..+486] (spans zero)
+- latency_added p95 envoy_lua 10/s: +134 [+47..+460]
+- latency_added p95 envoy_lua 100/s: +334 [+224..+466]
+- latency_added p95 wasm 1/s: +303 [+62..+397]
+- latency_added p95 wasm 10/s: +246 [+194..+386]
+- latency_added p95 wasm 100/s: +435 [+246..+1371]
+- latency_added p95 openresty_inserver 1/s: +71 [+24..+251]
+- latency_added p95 openresty_inserver 10/s: +349 [+89..+474]
+- latency_added p95 openresty_inserver 100/s: +129 [+53..+204]
+- latency_added p95 apache_inserver 1/s: +880 [+341..+1717]
+- latency_added p95 apache_inserver 10/s: +622 [+586..+1057]
+- latency_added p95 apache_inserver 100/s: +1491 [+1101..+4132]
+- latency_levels wasm 1/s: origin=536, bare=903, silent=1052
+- latency_levels envoy_lua 1/s: origin=552, bare=928, silent=1124
+- latency_levels wasm 10/s: origin=546, bare=914, silent=1022
+- latency_levels envoy_lua 10/s: origin=544, bare=932, silent=1100
+- latency_levels wasm 100/s: origin=346, bare=663, silent=784
+- latency_levels envoy_lua 100/s: origin=348, bare=657, silent=804
+- cpu_added envoy_lua 1/s: +42 [+13..+95]
+- cpu_added envoy_lua 10/s: +55 [+39..+68]
+- cpu_added envoy_lua 100/s: +45 [+40..+49]
+- cpu_added wasm 1/s: +121 [+105..+125]
+- cpu_added wasm 10/s: +109 [+106..+118]
+- cpu_added wasm 100/s: +108 [+100..+121]
+- cpu_added openresty_inserver 1/s: +26 [-20..+72] (spans zero)
+- cpu_added openresty_inserver 10/s: +19 [+12..+46]
+- cpu_added openresty_inserver 100/s: +32 [+25..+36]
+- cpu_added apache_inserver 1/s: +279 [+172..+386]
+- cpu_added apache_inserver 10/s: +183 [+169..+224]
+- cpu_added apache_inserver 100/s: +260 [+230..+334]
+- cpu_marginal envoy_lua: +45 [+39..+50]
+- cpu_marginal wasm: +108 [+99..+121]
+- cpu_marginal openresty_inserver: +32 [+25..+36]
+- cpu_marginal apache_inserver: +261 [+229..+334]
+- timer detect envoy_lua 10/s: html_comments=2.77, http_headers=0.74, cookies=2.50, decoy_paths=0.60, form_fields=0.54
+- timer detect wasm 10/s: html_comments=3.14, http_headers=1.21, cookies=1.13, decoy_paths=0.75, form_fields=0.48
+- timer detect openresty_inserver 10/s: html_comments=2.58, http_headers=1.70, cookies=3.05, decoy_paths=1.28, form_fields=0.83
+- timer detect apache_inserver 10/s: html_comments=4.64, http_headers=3.13, cookies=5.25, decoy_paths=2.22, form_fields=1.69
+- timer inject envoy_lua 10/s: html_comments=2.03, http_headers=3.26, cookies=1.90, decoy_paths=1.45, form_fields=1.35
+- timer inject wasm 10/s: html_comments=1.90, http_headers=2.33, cookies=1.64, decoy_paths=1.39, form_fields=1.14
+- timer inject openresty_inserver 10/s: html_comments=1.40, http_headers=0.35, cookies=1.53, decoy_paths=1.15, form_fields=1.04
+- timer inject apache_inserver 10/s: html_comments=2.66, http_headers=0.93, cookies=0.65, decoy_paths=4.50, form_fields=3.27
+- cost_scope timers envoy_lua 100/s per iteration: +79 [+79..+80]
+- cost_scope timers wasm 100/s per iteration: +54 [+54..+54]
+- cost_scope timers openresty_inserver 100/s per iteration: +55 [+54..+56]
+- cost_scope timers apache_inserver 100/s per iteration: +110 [+110..+112]
+- cost_scope cpu_deployed envoy_lua 100/s per iteration: +409 [+354..+446]
+- cost_scope cpu_deployed wasm 100/s per iteration: +973 [+895..+1088]
+- cost_scope cpu_deployed openresty_inserver 100/s per iteration: +286 [+229..+320]
+- cost_scope cpu_deployed apache_inserver 100/s per iteration: +2353 [+2065..+3005]
+- cost_scope e2e_get envoy_lua 100/s per iteration: +588 [+544..+608]
+- cost_scope e2e_get wasm 100/s per iteration: +485 [+445..+544]
+- cost_scope e2e_get openresty_inserver 100/s per iteration: +288 [+254..+310]
+- cost_scope e2e_get apache_inserver 100/s per iteration: +732 [+681..+825]
+- page_size envoy_lua 1 KiB: +103 [+72..+106] (n=3)
+- page_size envoy_lua 16 KiB: +132 [+122..+146] (n=3)
+- page_size envoy_lua 256 KiB: +524 [+481..+615] (n=3)
+- page_size envoy_lua 768 KiB: +1372 [+1289..+1492] (n=3)
+- page_size wasm 1 KiB: +57 [+29..+66] (n=3)
+- page_size wasm 16 KiB: +45 [+37..+117] (n=3)
+- page_size wasm 256 KiB: +308 [+258..+345] (n=3)
+- page_size wasm 768 KiB: +889 [+787..+932] (n=3)
+- page_size openresty_inserver 1 KiB: +49 [+43..+58] (n=3)
+- page_size openresty_inserver 16 KiB: +206 [+199..+252] (n=3)
+- page_size openresty_inserver 256 KiB: +534 [+476..+575] (n=3)
+- page_size openresty_inserver 768 KiB: +1628 [+1584..+1657] (n=3)
+- page_size apache_inserver 1 KiB: -9 [-28..+10] (spans zero) (n=2)
+- page_size apache_inserver 16 KiB: +70 [+57..+84] (n=2)
+- page_size apache_inserver 256 KiB: +754 [+644..+863] (n=2)
+- page_size apache_inserver 768 KiB: +2167 [+2066..+2269] (n=2)

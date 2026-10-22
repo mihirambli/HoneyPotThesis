@@ -1,10 +1,12 @@
 \babel@toc {english}{}\relax 
+\babel@toc {german}{}\relax 
+\babel@toc {english}{}\relax 
 \contentsline {chapter}{\numberline {1}Introduction}{1}{chapter*.4}%
 \contentsline {section}{\numberline {1.1}Motivation}{2}{section*.5}%
-\contentsline {section}{\numberline {1.2}Problem Statement}{2}{section*.6}%
-\contentsline {section}{\numberline {1.3}Research Questions}{3}{section*.7}%
+\contentsline {section}{\numberline {1.2}Problem Statement}{3}{section*.6}%
+\contentsline {section}{\numberline {1.3}Research Questions}{4}{section*.7}%
 \contentsline {section}{\numberline {1.4}Approach}{5}{section*.8}%
-\contentsline {section}{\numberline {1.5}Thesis Outline}{5}{section*.9}%
+\contentsline {section}{\numberline {1.5}Thesis Outline}{6}{section*.9}%
 \contentsline {chapter}{\numberline {2}Background}{7}{chapter*.10}%
 \contentsline {section}{\numberline {2.1}The Web and HTTP}{7}{section*.11}%
 \contentsline {section}{\numberline {2.2}Cyber Deception, Honeypots and Honeytokens}{8}{section*.12}%
@@ -12,75 +14,88 @@
 \contentsline {section}{\numberline {2.4}Proxies and Reverse Proxies}{9}{section*.14}%
 \contentsline {section}{\numberline {2.5}Rewriting HTTP Responses}{10}{section*.15}%
 \contentsline {section}{\numberline {2.6}Extension Mechanisms}{11}{section*.16}%
-\contentsline {section}{\numberline {2.7}Extension Runtimes}{11}{section*.17}%
-\contentsline {paragraph}{\nonumberline PUC Lua.}{11}{paragraph*.18}%
-\contentsline {paragraph}{\nonumberline LuaJIT.}{11}{paragraph*.19}%
-\contentsline {paragraph}{\nonumberline WebAssembly.}{12}{paragraph*.20}%
-\contentsline {section}{\numberline {2.8}Measuring Performance}{12}{section*.21}%
-\contentsline {paragraph}{\nonumberline Latency.}{12}{paragraph*.22}%
-\contentsline {paragraph}{\nonumberline Throughput and capacity.}{12}{paragraph*.23}%
-\contentsline {paragraph}{\nonumberline CPU time.}{12}{paragraph*.24}%
-\contentsline {paragraph}{\nonumberline Containers and control groups.}{12}{paragraph*.25}%
-\contentsline {chapter}{\numberline {3}Related Work}{14}{chapter*.26}%
-\contentsline {chapter}{\numberline {4}Design of the Deception Module}{16}{chapter*.27}%
-\contentsline {section}{\numberline {4.1}Requirements and Threat Model}{16}{section*.28}%
-\contentsline {section}{\numberline {4.2}Architecture}{17}{section*.34}%
-\contentsline {section}{\numberline {4.3}Honeytoken Types}{17}{section*.36}%
-\contentsline {section}{\numberline {4.4}The Fake SQL-Injection Trap}{18}{section*.38}%
-\contentsline {section}{\numberline {4.5}Per-Request Processing}{19}{section*.39}%
-\contentsline {chapter}{\numberline {5}Implementation on Three Reverse Proxies}{21}{chapter*.46}%
-\contentsline {section}{\numberline {5.1}Common Structure}{21}{section*.47}%
-\contentsline {section}{\numberline {5.2}OpenResty (Reference Variant)}{22}{section*.49}%
-\contentsline {section}{\numberline {5.3}Envoy with a Lua Filter}{22}{section*.50}%
-\contentsline {section}{\numberline {5.4}Envoy with a WebAssembly Filter}{22}{section*.51}%
-\contentsline {section}{\numberline {5.5}Apache httpd with mod\_lua}{23}{section*.52}%
-\contentsline {section}{\numberline {5.6}Levelling the Variants}{23}{section*.53}%
-\contentsline {paragraph}{\nonumberline Behaviour.}{23}{paragraph*.54}%
-\contentsline {paragraph}{\nonumberline Product defaults.}{24}{paragraph*.55}%
-\contentsline {paragraph}{\nonumberline Configurations without RPDM.}{24}{paragraph*.56}%
-\contentsline {section}{\numberline {5.7}Verifying Equivalence}{24}{section*.57}%
-\contentsline {chapter}{\numberline {6}Evaluation Methodology}{26}{chapter*.59}%
-\contentsline {section}{\numberline {6.1}Goals and Metrics}{26}{section*.60}%
-\contentsline {section}{\numberline {6.2}Testbed}{26}{section*.61}%
-\contentsline {section}{\numberline {6.3}Workload}{26}{section*.62}%
-\contentsline {section}{\numberline {6.4}Tiers and Pairing}{26}{section*.63}%
-\contentsline {section}{\numberline {6.5}Measurement Planes}{27}{section*.64}%
-\contentsline {section}{\numberline {6.6}Run Validity}{27}{section*.65}%
-\contentsline {chapter}{\numberline {7}Results}{28}{chapter*.66}%
-\contentsline {section}{\numberline {7.1}RQ1: Latency Added}{28}{section*.67}%
-\contentsline {subsection}{\numberline {7.1.1}Median Latency per GET across Rates}{28}{subsection*.68}%
-\contentsline {subsection}{\numberline {7.1.2}Latency above the Origin Server}{28}{subsection*.69}%
-\contentsline {subsection}{\numberline {7.1.3}Tail Latency}{28}{subsection*.70}%
-\contentsline {subsection}{\numberline {7.1.4}Request Position and Reconnects}{28}{subsection*.71}%
-\contentsline {subsection}{\numberline {7.1.5}Answer to RQ1}{29}{subsection*.72}%
-\contentsline {section}{\numberline {7.2}RQ2: CPU and Capacity}{29}{section*.73}%
-\contentsline {subsection}{\numberline {7.2.1}CPU per Request}{29}{subsection*.74}%
-\contentsline {subsection}{\numberline {7.2.2}Cost Attribution}{29}{subsection*.75}%
-\contentsline {subsection}{\numberline {7.2.3}The Cost of Measuring}{29}{subsection*.76}%
-\contentsline {subsection}{\numberline {7.2.4}Per-Mechanism Cost and Page Size}{29}{subsection*.77}%
-\contentsline {subsection}{\numberline {7.2.5}Answer to RQ2}{29}{subsection*.78}%
-\contentsline {section}{\numberline {7.3}RQ3: Functional Correctness}{30}{section*.79}%
-\contentsline {subsection}{\numberline {7.3.1}Response Integrity under Load}{30}{subsection*.80}%
-\contentsline {subsection}{\numberline {7.3.2}Detection Recall and False Positives}{30}{subsection*.81}%
-\contentsline {subsection}{\numberline {7.3.3}Answer to RQ3}{30}{subsection*.82}%
-\contentsline {section}{\numberline {7.4}RQ4: Influence of the Extension Runtime}{30}{section*.83}%
-\contentsline {subsection}{\numberline {7.4.1}Per-Type Operation Cost}{30}{subsection*.84}%
-\contentsline {subsection}{\numberline {7.4.2}The SQLi Trap: Scan Depth versus Decoding}{30}{subsection*.85}%
-\contentsline {subsection}{\numberline {7.4.3}Stability of Apache mod\_lua}{30}{subsection*.86}%
-\contentsline {subsection}{\numberline {7.4.4}Answer to RQ4}{31}{subsection*.87}%
-\contentsline {chapter}{\numberline {8}Discussion}{32}{chapter*.88}%
-\contentsline {section}{\numberline {8.1}Synthesis across Research Questions}{32}{section*.89}%
-\contentsline {section}{\numberline {8.2}Choosing a Variant for Deception}{32}{section*.90}%
-\contentsline {section}{\numberline {8.3}Where the Cost Comes From}{32}{section*.91}%
-\contentsline {section}{\numberline {8.4}Deployment Implications}{32}{section*.92}%
-\contentsline {section}{\numberline {8.5}Threats to Validity}{32}{section*.93}%
-\contentsline {section}{\numberline {8.6}Limitations}{32}{section*.94}%
-\contentsline {chapter}{\numberline {9}Conclusion and Future Work}{33}{chapter*.95}%
-\contentsline {section}{\numberline {9.1}Summary}{33}{section*.96}%
-\contentsline {section}{\numberline {9.2}Future Work}{33}{section*.97}%
+\contentsline {paragraph}{\nonumberline nginx and OpenResty.}{11}{paragraph*.17}%
+\contentsline {paragraph}{\nonumberline Apache httpd.}{11}{paragraph*.18}%
+\contentsline {paragraph}{\nonumberline Envoy.}{12}{paragraph*.19}%
+\contentsline {section}{\numberline {2.7}Extension Runtimes}{12}{section*.20}%
+\contentsline {paragraph}{\nonumberline PUC Lua.}{12}{paragraph*.21}%
+\contentsline {paragraph}{\nonumberline LuaJIT.}{12}{paragraph*.22}%
+\contentsline {paragraph}{\nonumberline WebAssembly.}{13}{paragraph*.23}%
+\contentsline {section}{\numberline {2.8}Measuring Performance}{13}{section*.24}%
+\contentsline {paragraph}{\nonumberline Latency.}{13}{paragraph*.25}%
+\contentsline {paragraph}{\nonumberline CPU time.}{13}{paragraph*.26}%
+\contentsline {paragraph}{\nonumberline Containers and control groups.}{13}{paragraph*.27}%
+\contentsline {chapter}{\numberline {3}Related Work}{14}{chapter*.28}%
+\contentsline {chapter}{\numberline {4}Design of the Deception Module}{16}{chapter*.29}%
+\contentsline {section}{\numberline {4.1}Requirements and Threat Model}{16}{section*.30}%
+\contentsline {section}{\numberline {4.2}Architecture}{17}{section*.36}%
+\contentsline {section}{\numberline {4.3}Honeytoken Types}{18}{section*.38}%
+\contentsline {section}{\numberline {4.4}The Fake SQL-Injection Trap}{19}{section*.81}%
+\contentsline {section}{\numberline {4.5}Per-Request Processing}{21}{section*.82}%
+\contentsline {chapter}{\numberline {5}Implementation of the Variants}{24}{chapter*.89}%
+\contentsline {section}{\numberline {5.1}Common Structure}{24}{section*.90}%
+\contentsline {section}{\numberline {5.2}OpenResty (In-Server)}{25}{section*.91}%
+\contentsline {section}{\numberline {5.3}Envoy with a Lua Filter}{25}{section*.92}%
+\contentsline {section}{\numberline {5.4}Envoy with a WebAssembly Filter}{25}{section*.93}%
+\contentsline {section}{\numberline {5.5}Apache httpd In-Server}{27}{section*.95}%
+\contentsline {section}{\numberline {5.6}Levelling the Variants}{27}{section*.96}%
+\contentsline {paragraph}{\nonumberline Behaviour.}{28}{paragraph*.97}%
+\contentsline {paragraph}{\nonumberline Defaults of the server software.}{28}{paragraph*.98}%
+\contentsline {paragraph}{\nonumberline Test responses.}{28}{paragraph*.99}%
+\contentsline {paragraph}{\nonumberline Configurations without HDM.}{28}{paragraph*.100}%
+\contentsline {section}{\numberline {5.7}Verifying Equivalence}{29}{section*.101}%
+\contentsline {chapter}{\numberline {6}Evaluation Methodology}{31}{chapter*.107}%
+\contentsline {section}{\numberline {6.1}Experiments and Metrics}{31}{section*.108}%
+\contentsline {section}{\numberline {6.2}Testbed}{32}{section*.110}%
+\contentsline {section}{\numberline {6.3}Workload}{34}{section*.111}%
+\contentsline {section}{\numberline {6.4}Tiers and Pairing}{35}{section*.113}%
+\contentsline {paragraph}{\nonumberline In the in-server deployment.}{38}{paragraph*.116}%
+\contentsline {paragraph}{\nonumberline Comparing variants.}{38}{paragraph*.117}%
+\contentsline {section}{\numberline {6.5}Measurement Planes}{38}{section*.118}%
+\contentsline {paragraph}{\nonumberline Latency.}{38}{paragraph*.120}%
+\contentsline {paragraph}{\nonumberline CPU time.}{39}{paragraph*.121}%
+\contentsline {paragraph}{\nonumberline Timers inside HDM.}{40}{paragraph*.122}%
+\contentsline {paragraph}{\nonumberline Alerts.}{40}{paragraph*.123}%
+\contentsline {section}{\numberline {6.6}Supplementary Experiments}{40}{section*.124}%
+\contentsline {paragraph}{\nonumberline Functional matrix.}{40}{paragraph*.125}%
+\contentsline {paragraph}{\nonumberline Request types and page size.}{40}{paragraph*.126}%
+\contentsline {section}{\numberline {6.7}Run Validity}{41}{section*.127}%
+\contentsline {section}{\numberline {6.8}What the Method Cannot Resolve}{42}{section*.128}%
+\contentsline {chapter}{\numberline {7}Results}{43}{chapter*.129}%
+\contentsline {section}{\numberline {7.1}RQ1: Latency Added}{43}{section*.130}%
+\contentsline {subsection}{\numberline {7.1.1}Latency Added by HDM}{43}{subsection*.131}%
+\contentsline {subsection}{\numberline {7.1.2}Latency of the Reverse Proxy}{44}{subsection*.133}%
+\contentsline {subsection}{\numberline {7.1.3}Reconnections}{45}{subsection*.135}%
+\contentsline {subsection}{\numberline {7.1.4}Answer to RQ1}{45}{subsection*.136}%
+\contentsline {section}{\numberline {7.2}RQ2: CPU Time}{46}{section*.137}%
+\contentsline {subsection}{\numberline {7.2.1}CPU Time per Request}{46}{subsection*.138}%
+\contentsline {subsection}{\numberline {7.2.2}Where the Cost Arises}{47}{subsection*.140}%
+\contentsline {subsection}{\numberline {7.2.3}GET Requests and the SQL-Injection Trap}{48}{subsection*.142}%
+\contentsline {subsection}{\numberline {7.2.4}Page Size}{48}{subsection*.144}%
+\contentsline {subsection}{\numberline {7.2.5}Answer to RQ2}{49}{subsection*.146}%
+\contentsline {section}{\numberline {7.3}RQ3: Functional Correctness}{49}{section*.147}%
+\contentsline {subsection}{\numberline {7.3.1}Other Kinds of Response}{49}{subsection*.148}%
+\contentsline {subsection}{\numberline {7.3.2}Integrity under Load and Detection}{51}{subsection*.150}%
+\contentsline {subsection}{\numberline {7.3.3}Answer to RQ3}{51}{subsection*.151}%
+\contentsline {section}{\numberline {7.4}RQ4: Influence of the Runtime and the Deployment}{51}{section*.152}%
+\contentsline {subsection}{\numberline {7.4.1}HDM's Operations per Honeytoken Type}{51}{subsection*.153}%
+\contentsline {subsection}{\numberline {7.4.2}The SQL-Injection Trap: Decoding and Scanning}{52}{subsection*.155}%
+\contentsline {subsection}{\numberline {7.4.3}Stability of Apache httpd}{53}{subsection*.157}%
+\contentsline {subsection}{\numberline {7.4.4}Reverse Proxy and Web Server on the Same Runtime}{53}{subsection*.158}%
+\contentsline {subsection}{\numberline {7.4.5}Answer to RQ4}{53}{subsection*.159}%
+\contentsline {chapter}{\numberline {8}Discussion}{54}{chapter*.160}%
+\contentsline {section}{\numberline {8.1}Synthesis across Research Questions}{54}{section*.161}%
+\contentsline {section}{\numberline {8.2}Choosing a Deployment and a Variant}{54}{section*.162}%
+\contentsline {section}{\numberline {8.3}Where the Cost Comes From}{54}{section*.163}%
+\contentsline {section}{\numberline {8.4}Deployment Implications}{54}{section*.164}%
+\contentsline {section}{\numberline {8.5}Threats to Validity}{54}{section*.165}%
+\contentsline {section}{\numberline {8.6}Limitations}{55}{section*.166}%
+\contentsline {chapter}{\numberline {9}Conclusion and Future Work}{56}{chapter*.167}%
+\contentsline {section}{\numberline {9.1}Summary}{56}{section*.168}%
+\contentsline {section}{\numberline {9.2}Future Work}{56}{section*.169}%
 \def \@chapapp {\appendixname }
-\contentsline {chapter}{\numberline {A}Configuration Reference}{34}{chapter*.98}%
-\contentsline {chapter}{\numberline {B}Parity-Check Request Set}{35}{chapter*.99}%
-\contentsline {chapter}{\numberline {C}Reproducing the Benchmarks}{36}{chapter*.100}%
-\contentsline {chapter}{\numberline {D}Additional Result Tables}{37}{chapter*.101}%
+\contentsline {chapter}{\numberline {A}Configuration Reference}{57}{chapter*.170}%
+\contentsline {chapter}{\numberline {B}Parity-Check Request Set}{58}{chapter*.171}%
+\contentsline {chapter}{\numberline {C}Reproducing the Benchmarks}{59}{chapter*.172}%
+\contentsline {chapter}{\numberline {D}Additional Result Tables}{60}{chapter*.173}%
 \providecommand \tocbasic@end@toc@file {}\tocbasic@end@toc@file 

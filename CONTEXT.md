@@ -6,6 +6,8 @@ This repository is a small **web-application-defense / honeypot-style demonstrat
 
 The same `config.json` schema is consumed by all four edges (OpenResty, Envoy+Lua, Apache+mod_lua, Envoy+WASM), and every edge implements the **same** detection and injection mechanism — same parsing, same strip, same alert text — so their costs can be compared. The mechanism is specified in `docs/EDGE_LEVELING.md` ("Behavioural equivalence and latency pass") and checked by `benchmarks/parity_check.py`.
 
+**Two deployments.** The four edges above are the **proxy deployment**: the module runs in a reverse proxy in front of the unmodified origin. OpenResty (nginx) and Apache httpd are also web servers, and their Lua hooks run on every response the server produces, including files it serves from disk. So the same module code also runs in an **in-server deployment**: OpenResty or Apache serving `backend/www` itself, with no proxy hop (`openresty-inserver`, `apache-inserver`). Envoy has no in-server variant because it is a dedicated proxy, not a file server. The in-server variants reuse the module code unchanged (`nginx/nginx-inserver.conf` carries `nginx.conf`'s Lua block verbatim, checked by `parity_check.py`; Apache shares `apache_scripts/`) and are measured by the same paired harness. See `docs/BENCHMARK_METHODOLOGY.md` ("In-server deployment") and `docs/EDGE_LEVELING.md` ("In-server deployment").
+
 ---
 
 ## `config.json` (what operators should know)
@@ -80,19 +82,34 @@ Edit `config.json` on the host; Compose mounts it read-only into each edge conta
 <!-- Diagram + bullets: why read this first — shows traffic shape before opening compose or envoy. -->
 ```mermaid
 flowchart LR
-  Client[Client / attacker]
-  Edge[Edge proxy\nOpenResty, Envoy+Lua,\nApache+mod_lua or Envoy+WASM]
-  Backend[nginx:alpine\nstatic HTML]
-
-  Client --> Edge
-  Edge --> Backend
+  subgraph Proxy deployment
+    Client[Client / attacker]
+    Edge[Edge proxy\nOpenResty, Envoy+Lua,\nApache+mod_lua or Envoy+WASM]
+    Backend[nginx:alpine\nstatic HTML]
+    Client --> Edge
+    Edge --> Backend
+  end
+  subgraph In-server deployment
+    Client2[Client / attacker]
+    Server[Web server + module\nOpenResty or Apache+mod_lua\nserving backend/www]
+    Client2 --> Server
+  end
 ```
 
-1. **Backend** — plain nginx serving the static pages in `backend/www/` (the “victim” application surface: `/`, `/login.html`, `/dashboard.html`, `/admin.html`, `/about.html`). It has **no** `/api/login` route; that endpoint belongs to the edge (see `sql_injection` above).
-2. **Edge** (pick one compose profile) — terminates HTTP, applies WADM rules, proxies to `backend:80`.
+1. **Backend** — plain nginx serving the static pages in `backend/www/` (the “victim” application surface: `/`, `/login.html`, `/dashboard.html`, `/admin.html`, `/about.html`). It has **no** `/api/login` route; that endpoint belongs to the edge (see `sql_injection` above). In the in-server deployment it stays up but idle: the paired harness's origin tier uses it.
+2. **Edge** (pick one compose profile) — terminates HTTP, applies WADM rules, and either proxies to `backend:80` (proxy deployment) or serves `backend/www` mounted at `/srv/www` (in-server deployment).
 3. **Configuration** — `config.json` at repo root lists `honeytokens.html_comments[]` with `paths`, `comment_value`, and optional `trigger_keyword`, plus the top-level `sql_injection` policy.
 
-Docker Compose wires services on a shared `honeypot` bridge network. Only the edge service exposes a host port (`8080`, `8081`, `8082`, or `8083` depending on profile).
+Docker Compose wires services on a shared `honeypot` bridge network. Only the edge service exposes a host port:
+
+| Service (profile) | Deployment | Host port | Server config (WADM / bare) |
+|---|---|---|---|
+| `openresty` | proxy | 8080 | `nginx/nginx.conf` / `nginx/nginx-baseline.conf` |
+| `envoy` | proxy | 8081 | `envoy/envoy.yaml` / `envoy/envoy-baseline.yaml` |
+| `envoy-wasm` (`wasm`) | proxy | 8082 | `envoy-wasm/envoy-wasm.yaml` / `envoy-wasm/envoy-wasm-baseline.yaml` |
+| `apache` | proxy | 8083 | `httpd.conf` / `httpd-baseline.conf` |
+| `openresty-inserver` | in-server | 8084 | `nginx/nginx-inserver.conf` / `nginx/nginx-inserver-baseline.conf` |
+| `apache-inserver` | in-server | 8085 | `httpd-inserver.conf` / `httpd-inserver-baseline.conf` |
 
 ---
 
@@ -111,9 +128,9 @@ Docker Compose wires services on a shared `honeypot` bridge network. Only the ed
 | WASM build | Rust official image | `rust:latest`, target `wasm32-unknown-unknown` |
 | Shell glue | POSIX `sh`, `sed` | `envoy-wasm/entrypoint.sh` embeds JSON into YAML |
 
-**Host ports (defaults in `docker-compose.yml`):** OpenResty `8080`, Envoy+Lua `8081`, Envoy+WASM `8082`, Apache `8083`.
+**Host ports (defaults in `docker-compose.yml`):** OpenResty `8080`, Envoy+Lua `8081`, Envoy+WASM `8082`, Apache `8083`, OpenResty in-server `8084`, Apache in-server `8085`.
 
-**Where requests are recorded.** The edges write **no access log** (Envoy never did; OpenResty's and Apache's were removed so no edge pays a per-request write the others don't). The per-request record is the origin's access log, whose `xff=` field carries the real client IP from every edge (Envoy runs with `use_remote_address: true` so it forwards it, as OpenResty and Apache already did). Requests the edge answers itself — the SQLi trap — never reach the origin and are recorded by the edge as `WADM ALERT` (signature hit) or `WADM TRAP` (no hit).
+**Where requests are recorded.** The edges write **no access log** (Envoy never did; OpenResty's and Apache's were removed so no edge pays a per-request write the others don't). The per-request record is the origin's access log, whose `xff=` field carries the real client IP from every edge (Envoy runs with `use_remote_address: true` so it forwards it, as OpenResty and Apache already did). Requests the edge answers itself — the SQLi trap — never reach the origin and are recorded by the edge as `WADM ALERT` (signature hit) or `WADM TRAP` (no hit). In the in-server deployment no origin sees any request, so the `WADM ALERT` / `WADM TRAP` lines are the only per-request record.
 
 ---
 
@@ -130,9 +147,10 @@ Docker Compose wires services on a shared `honeypot` bridge network. Only the ed
 | `wasm-filter/` | Rust **proxy-wasm** HTTP filter compiled to `.wasm`; Dockerfile copies artifact to shared volume for Envoy. |
 | `docs/` | Auxiliary documentation (e.g. `tree.txt` snapshot of layout). |
 | `apache_scripts/` | Apache mod_lua edge: shared core `wadm.lua` plus the three hook files (`detect.lua`, `inject.lua`, `login.lua`). |
-| `docker-compose.yml` | Service definitions, profiles (`openresty`, `envoy`, `wasm`, `apache`, `loadtest`), shared volume `wasm_output` between `rust-builder` and `envoy-wasm`. |
+| `docker-compose.yml` | Service definitions, profiles (`openresty`, `envoy`, `wasm`, `apache`, `openresty-inserver`, `apache-inserver`, `loadtest`), shared volume `wasm_output` between `rust-builder` and `envoy-wasm`. |
 | `config.json` | Shared honeytoken definitions consumed by all edge variants. |
-| `*-baseline.{conf,yaml}` | One per edge (`nginx/nginx-baseline.conf`, `envoy/envoy-baseline.yaml`, `envoy-wasm/envoy-wasm-baseline.yaml`, `httpd-baseline.conf`): the same edge with the WADM filter deleted, mounted into the **same** service via the `${OPENRESTY_CONF}` / `${ENVOY_CONF}` / `${ENVOY_WASM_CONF}` / `${HTTPD_CONF}` overrides. Supplies the no-WADM baseline the benchmark's end-to-end overhead is measured against. |
+| `*-baseline.{conf,yaml}` | One per edge (`nginx/nginx-baseline.conf`, `envoy/envoy-baseline.yaml`, `envoy-wasm/envoy-wasm-baseline.yaml`, `httpd-baseline.conf`): the same edge with the WADM filter deleted, mounted into the **same** service via the `${OPENRESTY_CONF}` / `${ENVOY_CONF}` / `${ENVOY_WASM_CONF}` / `${HTTPD_CONF}` overrides. Supplies the no-WADM baseline the benchmark's end-to-end overhead is measured against. The in-server variants have their own pair (`nginx/nginx-inserver-baseline.conf`, `httpd-inserver-baseline.conf`, via `${OPENRESTY_INSERVER_CONF}` / `${HTTPD_INSERVER_CONF}`). |
+| `httpd-inserver.conf` | Apache in-server variant: the proxy variant's mod_lua hooks over a `DocumentRoot` instead of `ProxyPass`. |
 
 ---
 
@@ -144,6 +162,8 @@ Docker Compose wires services on a shared `honeypot` bridge network. Only the ed
 - **`--profile envoy`:** Envoy + Lua on 8081.
 - **`--profile wasm`:** Envoy + WASM on 8082 (entrypoint injects JSON into filter config). `rust-builder` copies `filter.wasm` from its image; add `--build` after editing `wasm-filter/`, or Compose reuses the previously built image.
 - **`--profile apache`:** Apache + mod_lua on 8083. Scripts are cached for the container's lifetime (`LuaCodeCache forever`), so restart it after editing them.
+- **`--profile openresty-inserver`:** OpenResty serving `backend/www` itself with the module, on 8084.
+- **`--profile apache-inserver`:** Apache serving `backend/www` itself with the same `apache_scripts/`, on 8085. Restart it after editing the scripts, as for `apache`.
 
 ---
 

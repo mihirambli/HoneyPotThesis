@@ -1,4 +1,7 @@
-# Compose file: pick ONE edge via profile (openresty | envoy | wasm | apache). backend always defined for upstream.
+# Compose file: pick ONE edge via profile. Proxy deployment: openresty | envoy | wasm | apache, each
+# in front of backend. In-server deployment: openresty-inserver | apache-inserver, each serving
+# backend/www itself. backend is always defined: it is the proxies' upstream and the paired
+# harness's origin tier.
 #
 # CPU isolation and log delivery are set per service below, both for measurement fidelity:
 #
@@ -120,6 +123,44 @@ services:
       - ./apache_scripts:/usr/local/apache2/scripts/:ro
       - ${WADM_CONFIG_JSON:-./config.json}:/usr/local/apache2/conf/config.json:ro
       - ${HTTPD_CONF:-./httpd.conf}:/usr/local/apache2/conf/httpd.conf:ro
+    depends_on:
+      - backend
+    cpuset: ${EDGE_CPUS:-1-2}
+    logging: *wadm_logging
+    networks:
+      - honeypot
+
+  # Edge E — OpenResty serving the pages itself (in-server deployment): no proxy hop. backend stays
+  # up, idle, because the paired harness's origin tier and cgroup sampler use it.
+  openresty-inserver:
+    image: openresty/openresty:latest
+    profiles:
+      - openresty-inserver
+    ports:
+      - "8084:80"
+    volumes:
+      - ${OPENRESTY_INSERVER_CONF:-./nginx/nginx-inserver.conf}:/usr/local/openresty/nginx/conf/nginx.conf:ro
+      - ${WADM_CONFIG_JSON:-./config.json}:/etc/openresty/config.json:ro
+      - ./backend/www:/srv/www:ro
+    depends_on:
+      - backend
+    cpuset: ${EDGE_CPUS:-1-2}
+    logging: *wadm_logging
+    networks:
+      - honeypot
+
+  # Edge F — Apache httpd serving the pages itself; same apache_scripts as the proxy variant.
+  apache-inserver:
+    image: httpd:2.4-alpine
+    profiles:
+      - apache-inserver
+    ports:
+      - "8085:80"
+    volumes:
+      - ./apache_scripts:/usr/local/apache2/scripts/:ro
+      - ${WADM_CONFIG_JSON:-./config.json}:/usr/local/apache2/conf/config.json:ro
+      - ${HTTPD_INSERVER_CONF:-./httpd-inserver.conf}:/usr/local/apache2/conf/httpd.conf:ro
+      - ./backend/www:/srv/www:ro
     depends_on:
       - backend
     cpuset: ${EDGE_CPUS:-1-2}

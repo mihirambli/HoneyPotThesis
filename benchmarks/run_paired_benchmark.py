@@ -43,6 +43,12 @@ What this script does differently:
               alert lines the window produced — so functional damage under load is recorded, not
               assumed away.
 
+In-server variants (`--edge openresty_inserver|apache_inserver`) run through the same code path. Their
+bare tier is the web server serving backend/www itself without the module, and their origin tier is
+still k6 straight to the shared `backend` origin with the in-server container idle; `backend` stays up
+through `depends_on`, so the origin cgroup is sampled on every tier as for a proxy edge, where it
+should read close to zero because nothing is proxied.
+
 Writes:
   benchmarks/results/paired_<edge>.json    every cell: all tiers, all replicates, with verdicts
   benchmarks/results/<mix>_<edge>.json     the same, for --mix get|post|size
@@ -53,6 +59,7 @@ Usage:
     python3 benchmarks/run_paired_benchmark.py --preset smoke --all
     python3 benchmarks/run_paired_benchmark.py --preset full --all
     python3 benchmarks/run_paired_benchmark.py --edge openresty --replicates 3 --rates 1,10
+    python3 benchmarks/run_paired_benchmark.py --edge apache_inserver --preset full
     python3 benchmarks/run_paired_benchmark.py --all --mix get --rates 100 --replicates 3
     python3 benchmarks/run_paired_benchmark.py --edge wasm --mixes sqli-hit,sqli-miss --no-prime \
         --rates 100 --duration 60s --replicates 7
@@ -530,9 +537,13 @@ def main() -> int:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(
         "--edge", choices=RUNNABLE_KEYS,
-        help="Run one edge, or a remediation variant (variants are excluded from --all).",
+        help="Run one edge, a remediation variant or an in-server variant (variants and in-server "
+             "variants are excluded from --all).",
     )
-    group.add_argument("--all", action="store_true", help="Run all four comparable edges, sequentially.")
+    group.add_argument(
+        "--all", action="store_true",
+        help="Run the four comparable proxy edges, sequentially.",
+    )
     parser.add_argument("--preset", choices=sorted(PRESETS), default="full")
     parser.add_argument("--replicates", type=int, help="Override the preset's replicate count.")
     parser.add_argument("--rates", help="Comma-separated offered iterations/sec.")

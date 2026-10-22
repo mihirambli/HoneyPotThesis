@@ -1,0 +1,1421 @@
+=== 21:40:50 [attempt 1] python3 -u benchmarks/run_paired_benchmark.py --preset full --edge openresty_inserver
+
+==============================================================================
+=== Paired benchmark — OpenResty (in-server) (all) ===
+==============================================================================
+tiers=['origin', 'bare', 'silent', 'wadm'] rates=[1, 10, 100] replicates=5
+
+  --- rate=1/s duration=90s ---
+    openresty_inserver/origin rate=1 rep=1: warm-up 36s...
+    openresty_inserver/origin rate=1 rep=1: measuring 90s...
+    openresty_inserver/origin rate=1 rep=1: 90 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    openresty_inserver/bare rate=1 rep=1: warm-up 36s...
+    openresty_inserver/bare rate=1 rep=1: measuring 90s...
+    openresty_inserver/bare rate=1 rep=1: 91 iters, 101% of offered, cpu/req=313.23us, worst intact=100.00% -> ok
+    openresty_inserver/silent rate=1 rep=1: warm-up 36s...
+    openresty_inserver/silent rate=1 rep=1: measuring 90s...
+    openresty_inserver/silent rate=1 rep=1: 91 iters, 101% of offered, cpu/req=292.842us, worst intact=100.00% -> ok
+    openresty_inserver/wadm rate=1 rep=1: warm-up 36s...
+    openresty_inserver/wadm rate=1 rep=1: measuring 90s...
+    openresty_inserver/wadm rate=1 rep=1: 90 iters, 100% of offered, cpu/req=356.409us, worst intact=100.00% -> ok
+    openresty_inserver/wadm rate=1 rep=2: warm-up 36s...
+    openresty_inserver/wadm rate=1 rep=2: measuring 90s...
+    openresty_inserver/wadm rate=1 rep=2: 91 iters, 101% of offered, cpu/req=356.384us, worst intact=100.00% -> ok
+    openresty_inserver/silent rate=1 rep=2: warm-up 36s...
+    openresty_inserver/silent rate=1 rep=2: measuring 90s...
+    openresty_inserver/silent rate=1 rep=2: 90 iters, 100% of offered, cpu/req=295.814us, worst intact=100.00% -> ok
+    openresty_inserver/bare rate=1 rep=2: warm-up 36s...
+    openresty_inserver/bare rate=1 rep=2: measuring 90s...
+    openresty_inserver/bare rate=1 rep=2: 90 iters, 100% of offered, cpu/req=260.836us, worst intact=100.00% -> ok
+    openresty_inserver/origin rate=1 rep=2: warm-up 36s...
+    openresty_inserver/origin rate=1 rep=2: measuring 90s...
+    openresty_inserver/origin rate=1 rep=2: 91 iters, 101% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    openresty_inserver/bare rate=1 rep=3: warm-up 36s...
+    openresty_inserver/bare rate=1 rep=3: measuring 90s...
+    openresty_inserver/bare rate=1 rep=3: 91 iters, 101% of offered, cpu/req=275.848us, worst intact=100.00% -> ok
+    openresty_inserver/silent rate=1 rep=3: warm-up 36s...
+    openresty_inserver/silent rate=1 rep=3: measuring 90s...
+    openresty_inserver/silent rate=1 rep=3: 90 iters, 100% of offered, cpu/req=290.372us, worst intact=100.00% -> ok
+    openresty_inserver/wadm rate=1 rep=3: warm-up 36s...
+    openresty_inserver/wadm rate=1 rep=3: measuring 90s...
+    openresty_inserver/wadm rate=1 rep=3: 91 iters, 101% of offered, cpu/req=313.182us, worst intact=100.00% -> ok
+    openresty_inserver/origin rate=1 rep=3: warm-up 36s...
+    openresty_inserver/origin rate=1 rep=3: measuring 90s...
+    openresty_inserver/origin rate=1 rep=3: 91 iters, 101% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    openresty_inserver/origin rate=1 rep=4: warm-up 36s...
+    openresty_inserver/origin rate=1 rep=4: measuring 90s...
+    openresty_inserver/origin rate=1 rep=4: 91 iters, 101% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    openresty_inserver/wadm rate=1 rep=4: warm-up 36s...
+    openresty_inserver/wadm rate=1 rep=4: measuring 90s...
+    openresty_inserver/wadm rate=1 rep=4: 90 iters, 100% of offered, cpu/req=356.505us, worst intact=100.00% -> ok
+    openresty_inserver/silent rate=1 rep=4: warm-up 36s...
+    openresty_inserver/silent rate=1 rep=4: measuring 90s...
+    openresty_inserver/silent rate=1 rep=4: 91 iters, 101% of offered, cpu/req=303.184us, worst intact=100.00% -> ok
+    openresty_inserver/bare rate=1 rep=4: warm-up 36s...
+    openresty_inserver/bare rate=1 rep=4: measuring 90s...
+    openresty_inserver/bare rate=1 rep=4: 91 iters, 101% of offered, cpu/req=277.421us, worst intact=100.00% -> ok
+    openresty_inserver/silent rate=1 rep=5: warm-up 36s...
+    openresty_inserver/silent rate=1 rep=5: measuring 90s...
+    openresty_inserver/silent rate=1 rep=5: 90 iters, 100% of offered, cpu/req=356.345us, worst intact=100.00% -> ok
+    openresty_inserver/wadm rate=1 rep=5: warm-up 36s...
+    openresty_inserver/wadm rate=1 rep=5: measuring 90s...
+    openresty_inserver/wadm rate=1 rep=5: 91 iters, 101% of offered, cpu/req=361.809us, worst intact=100.00% -> ok (WARN: 1 sample(s) above 1000 us (1.10%) — too few to judge the run contaminated)
+    openresty_inserver/origin rate=1 rep=5: warm-up 36s...
+    openresty_inserver/origin rate=1 rep=5: measuring 90s...
+    openresty_inserver/origin rate=1 rep=5: 91 iters, 101% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    openresty_inserver/bare rate=1 rep=5: warm-up 36s...
+    openresty_inserver/bare rate=1 rep=5: measuring 90s...
+    openresty_inserver/bare rate=1 rep=5: 91 iters, 101% of offered, cpu/req=284.098us, worst intact=100.00% -> ok
+
+  --- rate=10/s duration=45s ---
+    openresty_inserver/origin rate=10 rep=1: warm-up 18s...
+    openresty_inserver/origin rate=10 rep=1: measuring 45s...
+    openresty_inserver/origin rate=10 rep=1: 450 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    openresty_inserver/bare rate=10 rep=1: warm-up 18s...
+    openresty_inserver/bare rate=10 rep=1: measuring 45s...
+    openresty_inserver/bare rate=10 rep=1: 451 iters, 100% of offered, cpu/req=230.835us, worst intact=100.00% -> ok
+    openresty_inserver/silent rate=10 rep=1: warm-up 18s...
+    openresty_inserver/silent rate=10 rep=1: measuring 45s...
+    openresty_inserver/silent rate=10 rep=1: 450 iters, 100% of offered, cpu/req=249.928us, worst intact=100.00% -> ok
+    openresty_inserver/wadm rate=10 rep=1: warm-up 18s...
+    openresty_inserver/wadm rate=10 rep=1: measuring 45s...
+    openresty_inserver/wadm rate=10 rep=1: 451 iters, 100% of offered, cpu/req=284.872us, worst intact=100.00% -> ok
+    openresty_inserver/wadm rate=10 rep=2: warm-up 18s...
+    openresty_inserver/wadm rate=10 rep=2: measuring 45s...
+    openresty_inserver/wadm rate=10 rep=2: 451 iters, 100% of offered, cpu/req=272.536us, worst intact=100.00% -> ok
+    openresty_inserver/silent rate=10 rep=2: warm-up 18s...
+    openresty_inserver/silent rate=10 rep=2: measuring 45s...
+    openresty_inserver/silent rate=10 rep=2: 451 iters, 100% of offered, cpu/req=253.246us, worst intact=100.00% -> ok
+    openresty_inserver/bare rate=10 rep=2: warm-up 18s...
+    openresty_inserver/bare rate=10 rep=2: measuring 45s...
+    openresty_inserver/bare rate=10 rep=2: 451 iters, 100% of offered, cpu/req=207.247us, worst intact=100.00% -> ok
+    openresty_inserver/origin rate=10 rep=2: warm-up 18s...
+    openresty_inserver/origin rate=10 rep=2: measuring 45s...
+    openresty_inserver/origin rate=10 rep=2: 451 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    openresty_inserver/bare rate=10 rep=3: warm-up 18s...
+    openresty_inserver/bare rate=10 rep=3: measuring 45s...
+    openresty_inserver/bare rate=10 rep=3: 450 iters, 100% of offered, cpu/req=223.145us, worst intact=100.00% -> ok
+    openresty_inserver/silent rate=10 rep=3: warm-up 18s...
+    openresty_inserver/silent rate=10 rep=3: measuring 45s...
+    openresty_inserver/silent rate=10 rep=3: 451 iters, 100% of offered, cpu/req=266.922us, worst intact=100.00% -> ok
+    openresty_inserver/wadm rate=10 rep=3: warm-up 18s...
+    openresty_inserver/wadm rate=10 rep=3: measuring 45s...
+    openresty_inserver/wadm rate=10 rep=3: 450 iters, 100% of offered, cpu/req=285.923us, worst intact=100.00% -> ok
+    openresty_inserver/origin rate=10 rep=3: warm-up 18s...
+    openresty_inserver/origin rate=10 rep=3: measuring 45s...
+    openresty_inserver/origin rate=10 rep=3: 451 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    openresty_inserver/origin rate=10 rep=4: warm-up 18s...
+    openresty_inserver/origin rate=10 rep=4: measuring 45s...
+    openresty_inserver/origin rate=10 rep=4: 451 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    openresty_inserver/wadm rate=10 rep=4: warm-up 18s...
+    openresty_inserver/wadm rate=10 rep=4: measuring 45s...
+    openresty_inserver/wadm rate=10 rep=4: 450 iters, 100% of offered, cpu/req=288.874us, worst intact=100.00% -> ok
+    openresty_inserver/silent rate=10 rep=4: warm-up 18s...
+    openresty_inserver/silent rate=10 rep=4: measuring 45s...
+    openresty_inserver/silent rate=10 rep=4: 451 iters, 100% of offered, cpu/req=251.892us, worst intact=100.00% -> ok
+    openresty_inserver/bare rate=10 rep=4: warm-up 18s...
+    openresty_inserver/bare rate=10 rep=4: measuring 45s...
+    openresty_inserver/bare rate=10 rep=4: 451 iters, 100% of offered, cpu/req=236.104us, worst intact=100.00% -> ok
+    openresty_inserver/silent rate=10 rep=5: warm-up 18s...
+    openresty_inserver/silent rate=10 rep=5: measuring 45s...
+    openresty_inserver/silent rate=10 rep=5: 451 iters, 100% of offered, cpu/req=261.399us, worst intact=100.00% -> ok
+    openresty_inserver/wadm rate=10 rep=5: warm-up 18s...
+    openresty_inserver/wadm rate=10 rep=5: measuring 45s...
+    openresty_inserver/wadm rate=10 rep=5: 450 iters, 100% of offered, cpu/req=278.743us, worst intact=100.00% -> ok
+    openresty_inserver/origin rate=10 rep=5: warm-up 18s...
+    openresty_inserver/origin rate=10 rep=5: measuring 45s...
+    openresty_inserver/origin rate=10 rep=5: 450 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    openresty_inserver/bare rate=10 rep=5: warm-up 18s...
+    openresty_inserver/bare rate=10 rep=5: measuring 45s...
+    openresty_inserver/bare rate=10 rep=5: 450 iters, 100% of offered, cpu/req=249.12us, worst intact=100.00% -> ok
+
+  --- rate=100/s duration=30s ---
+    openresty_inserver/origin rate=100 rep=1: warm-up 12s...
+    openresty_inserver/origin rate=100 rep=1: measuring 30s...
+    openresty_inserver/origin rate=100 rep=1: 3001 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    openresty_inserver/bare rate=100 rep=1: warm-up 12s...
+    openresty_inserver/bare rate=100 rep=1: measuring 30s...
+    openresty_inserver/bare rate=100 rep=1: 3000 iters, 100% of offered, cpu/req=141.478us, worst intact=100.00% -> ok
+    openresty_inserver/silent rate=100 rep=1: warm-up 12s...
+    openresty_inserver/silent rate=100 rep=1: measuring 30s...
+    openresty_inserver/silent rate=100 rep=1: 3001 iters, 100% of offered, cpu/req=176.306us, worst intact=100.00% -> ok
+    openresty_inserver/wadm rate=100 rep=1: warm-up 12s...
+    openresty_inserver/wadm rate=100 rep=1: measuring 30s...
+    openresty_inserver/wadm rate=100 rep=1: 3001 iters, 100% of offered, cpu/req=195.339us, worst intact=100.00% -> ok
+    openresty_inserver/wadm rate=100 rep=2: warm-up 12s...
+    openresty_inserver/wadm rate=100 rep=2: measuring 30s...
+    openresty_inserver/wadm rate=100 rep=2: 3001 iters, 100% of offered, cpu/req=200.443us, worst intact=100.00% -> ok
+    openresty_inserver/silent rate=100 rep=2: warm-up 12s...
+    openresty_inserver/silent rate=100 rep=2: measuring 30s...
+    openresty_inserver/silent rate=100 rep=2: 3001 iters, 100% of offered, cpu/req=178.894us, worst intact=100.00% -> ok
+    openresty_inserver/bare rate=100 rep=2: warm-up 12s...
+    openresty_inserver/bare rate=100 rep=2: measuring 30s...
+    openresty_inserver/bare rate=100 rep=2: 3001 iters, 100% of offered, cpu/req=143.29us, worst intact=100.00% -> ok
+    openresty_inserver/origin rate=100 rep=2: warm-up 12s...
+    openresty_inserver/origin rate=100 rep=2: measuring 30s...
+    openresty_inserver/origin rate=100 rep=2: 3000 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    openresty_inserver/bare rate=100 rep=3: warm-up 12s...
+    openresty_inserver/bare rate=100 rep=3: measuring 30s...
+    openresty_inserver/bare rate=100 rep=3: 3000 iters, 100% of offered, cpu/req=147.397us, worst intact=100.00% -> ok
+    openresty_inserver/silent rate=100 rep=3: warm-up 12s...
+    openresty_inserver/silent rate=100 rep=3: measuring 30s...
+    openresty_inserver/silent rate=100 rep=3: 3000 iters, 100% of offered, cpu/req=177.705us, worst intact=100.00% -> ok
+    openresty_inserver/wadm rate=100 rep=3: warm-up 12s...
+    openresty_inserver/wadm rate=100 rep=3: measuring 30s...
+    openresty_inserver/wadm rate=100 rep=3: 3001 iters, 100% of offered, cpu/req=206.57us, worst intact=100.00% -> ok
+    openresty_inserver/origin rate=100 rep=3: warm-up 12s...
+    openresty_inserver/origin rate=100 rep=3: measuring 30s...
+    openresty_inserver/origin rate=100 rep=3: 3001 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    openresty_inserver/origin rate=100 rep=4: warm-up 12s...
+    openresty_inserver/origin rate=100 rep=4: measuring 30s...
+    openresty_inserver/origin rate=100 rep=4: 3000 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    openresty_inserver/wadm rate=100 rep=4: warm-up 12s...
+    openresty_inserver/wadm rate=100 rep=4: measuring 30s...
+    openresty_inserver/wadm rate=100 rep=4: 3001 iters, 100% of offered, cpu/req=216.241us, worst intact=100.00% -> ok
+    openresty_inserver/silent rate=100 rep=4: warm-up 12s...
+    openresty_inserver/silent rate=100 rep=4: measuring 30s...
+    openresty_inserver/silent rate=100 rep=4: 3001 iters, 100% of offered, cpu/req=173.495us, worst intact=100.00% -> ok
+    openresty_inserver/bare rate=100 rep=4: warm-up 12s...
+    openresty_inserver/bare rate=100 rep=4: measuring 30s...
+    openresty_inserver/bare rate=100 rep=4: 3001 iters, 100% of offered, cpu/req=148.055us, worst intact=100.00% -> ok
+    openresty_inserver/silent rate=100 rep=5: warm-up 12s...
+    openresty_inserver/silent rate=100 rep=5: measuring 30s...
+    openresty_inserver/silent rate=100 rep=5: 3000 iters, 100% of offered, cpu/req=177.85us, worst intact=100.00% -> ok
+    openresty_inserver/wadm rate=100 rep=5: warm-up 12s...
+    openresty_inserver/wadm rate=100 rep=5: measuring 30s...
+    openresty_inserver/wadm rate=100 rep=5: 3001 iters, 100% of offered, cpu/req=189.524us, worst intact=100.00% -> ok
+    openresty_inserver/origin rate=100 rep=5: warm-up 12s...
+    openresty_inserver/origin rate=100 rep=5: measuring 30s...
+    openresty_inserver/origin rate=100 rep=5: 3000 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    openresty_inserver/bare rate=100 rep=5: warm-up 12s...
+    openresty_inserver/bare rate=100 rep=5: measuring 30s...
+    openresty_inserver/bare rate=100 rep=5: 3001 iters, 100% of offered, cpu/req=145.737us, worst intact=100.00% -> ok
+
+Saved /home/kali/Desktop/HoneyPotThesis/benchmarks/results/paired_openresty_inserver.json  (60/60 cells valid)
+
+Next: python3 benchmarks/analyze_paired.py
+=== 23:13:29 [attempt 1] python3 -u benchmarks/run_paired_benchmark.py --preset full --edge apache_inserver
+
+==============================================================================
+=== Paired benchmark — Apache (in-server) (all) ===
+==============================================================================
+tiers=['origin', 'bare', 'silent', 'wadm'] rates=[1, 10, 100] replicates=5
+
+  --- rate=1/s duration=90s ---
+    apache_inserver/origin rate=1 rep=1: warm-up 36s...
+    apache_inserver/origin rate=1 rep=1: measuring 90s...
+    apache_inserver/origin rate=1 rep=1: 91 iters, 101% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    apache_inserver/bare rate=1 rep=1: warm-up 36s...
+    apache_inserver/bare rate=1 rep=1: measuring 90s...
+    apache_inserver/bare rate=1 rep=1: 91 iters, 101% of offered, cpu/req=387.558us, worst intact=100.00% -> ok
+    apache_inserver/silent rate=1 rep=1: warm-up 36s...
+    apache_inserver/silent rate=1 rep=1: measuring 90s...
+    apache_inserver/silent rate=1 rep=1: 90 iters, 100% of offered, cpu/req=717.014us, worst intact=100.00% -> ok
+    apache_inserver/wadm rate=1 rep=1: warm-up 36s...
+    apache_inserver/wadm rate=1 rep=1: measuring 90s...
+    apache_inserver/wadm rate=1 rep=1: 91 iters, 101% of offered, cpu/req=599.023us, worst intact=100.00% -> ok (WARN: 1 sample(s) above 1000 us (1.10%) — too few to judge the run contaminated)
+    apache_inserver/wadm rate=1 rep=2: warm-up 36s...
+    apache_inserver/wadm rate=1 rep=2: measuring 90s...
+    apache_inserver/wadm rate=1 rep=2: 91 iters, 101% of offered, cpu/req=592.133us, worst intact=100.00% -> ok
+    apache_inserver/silent rate=1 rep=2: warm-up 36s...
+    apache_inserver/silent rate=1 rep=2: measuring 90s...
+    apache_inserver/silent rate=1 rep=2: 91 iters, 101% of offered, cpu/req=546.734us, worst intact=100.00% -> ok
+    apache_inserver/bare rate=1 rep=2: warm-up 36s...
+    apache_inserver/bare rate=1 rep=2: measuring 90s...
+    apache_inserver/bare rate=1 rep=2: 91 iters, 101% of offered, cpu/req=374.892us, worst intact=100.00% -> ok
+    apache_inserver/origin rate=1 rep=2: warm-up 36s...
+    apache_inserver/origin rate=1 rep=2: measuring 90s...
+    apache_inserver/origin rate=1 rep=2: 91 iters, 101% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    apache_inserver/bare rate=1 rep=3: warm-up 36s...
+    apache_inserver/bare rate=1 rep=3: measuring 90s...
+    apache_inserver/bare rate=1 rep=3: 91 iters, 101% of offered, cpu/req=361.201us, worst intact=100.00% -> ok
+    apache_inserver/silent rate=1 rep=3: warm-up 36s...
+    apache_inserver/silent rate=1 rep=3: measuring 90s...
+    apache_inserver/silent rate=1 rep=3: 91 iters, 101% of offered, cpu/req=538.599us, worst intact=100.00% -> ok
+    apache_inserver/wadm rate=1 rep=3: warm-up 36s...
+    apache_inserver/wadm rate=1 rep=3: measuring 90s...
+    apache_inserver/wadm rate=1 rep=3: 90 iters, 100% of offered, cpu/req=615.175us, worst intact=100.00% -> ok
+    apache_inserver/origin rate=1 rep=3: warm-up 36s...
+    apache_inserver/origin rate=1 rep=3: measuring 90s...
+    apache_inserver/origin rate=1 rep=3: 91 iters, 101% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    apache_inserver/origin rate=1 rep=4: warm-up 36s...
+    apache_inserver/origin rate=1 rep=4: measuring 90s...
+    apache_inserver/origin rate=1 rep=4: 91 iters, 101% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    apache_inserver/wadm rate=1 rep=4: warm-up 36s...
+    apache_inserver/wadm rate=1 rep=4: measuring 90s...
+    apache_inserver/wadm rate=1 rep=4: 91 iters, 101% of offered, cpu/req=584.296us, worst intact=100.00% -> ok
+    apache_inserver/silent rate=1 rep=4: warm-up 36s...
+    apache_inserver/silent rate=1 rep=4: measuring 90s...
+    apache_inserver/silent rate=1 rep=4: 91 iters, 101% of offered, cpu/req=649.237us, worst intact=100.00% -> ok
+    apache_inserver/bare rate=1 rep=4: warm-up 36s...
+    apache_inserver/bare rate=1 rep=4: measuring 90s...
+    apache_inserver/bare rate=1 rep=4: 91 iters, 101% of offered, cpu/req=369.818us, worst intact=100.00% -> ok
+    apache_inserver/silent rate=1 rep=5: warm-up 36s...
+    apache_inserver/silent rate=1 rep=5: measuring 90s...
+    apache_inserver/silent rate=1 rep=5: 91 iters, 101% of offered, cpu/req=745.507us, worst intact=100.00% -> ok
+    apache_inserver/wadm rate=1 rep=5: warm-up 36s...
+    apache_inserver/wadm rate=1 rep=5: measuring 90s...
+    apache_inserver/wadm rate=1 rep=5: 90 iters, 100% of offered, cpu/req=601.157us, worst intact=100.00% -> ok
+    apache_inserver/origin rate=1 rep=5: warm-up 36s...
+    apache_inserver/origin rate=1 rep=5: measuring 90s...
+    apache_inserver/origin rate=1 rep=5: 91 iters, 101% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    apache_inserver/bare rate=1 rep=5: warm-up 36s...
+    apache_inserver/bare rate=1 rep=5: measuring 90s...
+    apache_inserver/bare rate=1 rep=5: 90 iters, 100% of offered, cpu/req=359.24us, worst intact=100.00% -> ok
+
+  --- rate=10/s duration=45s ---
+    apache_inserver/origin rate=10 rep=1: warm-up 18s...
+    apache_inserver/origin rate=10 rep=1: measuring 45s...
+    apache_inserver/origin rate=10 rep=1: 451 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    apache_inserver/bare rate=10 rep=1: warm-up 18s...
+    apache_inserver/bare rate=10 rep=1: measuring 45s...
+    apache_inserver/bare rate=10 rep=1: 450 iters, 100% of offered, cpu/req=389.717us, worst intact=100.00% -> ok
+    apache_inserver/silent rate=10 rep=1: warm-up 18s...
+    apache_inserver/silent rate=10 rep=1: measuring 45s...
+    apache_inserver/silent rate=10 rep=1: 451 iters, 100% of offered, cpu/req=558.798us, worst intact=100.00% -> ok
+    apache_inserver/wadm rate=10 rep=1: warm-up 18s...
+    apache_inserver/wadm rate=10 rep=1: measuring 45s...
+    apache_inserver/wadm rate=10 rep=1: 450 iters, 100% of offered, cpu/req=546.207us, worst intact=100.00% -> ok
+    apache_inserver/wadm rate=10 rep=2: warm-up 18s...
+    apache_inserver/wadm rate=10 rep=2: measuring 45s...
+    apache_inserver/wadm rate=10 rep=2: 451 iters, 100% of offered, cpu/req=668.859us, worst intact=100.00% -> ok (WARN: edge crashed 3x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below)
+    apache_inserver/silent rate=10 rep=2: warm-up 18s...
+    apache_inserver/silent rate=10 rep=2: measuring 45s...
+    apache_inserver/silent rate=10 rep=2: 451 iters, 100% of offered, cpu/req=551.32us, worst intact=100.00% -> ok
+    apache_inserver/bare rate=10 rep=2: warm-up 18s...
+    apache_inserver/bare rate=10 rep=2: measuring 45s...
+    apache_inserver/bare rate=10 rep=2: 450 iters, 100% of offered, cpu/req=338.136us, worst intact=100.00% -> ok
+    apache_inserver/origin rate=10 rep=2: warm-up 18s...
+    apache_inserver/origin rate=10 rep=2: measuring 45s...
+    apache_inserver/origin rate=10 rep=2: 451 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    apache_inserver/bare rate=10 rep=3: warm-up 18s...
+    apache_inserver/bare rate=10 rep=3: measuring 45s...
+    apache_inserver/bare rate=10 rep=3: 451 iters, 100% of offered, cpu/req=335.398us, worst intact=100.00% -> ok
+    apache_inserver/silent rate=10 rep=3: warm-up 18s...
+    apache_inserver/silent rate=10 rep=3: measuring 45s...
+    apache_inserver/silent rate=10 rep=3: 450 iters, 100% of offered, cpu/req=512.992us, worst intact=100.00% -> ok
+    apache_inserver/wadm rate=10 rep=3: warm-up 18s...
+    apache_inserver/wadm rate=10 rep=3: measuring 45s...
+    apache_inserver/wadm rate=10 rep=3: 451 iters, 100% of offered, cpu/req=578.616us, worst intact=100.00% -> ok
+    apache_inserver/origin rate=10 rep=3: warm-up 18s...
+    apache_inserver/origin rate=10 rep=3: measuring 45s...
+    apache_inserver/origin rate=10 rep=3: 451 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    apache_inserver/origin rate=10 rep=4: warm-up 18s...
+    apache_inserver/origin rate=10 rep=4: measuring 45s...
+    apache_inserver/origin rate=10 rep=4: 450 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    apache_inserver/wadm rate=10 rep=4: warm-up 18s...
+    apache_inserver/wadm rate=10 rep=4: measuring 45s...
+    apache_inserver/wadm rate=10 rep=4: 450 iters, 100% of offered, cpu/req=675.951us, worst intact=99.78% -> ok (WARN: edge crashed 3x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below)
+    apache_inserver/silent rate=10 rep=4: warm-up 18s...
+    apache_inserver/silent rate=10 rep=4: measuring 45s...
+    apache_inserver/silent rate=10 rep=4: 451 iters, 100% of offered, cpu/req=511.227us, worst intact=100.00% -> ok
+    apache_inserver/bare rate=10 rep=4: warm-up 18s...
+    apache_inserver/bare rate=10 rep=4: measuring 45s...
+    apache_inserver/bare rate=10 rep=4: 450 iters, 100% of offered, cpu/req=328.57us, worst intact=100.00% -> ok
+    apache_inserver/silent rate=10 rep=5: warm-up 18s...
+    apache_inserver/silent rate=10 rep=5: measuring 45s...
+    apache_inserver/silent rate=10 rep=5: 450 iters, 100% of offered, cpu/req=573.875us, worst intact=99.78% -> ok (WARN: edge crashed 2x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below)
+    apache_inserver/wadm rate=10 rep=5: warm-up 18s...
+    apache_inserver/wadm rate=10 rep=5: measuring 45s...
+    apache_inserver/wadm rate=10 rep=5: 451 iters, 100% of offered, cpu/req=548.027us, worst intact=100.00% -> ok
+    apache_inserver/origin rate=10 rep=5: warm-up 18s...
+    apache_inserver/origin rate=10 rep=5: measuring 45s...
+    apache_inserver/origin rate=10 rep=5: 451 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    apache_inserver/bare rate=10 rep=5: warm-up 18s...
+    apache_inserver/bare rate=10 rep=5: measuring 45s...
+    apache_inserver/bare rate=10 rep=5: 450 iters, 100% of offered, cpu/req=349.588us, worst intact=100.00% -> ok
+
+  --- rate=100/s duration=30s ---
+    apache_inserver/origin rate=100 rep=1: warm-up 12s...
+    apache_inserver/origin rate=100 rep=1: measuring 30s...
+    apache_inserver/origin rate=100 rep=1: 3001 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    apache_inserver/bare rate=100 rep=1: warm-up 12s...
+    apache_inserver/bare rate=100 rep=1: measuring 30s...
+    apache_inserver/bare rate=100 rep=1: 3001 iters, 100% of offered, cpu/req=179.518us, worst intact=100.00% -> ok
+    apache_inserver/silent rate=100 rep=1: warm-up 12s...
+    apache_inserver/silent rate=100 rep=1: measuring 30s...
+    apache_inserver/silent rate=100 rep=1: 3000 iters, 100% of offered, cpu/req=500.174us, worst intact=99.77% -> ok (WARN: edge crashed 10x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below)
+    apache_inserver/wadm rate=100 rep=1: warm-up 12s...
+    apache_inserver/wadm rate=100 rep=1: measuring 30s...
+    apache_inserver/wadm rate=100 rep=1: 3001 iters, 100% of offered, cpu/req=581.019us, worst intact=99.83% -> ok (WARN: edge crashed 9x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below)
+    apache_inserver/wadm rate=100 rep=2: warm-up 12s...
+    apache_inserver/wadm rate=100 rep=2: measuring 30s...
+    apache_inserver/wadm rate=100 rep=2: 3001 iters, 100% of offered, cpu/req=568.712us, worst intact=99.80% -> ok (WARN: edge crashed 10x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below)
+    apache_inserver/silent rate=100 rep=2: warm-up 12s...
+    apache_inserver/silent rate=100 rep=2: measuring 30s...
+    apache_inserver/silent rate=100 rep=2: 3001 iters, 100% of offered, cpu/req=443.356us, worst intact=99.90% -> ok (WARN: edge crashed 10x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below)
+    apache_inserver/bare rate=100 rep=2: warm-up 12s...
+    apache_inserver/bare rate=100 rep=2: measuring 30s...
+    apache_inserver/bare rate=100 rep=2: 3001 iters, 100% of offered, cpu/req=182.908us, worst intact=100.00% -> ok
+    apache_inserver/origin rate=100 rep=2: warm-up 12s...
+    apache_inserver/origin rate=100 rep=2: measuring 30s...
+    apache_inserver/origin rate=100 rep=2: 3001 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    apache_inserver/bare rate=100 rep=3: warm-up 12s...
+    apache_inserver/bare rate=100 rep=3: measuring 30s...
+    apache_inserver/bare rate=100 rep=3: 3000 iters, 100% of offered, cpu/req=176.18us, worst intact=100.00% -> ok
+    apache_inserver/silent rate=100 rep=3: warm-up 12s...
+    apache_inserver/silent rate=100 rep=3: measuring 30s...
+    apache_inserver/silent rate=100 rep=3: 3000 iters, 100% of offered, cpu/req=421.27us, worst intact=99.90% -> ok (WARN: edge crashed 11x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below)
+    apache_inserver/wadm rate=100 rep=3: warm-up 12s...
+    apache_inserver/wadm rate=100 rep=3: measuring 30s...
+    apache_inserver/wadm rate=100 rep=3: 3001 iters, 100% of offered, cpu/req=583.053us, worst intact=99.63% -> ok (WARN: edge crashed 10x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below)
+    apache_inserver/origin rate=100 rep=3: warm-up 12s...
+    apache_inserver/origin rate=100 rep=3: measuring 30s...
+    apache_inserver/origin rate=100 rep=3: 3001 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    apache_inserver/origin rate=100 rep=4: warm-up 12s...
+    apache_inserver/origin rate=100 rep=4: measuring 30s...
+    apache_inserver/origin rate=100 rep=4: 3001 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    apache_inserver/wadm rate=100 rep=4: warm-up 12s...
+    apache_inserver/wadm rate=100 rep=4: measuring 30s...
+    apache_inserver/wadm rate=100 rep=4: 3001 iters, 100% of offered, cpu/req=654.311us, worst intact=99.70% -> ok (WARN: edge crashed 12x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below)
+    apache_inserver/silent rate=100 rep=4: warm-up 12s...
+    apache_inserver/silent rate=100 rep=4: measuring 30s...
+    apache_inserver/silent rate=100 rep=4: 3001 iters, 100% of offered, cpu/req=407.555us, worst intact=99.90% -> ok (WARN: edge crashed 10x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below)
+    apache_inserver/bare rate=100 rep=4: warm-up 12s...
+    apache_inserver/bare rate=100 rep=4: measuring 30s...
+    apache_inserver/bare rate=100 rep=4: 3001 iters, 100% of offered, cpu/req=177.654us, worst intact=100.00% -> ok
+    apache_inserver/silent rate=100 rep=5: warm-up 12s...
+    apache_inserver/silent rate=100 rep=5: measuring 30s...
+    apache_inserver/silent rate=100 rep=5: 3001 iters, 100% of offered, cpu/req=512.853us, worst intact=99.90% -> ok (WARN: edge crashed 12x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below)
+    apache_inserver/wadm rate=100 rep=5: warm-up 12s...
+    apache_inserver/wadm rate=100 rep=5: measuring 30s...
+    apache_inserver/wadm rate=100 rep=5: 3001 iters, 100% of offered, cpu/req=629.782us, worst intact=99.77% -> ok (WARN: edge crashed 11x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below)
+    apache_inserver/origin rate=100 rep=5: warm-up 12s...
+    apache_inserver/origin rate=100 rep=5: measuring 30s...
+    apache_inserver/origin rate=100 rep=5: 3001 iters, 100% of offered, cpu/req=n/aus, worst intact=100.00% -> ok
+    apache_inserver/bare rate=100 rep=5: warm-up 12s...
+    apache_inserver/bare rate=100 rep=5: measuring 30s...
+    apache_inserver/bare rate=100 rep=5: 3001 iters, 100% of offered, cpu/req=178.612us, worst intact=100.00% -> ok
+
+Saved /home/kali/Desktop/HoneyPotThesis/benchmarks/results/paired_apache_inserver.json  (60/60 cells valid)
+
+Next: python3 benchmarks/analyze_paired.py
+=== 00:45:59 [attempt 1] python3 -u benchmarks/analyze_paired.py
+
+==============================================================================
+OpenResty
+==============================================================================
+  Marginal CPU, bare : 143.63 us/request   (idle 2050 us/s, rates [1, 10, 100])
+  Marginal CPU, silent: 174.46 us/request   (idle 2285 us/s, rates [1, 10, 100])
+  Marginal CPU, wadm : 212.75 us/request   (idle 2260 us/s, rates [1, 10, 100])
+  Marginal CPU, WADM (silent) - bare: +30.965 us/req (range +25.342..+34.025, 5/5 agree in sign)  <- headline
+  Marginal CPU, timing lines (wadm - silent): +35.767 us/req (range +32.467..+46.314, 5/5 agree in sign)
+  Marginal CPU, WADM (instrumented) - bare: +68.527 us/req (range +63.432..+77.277, 5/5 agree in sign)
+
+  rate 1/s — 5 paired replicates (headline: WADM (silent) - bare)
+    CPU, WADM (silent) - bare         +60.691 us/req (range +25.667..+81.124, 5/5 agree in sign)  [user +68.1, system +9.2]
+    CPU, timing lines (wadm - silent) +27.648 us/req (range +2.471..+40.196, 5/5 agree in sign)  [user +20.4, system +1.8]
+    CPU, WADM (instrumented) - bare   +83.595 us/req (range +58.995..+104.251, 5/5 agree in sign)  [user +79.7, system +22.3]
+      bare   absolute: 255.8 us/req, edge memory 9.3 MB
+      silent absolute: 314.4 us/req, edge memory 13.9 MB
+      wadm   absolute: 334.0 us/req, edge memory 14.7 MB
+    Slot spread:       1.395x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      +0.073 ms (range +0.024..+0.114, 5/5 agree in sign)  [+10% of bare]
+      detect_query_duration    +0.206 ms (range +0.076..+0.234, 5/5 agree in sign)  [+25% of bare]
+      token_tamper_duration    +0.173 ms (range +0.098..+0.196, 5/5 agree in sign)  [+23% of bare]
+      token_decoy_duration     +0.124 ms (range +0.114..+0.179, 5/5 agree in sign)  [+16% of bare]
+      sqli_hit_duration        -0.328 ms (range -0.353..-0.259, 5/5 agree in sign)  [-41% of bare]
+      sqli_hit_enc_duration    -0.315 ms (range -0.371..-0.231, 5/5 agree in sign)  [-39% of bare]
+      sqli_miss_duration       -0.336 ms (range -0.366..-0.331, 5/5 agree in sign)  [-44% of bare]
+      sqli_miss_enc_duration   -0.336 ms (range -0.388..-0.289, 5/5 agree in sign)  [-42% of bare]
+    Latency added per GET, by quantile (shift function): med=+145us  p75=+190us  p90=+340us  p95=+674us
+    Above the origin floor, latency added per GET at the median, origin itself 516us:
+      bare proxy - origin      +0.260 ms (range +0.249..+0.291, 5/5 agree in sign)  [+51% of origin]
+      WADM (silent) - origin   +0.409 ms (range +0.373..+0.414, 5/5 agree in sign)  [+78% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+99us  detect_query=+99us  token_tamper=+100us  token_decoy=+115us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Functional wadm  : worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Coverage (timing samples / expected): complete on every kind
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=4.30us/tail=0.00%  inject=1.33us/tail=0.00%
+      http_headers                 detect=3.25us/tail=0.00%  inject=0.43us/tail=0.00%
+      cookies                      detect=3.89us/tail=0.00%  inject=2.38us/tail=0.04%
+      decoy_paths                  detect=1.91us/tail=0.00%  inject=1.26us/tail=0.04%
+      form_fields                  detect=1.20us/tail=0.00%  inject=1.16us/tail=0.00%
+      sql_injection                detect=10.11us/tail=0.00%
+      sql_injection_encoded        detect=10.91us/tail=0.00%
+      sql_injection_miss           detect=10.72us/tail=0.00%
+      sql_injection_miss_encoded   detect=13.29us/tail=0.00%
+
+  rate 10/s — 5 paired replicates (headline: WADM (silent) - bare)
+    CPU, WADM (silent) - bare         +30.687 us/req (range +27.436..+44.077, 5/5 agree in sign)  [user +38.9, system -2.9]
+    CPU, timing lines (wadm - silent) +37.945 us/req (range +32.262..+57.097, 5/5 agree in sign)  [user +2.3, system +33.3]
+    CPU, WADM (instrumented) - bare   +76.410 us/req (range +65.381..+87.784, 5/5 agree in sign)  [user +53.2, system +29.0]
+      bare   absolute: 215.2 us/req, edge memory 9.5 MB
+      silent absolute: 251.5 us/req, edge memory 16.3 MB
+      wadm   absolute: 289.4 us/req, edge memory 16.8 MB
+    Slot spread:       1.408x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      +0.055 ms (range +0.026..+0.061, 5/5 agree in sign)  [+7% of bare]
+      detect_query_duration    +0.139 ms (range +0.108..+0.178, 5/5 agree in sign)  [+17% of bare]
+      token_tamper_duration    +0.134 ms (range +0.112..+0.170, 5/5 agree in sign)  [+16% of bare]
+      token_decoy_duration     +0.155 ms (range +0.117..+0.184, 5/5 agree in sign)  [+19% of bare]
+      sqli_hit_duration        -0.361 ms (range -0.377..-0.306, 5/5 agree in sign)  [-44% of bare]
+      sqli_hit_enc_duration    -0.338 ms (range -0.346..-0.332, 5/5 agree in sign)  [-42% of bare]
+      sqli_miss_duration       -0.367 ms (range -0.376..-0.344, 5/5 agree in sign)  [-46% of bare]
+      sqli_miss_enc_duration   -0.354 ms (range -0.362..-0.340, 5/5 agree in sign)  [-43% of bare]
+    Latency added per GET, by quantile (shift function): med=+114us  p75=+144us  p90=+245us  p95=+331us  p99=+518us
+    Above the origin floor, latency added per GET at the median, origin itself 543us:
+      bare proxy - origin      +0.255 ms (range +0.245..+0.282, 5/5 agree in sign)  [+46% of origin]
+      WADM (silent) - origin   +0.388 ms (range +0.351..+0.394, 5/5 agree in sign)  [+71% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+69us  detect_query=+54us  token_tamper=+87us  token_decoy=+48us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Functional wadm  : worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Coverage (timing samples / expected): complete on every kind
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=2.97us/tail=0.04%  inject=1.44us/tail=0.01%
+      http_headers                 detect=1.57us/tail=0.00%  inject=0.38us/tail=0.00%
+      cookies                      detect=3.11us/tail=0.00%  inject=1.89us/tail=0.00%
+      decoy_paths                  detect=1.32us/tail=0.00%  inject=1.01us/tail=0.00%
+      form_fields                  detect=0.71us/tail=0.00%  inject=1.04us/tail=0.00%
+      sql_injection                detect=8.40us/tail=0.00%
+      sql_injection_encoded        detect=9.60us/tail=0.00%
+      sql_injection_miss           detect=8.89us/tail=0.00%
+      sql_injection_miss_encoded   detect=11.02us/tail=0.04%
+
+  rate 100/s — 5 paired replicates (headline: WADM (silent) - bare)
+    CPU, WADM (silent) - bare         +31.435 us/req (range +25.421..+34.297, 5/5 agree in sign)  [user +28.2, system +3.9]
+    CPU, timing lines (wadm - silent) +35.694 us/req (range +32.534..+45.866, 5/5 agree in sign)  [user +9.6, system +26.1]
+    CPU, WADM (instrumented) - bare   +68.557 us/req (range +63.449..+77.301, 5/5 agree in sign)  [user +37.8, system +33.1]
+      bare   absolute: 144.6 us/req, edge memory 10.4 MB
+      silent absolute: 174.9 us/req, edge memory 20.8 MB
+      wadm   absolute: 214.6 us/req, edge memory 20.8 MB
+    Slot spread:       1.073x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      +0.060 ms (range +0.054..+0.069, 5/5 agree in sign)  [+12% of bare]
+      detect_query_duration    +0.122 ms (range +0.117..+0.130, 5/5 agree in sign)  [+23% of bare]
+      token_tamper_duration    +0.138 ms (range +0.129..+0.144, 5/5 agree in sign)  [+26% of bare]
+      token_decoy_duration     +0.123 ms (range +0.120..+0.128, 5/5 agree in sign)  [+23% of bare]
+      sqli_hit_duration        -0.207 ms (range -0.218..-0.204, 5/5 agree in sign)  [-38% of bare]
+      sqli_hit_enc_duration    -0.205 ms (range -0.213..-0.203, 5/5 agree in sign)  [-38% of bare]
+      sqli_miss_duration       -0.214 ms (range -0.224..-0.210, 5/5 agree in sign)  [-40% of bare]
+      sqli_miss_enc_duration   -0.209 ms (range -0.214..-0.207, 5/5 agree in sign)  [-39% of bare]
+    Latency added per GET, by quantile (shift function): med=+111us  p75=+133us  p90=+200us  p95=+335us  p99=+807us
+    Above the origin floor, latency added per GET at the median, origin itself 346us:
+      bare proxy - origin      +0.184 ms (range +0.183..+0.190, 5/5 agree in sign)  [+53% of origin]
+      WADM (silent) - origin   +0.294 ms (range +0.293..+0.302, 5/5 agree in sign)  [+85% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+67us  detect_query=+56us  token_tamper=+62us  token_decoy=+63us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Functional wadm  : worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Coverage (timing samples / expected): complete on every kind
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=1.83us/tail=0.00%  inject=1.19us/tail=0.00%
+      http_headers                 detect=1.20us/tail=0.00%  inject=0.34us/tail=0.00%
+      cookies                      detect=2.61us/tail=0.00%  inject=1.48us/tail=0.00%
+      decoy_paths                  detect=1.02us/tail=0.01%  inject=0.81us/tail=0.00%
+      form_fields                  detect=0.57us/tail=0.00%  inject=0.89us/tail=0.00%
+      sql_injection                detect=6.77us/tail=0.00%
+      sql_injection_encoded        detect=8.10us/tail=0.02%
+      sql_injection_miss           detect=7.41us/tail=0.01%
+      sql_injection_miss_encoded   detect=8.93us/tail=0.01%
+
+==============================================================================
+WASM (Envoy)
+==============================================================================
+  Marginal CPU, bare : 275.69 us/request   (idle 5713 us/s, rates [1, 10, 100])
+  Marginal CPU, silent: 386.58 us/request   (idle 5761 us/s, rates [1, 10, 100])
+  Marginal CPU, wadm : 450.10 us/request   (idle 5250 us/s, rates [1, 10, 100])
+  Marginal CPU, WADM (silent) - bare: +108.115 us/req (range +99.490..+120.893, 5/5 agree in sign)  <- headline
+  Marginal CPU, timing lines (wadm - silent): +64.438 us/req (range +56.414..+70.222, 5/5 agree in sign)
+  Marginal CPU, WADM (instrumented) - bare: +177.096 us/req (range +164.409..+182.381, 5/5 agree in sign)
+
+  rate 1/s — 5 paired replicates (headline: WADM (silent) - bare)
+    CPU, WADM (silent) - bare         +121.103 us/req (range +104.611..+124.964, 5/5 agree in sign)  [user +86.1, system +33.9]
+    CPU, timing lines (wadm - silent) below noise floor (median +34.644 us/req, range -27.658..+87.131, 4/5 agree in sign)  [user -22.2, system +29.1]
+    CPU, WADM (instrumented) - bare   +155.630 us/req (range +97.306..+191.742, 5/5 agree in sign)  [user +91.6, system +89.4]
+      bare   absolute: 769.4 us/req, edge memory 17.3 MB
+      silent absolute: 889.4 us/req, edge memory 54.4 MB
+      wadm   absolute: 938.6 us/req, edge memory 53.2 MB
+    Slot spread:       1.426x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      +0.070 ms (range +0.011..+0.079, 5/5 agree in sign)  [+8% of bare]
+      detect_query_duration    +0.178 ms (range +0.154..+0.232, 5/5 agree in sign)  [+20% of bare]
+      token_tamper_duration    +0.174 ms (range +0.096..+0.227, 5/5 agree in sign)  [+19% of bare]
+      token_decoy_duration     +0.196 ms (range +0.127..+0.215, 5/5 agree in sign)  [+22% of bare]
+      sqli_hit_duration        +0.157 ms (range +0.105..+0.229, 5/5 agree in sign)  [+17% of bare]
+      sqli_hit_enc_duration    +0.149 ms (range +0.095..+0.220, 5/5 agree in sign)  [+16% of bare]
+      sqli_miss_duration       +0.141 ms (range +0.117..+0.168, 5/5 agree in sign)  [+16% of bare]
+      sqli_miss_enc_duration   +0.156 ms (range +0.107..+0.199, 5/5 agree in sign)  [+17% of bare]
+    Latency added per GET, by quantile (shift function): med=+150us  p75=+189us  p90=+248us  p95=+303us
+    Above the origin floor, latency added per GET at the median, origin itself 536us:
+      bare proxy - origin      +0.372 ms (range +0.297..+0.380, 5/5 agree in sign)  [+68% of origin]
+      WADM (silent) - origin   +0.500 ms (range +0.475..+0.553, 5/5 agree in sign)  [+94% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+78us  detect_query=+55us  token_tamper=+56us  token_decoy=+65us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Functional wadm  : worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Coverage (timing samples / expected): complete on every kind
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=3.31us/tail=0.00%  inject=1.87us/tail=0.00%
+      http_headers                 detect=1.15us/tail=0.00%  inject=2.30us/tail=0.00%
+      cookies                      detect=1.09us/tail=0.00%  inject=1.64us/tail=0.00%
+      decoy_paths                  detect=0.72us/tail=0.00%  inject=1.36us/tail=0.00%
+      form_fields                  detect=0.47us/tail=0.00%  inject=1.13us/tail=0.00%
+      sql_injection                detect=2.92us/tail=0.00%
+      sql_injection_encoded        detect=2.83us/tail=0.00%
+      sql_injection_miss           detect=3.30us/tail=0.00%
+      sql_injection_miss_encoded   detect=3.54us/tail=0.00%
+
+  rate 10/s — 5 paired replicates (headline: WADM (silent) - bare)
+    CPU, WADM (silent) - bare         +109.049 us/req (range +106.232..+118.434, 5/5 agree in sign)  [user +90.1, system +28.0]
+    CPU, timing lines (wadm - silent) +49.226 us/req (range +28.412..+56.823, 5/5 agree in sign)  [user +8.4, system +28.6]
+    CPU, WADM (instrumented) - bare   +157.033 us/req (range +146.846..+163.055, 5/5 agree in sign)  [user +104.9, system +52.1]
+      bare   absolute: 398.4 us/req, edge memory 17.4 MB
+      silent absolute: 507.5 us/req, edge memory 53.5 MB
+      wadm   absolute: 554.7 us/req, edge memory 52.0 MB
+    Slot spread:       1.404x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      +0.037 ms (range +0.016..+0.060, 5/5 agree in sign)  [+4% of bare]
+      detect_query_duration    +0.128 ms (range +0.125..+0.163, 5/5 agree in sign)  [+14% of bare]
+      token_tamper_duration    +0.129 ms (range +0.126..+0.160, 5/5 agree in sign)  [+14% of bare]
+      token_decoy_duration     +0.155 ms (range +0.131..+0.160, 5/5 agree in sign)  [+17% of bare]
+      sqli_hit_duration        +0.122 ms (range +0.106..+0.163, 5/5 agree in sign)  [+13% of bare]
+      sqli_hit_enc_duration    +0.129 ms (range +0.107..+0.140, 5/5 agree in sign)  [+14% of bare]
+      sqli_miss_duration       +0.121 ms (range +0.110..+0.135, 5/5 agree in sign)  [+13% of bare]
+      sqli_miss_enc_duration   +0.128 ms (range +0.106..+0.136, 5/5 agree in sign)  [+14% of bare]
+    Latency added per GET, by quantile (shift function): med=+110us  p75=+149us  p90=+191us  p95=+246us  p99=+395us
+    Above the origin floor, latency added per GET at the median, origin itself 546us:
+      bare proxy - origin      +0.369 ms (range +0.345..+0.380, 5/5 agree in sign)  [+68% of origin]
+      WADM (silent) - origin   +0.484 ms (range +0.472..+0.493, 5/5 agree in sign)  [+89% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+80us  detect_query=+100us  token_tamper=+92us  token_decoy=+77us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Functional wadm  : worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Coverage (timing samples / expected): complete on every kind
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=3.14us/tail=0.00%  inject=1.90us/tail=0.01%
+      http_headers                 detect=1.21us/tail=0.00%  inject=2.33us/tail=0.00%
+      cookies                      detect=1.13us/tail=0.00%  inject=1.64us/tail=0.00%
+      decoy_paths                  detect=0.75us/tail=0.00%  inject=1.39us/tail=0.00%
+      form_fields                  detect=0.48us/tail=0.00%  inject=1.14us/tail=0.00%
+      sql_injection                detect=2.89us/tail=0.00%
+      sql_injection_encoded        detect=2.79us/tail=0.00%
+      sql_injection_miss           detect=3.22us/tail=0.00%
+      sql_injection_miss_encoded   detect=3.46us/tail=0.00%
+
+  rate 100/s — 5 paired replicates (headline: WADM (silent) - bare)
+    CPU, WADM (silent) - bare         +108.137 us/req (range +99.732..+120.868, 5/5 agree in sign)  [user +61.0, system +49.2]
+    CPU, timing lines (wadm - silent) +64.119 us/req (range +56.257..+70.028, 5/5 agree in sign)  [user +19.1, system +41.1]
+    CPU, WADM (instrumented) - bare   +177.210 us/req (range +164.319..+182.004, 5/5 agree in sign)  [user +78.3, system +99.6]
+      bare   absolute: 281.4 us/req, edge memory 21.7 MB
+      silent absolute: 390.0 us/req, edge memory 54.3 MB
+      wadm   absolute: 456.3 us/req, edge memory 55.1 MB
+    Slot spread:       1.033x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      +0.065 ms (range +0.061..+0.085, 5/5 agree in sign)  [+10% of bare]
+      detect_query_duration    +0.141 ms (range +0.123..+0.150, 5/5 agree in sign)  [+21% of bare]
+      token_tamper_duration    +0.149 ms (range +0.133..+0.167, 5/5 agree in sign)  [+22% of bare]
+      token_decoy_duration     +0.129 ms (range +0.123..+0.143, 5/5 agree in sign)  [+20% of bare]
+      sqli_hit_duration        +0.134 ms (range +0.116..+0.156, 5/5 agree in sign)  [+20% of bare]
+      sqli_hit_enc_duration    +0.131 ms (range +0.112..+0.136, 5/5 agree in sign)  [+20% of bare]
+      sqli_miss_duration       +0.139 ms (range +0.118..+0.145, 5/5 agree in sign)  [+21% of bare]
+      sqli_miss_enc_duration   +0.118 ms (range +0.103..+0.133, 5/5 agree in sign)  [+17% of bare]
+    Latency added per GET, by quantile (shift function): med=+121us  p75=+148us  p90=+239us  p95=+435us  p99=+1686us
+    Above the origin floor, latency added per GET at the median, origin itself 346us:
+      bare proxy - origin      +0.319 ms (range +0.313..+0.325, 5/5 agree in sign)  [+91% of origin]
+      WADM (silent) - origin   +0.442 ms (range +0.431..+0.449, 5/5 agree in sign)  [+129% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+89us  detect_query=+107us  token_tamper=+97us  token_decoy=+100us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Functional wadm  : worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Coverage (timing samples / expected): complete on every kind
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=2.90us/tail=0.01%  inject=1.78us/tail=0.01%
+      http_headers                 detect=1.14us/tail=0.01%  inject=2.16us/tail=0.01%
+      cookies                      detect=1.04us/tail=0.01%  inject=1.59us/tail=0.00%
+      decoy_paths                  detect=0.76us/tail=0.00%  inject=1.30us/tail=0.01%
+      form_fields                  detect=0.47us/tail=0.01%  inject=1.13us/tail=0.01%
+      sql_injection                detect=2.70us/tail=0.01%
+      sql_injection_encoded        detect=2.76us/tail=0.01%
+      sql_injection_miss           detect=3.18us/tail=0.01%
+      sql_injection_miss_encoded   detect=3.30us/tail=0.01%
+
+==============================================================================
+Apache+Lua
+==============================================================================
+  Marginal CPU, bare : 225.97 us/request   (idle 2335 us/s, rates [1, 10, 100])
+  Marginal CPU, silent: fit rejected (negative coefficient)
+  Marginal CPU, wadm : fit rejected (negative coefficient)
+  Marginal CPU, WADM (instrumented) - bare: +241.776 us/req (range +241.009..+293.845, 3/3 agree in sign)
+
+  rate 1/s — 5 paired replicates (headline: WADM (silent) - bare)
+    CPU, WADM (silent) - bare         +294.624 us/req (range +94.548..+307.931, 5/5 agree in sign)  [user +173.2, system +85.1]
+    CPU, timing lines (wadm - silent) below noise floor (median -120.538 us/req, range -124.102..+60.885, 4/5 agree in sign)  [user -99.1, system +9.3]
+    CPU, WADM (instrumented) - bare   +175.181 us/req (range +155.433..+194.528, 5/5 agree in sign)  [user +81.7, system +100.0]
+      bare   absolute: 339.1 us/req, edge memory 8.7 MB
+      silent absolute: 636.1 us/req, edge memory 76.9 MB
+      wadm   absolute: 514.3 us/req, edge memory 60.5 MB
+    Slot spread:       1.334x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      +0.115 ms (range +0.081..+0.143, 5/5 agree in sign)  [+14% of bare]
+      detect_query_duration    +0.277 ms (range +0.231..+0.312, 5/5 agree in sign)  [+31% of bare]
+      token_tamper_duration    +0.295 ms (range +0.165..+0.349, 5/5 agree in sign)  [+35% of bare]
+      token_decoy_duration     +0.261 ms (range +0.195..+0.309, 5/5 agree in sign)  [+30% of bare]
+      sqli_hit_duration        -0.153 ms (range -0.181..-0.113, 5/5 agree in sign)  [-17% of bare]
+      sqli_hit_enc_duration    -0.109 ms (range -0.235..-0.039, 5/5 agree in sign)  [-13% of bare]
+      sqli_miss_duration       -0.251 ms (range -0.295..-0.229, 5/5 agree in sign)  [-28% of bare]
+      sqli_miss_enc_duration   -0.288 ms (range -0.340..-0.226, 5/5 agree in sign)  [-32% of bare]
+    Latency added per GET, by quantile (shift function): med=+233us  p75=+285us  p90=+634us  p95=+1162us
+    Above the origin floor, latency added per GET at the median, origin itself 543us:
+      bare proxy - origin      +0.324 ms (range +0.280..+0.358, 5/5 agree in sign)  [+60% of origin]
+      WADM (silent) - origin   +0.545 ms (range +0.534..+0.557, 5/5 agree in sign)  [+100% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+156us  detect_query=-1us  token_tamper=+102us  token_decoy=+44us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 100.00%; reconnects detect_query=24%, inject_get=25%, sqli_hit=13%, sqli_hit_enc=12%, sqli_miss=25%, sqli_miss_enc=25%, token_decoy=24%, token_tamper=24%; alerts alert=1.0, trap=1.0
+    Functional wadm  : worst intact 100.00%; reconnects detect_query=24%, inject_get=25%, sqli_hit=13%, sqli_hit_enc=12%, sqli_miss=25%, sqli_miss_enc=25%, token_decoy=24%, token_tamper=24%; alerts alert=1.0, trap=1.0
+    Coverage (timing samples / expected): complete on every kind
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=4.74us/tail=0.00%  inject=2.81us/tail=0.00%
+      http_headers                 detect=3.20us/tail=0.00%  inject=0.93us/tail=0.00%
+      cookies                      detect=4.93us/tail=0.00%  inject=0.68us/tail=0.00%
+      decoy_paths                  detect=2.35us/tail=0.00%  inject=4.23us/tail=0.00%
+      form_fields                  detect=1.77us/tail=0.00%  inject=3.63us/tail=0.00%
+      sql_injection                detect=18.79us/tail=0.00%
+      sql_injection_encoded        detect=19.81us/tail=0.00%
+      sql_injection_miss           detect=20.93us/tail=0.00%
+      sql_injection_miss_encoded   detect=22.01us/tail=0.00%
+
+  rate 10/s — 5 paired replicates (headline: WADM (silent) - bare)
+    ~ WARN silent rep1: edge crashed 1x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN wadm rep2: edge crashed 2x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN silent rep2: edge crashed 2x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN silent rep3: edge crashed 1x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN wadm rep4: edge crashed 1x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN silent rep5: edge crashed 1x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN wadm rep5: edge crashed 1x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    CPU, WADM (silent) - bare         +129.234 us/req (range +89.578..+215.537, 5/5 agree in sign)  [user +88.0, system +59.6]
+    CPU, timing lines (wadm - silent) +41.201 us/req (range +25.167..+105.826, 5/5 agree in sign)  [user +1.7, system +34.1]
+    CPU, WADM (instrumented) - bare   +170.435 us/req (range +133.788..+240.704, 5/5 agree in sign)  [user +103.9, system +82.0]
+      bare   absolute: 310.4 us/req, edge memory 10.2 MB
+      silent absolute: 429.6 us/req, edge memory 94.9 MB
+      wadm   absolute: 471.9 us/req, edge memory 96.0 MB
+    Slot spread:       1.347x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      +0.107 ms (range +0.068..+0.132, 5/5 agree in sign)  [+12% of bare]
+      detect_query_duration    +0.229 ms (range +0.195..+0.246, 5/5 agree in sign)  [+25% of bare]
+      token_tamper_duration    +0.205 ms (range +0.185..+0.212, 5/5 agree in sign)  [+22% of bare]
+      token_decoy_duration     +0.203 ms (range +0.192..+0.209, 5/5 agree in sign)  [+22% of bare]
+      sqli_hit_duration        -0.171 ms (range -0.207..-0.153, 5/5 agree in sign)  [-19% of bare]
+      sqli_hit_enc_duration    -0.160 ms (range -0.182..-0.144, 5/5 agree in sign)  [-17% of bare]
+      sqli_miss_duration       -0.291 ms (range -0.327..-0.271, 5/5 agree in sign)  [-32% of bare]
+      sqli_miss_enc_duration   -0.309 ms (range -0.325..-0.276, 5/5 agree in sign)  [-34% of bare]
+    Latency added per GET, by quantile (shift function): med=+189us  p75=+201us  p90=+255us  p95=+371us  p99=+418us
+    Above the origin floor, latency added per GET at the median, origin itself 545us:
+      bare proxy - origin      +0.372 ms (range +0.354..+0.380, 5/5 agree in sign)  [+68% of origin]
+      WADM (silent) - origin   +0.553 ms (range +0.539..+0.569, 5/5 agree in sign)  [+102% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+128us  detect_query=+38us  token_tamper=+54us  token_decoy=+34us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; reconnects detect_query=1%, inject_get=1%, sqli_hit=1%, sqli_hit_enc=1%, sqli_miss=1%, sqli_miss_enc=1%, token_decoy=1%, token_tamper=1%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 99.78%; reconnects detect_query=25%, inject_get=25%, sqli_hit=13%, sqli_hit_enc=12%, sqli_miss=25%, sqli_miss_enc=25%, token_decoy=25%, token_tamper=25%; alerts alert=0.9997, trap=1.0
+    Functional wadm  : worst intact 99.56%; reconnects detect_query=25%, inject_get=25%, sqli_hit=13%, sqli_hit_enc=12%, sqli_miss=25%, sqli_miss_enc=25%, token_decoy=25%, token_tamper=25%; alerts alert=1.0, trap=1.0
+    Coverage (timing samples / expected): SHORTFALL html_comments.inject=1.000, http_headers.detect=0.998, http_headers.inject=1.000, cookies.detect=0.998, cookies.inject=1.000, decoy_paths.inject=1.000, form_fields.detect=0.998, form_fields.inject=0.998, sql_injection.detect=0.996, sql_injection_miss.detect=0.998
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=4.61us/tail=0.00%  inject=2.78us/tail=0.02%
+      http_headers                 detect=3.34us/tail=0.00%  inject=0.98us/tail=0.00%
+      cookies                      detect=5.16us/tail=0.00%  inject=0.68us/tail=0.00%
+      decoy_paths                  detect=2.24us/tail=0.04%  inject=4.11us/tail=0.01%
+      form_fields                  detect=1.68us/tail=0.00%  inject=3.53us/tail=0.00%
+      sql_injection                detect=18.92us/tail=0.00%
+      sql_injection_encoded        detect=20.22us/tail=0.00%
+      sql_injection_miss           detect=20.71us/tail=0.04%
+      sql_injection_miss_encoded   detect=22.71us/tail=0.09%
+
+  rate 100/s — 5 paired replicates (headline: WADM (silent) - bare)
+    ! rejected wadm rep2: 1.31% of internal samples (39) above 1000 us (host preemption)
+    ! rejected wadm rep3: 1.31% of internal samples (39) above 1000 us (host preemption)
+    ! rejected wadm rep4: dropped_iterations 51/3000 > 1%; 1.64% of internal samples (48) above 1000 us (host preemption)
+    ! rejected wadm rep5: 1.20% of internal samples (36) above 1000 us (host preemption)
+    ~ WARN silent rep1: edge crashed 15x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN wadm rep1: edge crashed 13x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN silent rep2: edge crashed 14x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN silent rep3: edge crashed 14x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN silent rep4: edge crashed 16x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN silent rep5: edge crashed 12x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    CPU, WADM (silent) - bare         +494.574 us/req (range +305.113..+724.017, 5/5 agree in sign)  [user +132.5, system +374.9]
+    CPU, timing lines (wadm - silent) +437.808 us/req point estimate only (n=1, too few replicates for an interval)  [user +44.8, system +393.0]
+    CPU, WADM (instrumented) - bare   +742.921 us/req point estimate only (n=1, too few replicates for an interval)  [user +178.1, system +564.8]
+      bare   absolute: 227.6 us/req, edge memory 27.1 MB
+      silent absolute: 722.4 us/req, edge memory 142.9 MB
+      wadm   absolute: 970.5 us/req, edge memory 154.6 MB
+    Slot spread:       1.058x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      +0.227 ms (range +0.156..+0.446, 5/5 agree in sign)  [+37% of bare]
+      detect_query_duration    +0.333 ms (range +0.277..+0.594, 5/5 agree in sign)  [+53% of bare]
+      token_tamper_duration    +0.330 ms (range +0.253..+0.568, 5/5 agree in sign)  [+52% of bare]
+      token_decoy_duration     +0.304 ms (range +0.255..+0.567, 5/5 agree in sign)  [+48% of bare]
+      sqli_hit_duration        below noise floor (median +0.059 ms, range -0.010..+0.211, 4/5 agree in sign)  [+9% of bare]
+      sqli_hit_enc_duration    below noise floor (median +0.038 ms, range -0.008..+0.238, 4/5 agree in sign)  [+6% of bare]
+      sqli_miss_duration       below noise floor (median -0.049 ms, range -0.105..+0.082, 3/5 agree in sign)  [-8% of bare]
+      sqli_miss_enc_duration   below noise floor (median -0.061 ms, range -0.099..+0.107, 3/5 agree in sign)  [-10% of bare]
+    Latency added per GET, by quantile (shift function): med=+295us  p75=+1911us  p90=+32081us  p95=+83946us  p99=+226390us
+    Above the origin floor, latency added per GET at the median, origin itself 350us:
+      bare proxy - origin      +0.279 ms (range +0.275..+0.285, 5/5 agree in sign)  [+80% of origin]
+      WADM (silent) - origin   +0.580 ms (range +0.514..+0.825, 5/5 agree in sign)  [+168% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+456us  detect_query=+407us  token_tamper=+427us  token_decoy=+380us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; reconnects detect_query=1%, inject_get=1%, sqli_hit=1%, sqli_hit_enc=1%, sqli_miss=1%, sqli_miss_enc=1%, token_decoy=1%, token_tamper=1%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 99.36%; reconnects detect_query=25%, inject_get=25%, sqli_hit=13%, sqli_hit_enc=13%, sqli_miss=25%, sqli_miss_enc=25%, token_decoy=25%, token_tamper=25%; alerts alert=0.9992, trap=0.998
+    Functional wadm  : worst intact 99.57%; reconnects detect_query=25%, inject_get=25%, sqli_hit=13%, sqli_hit_enc=13%, sqli_miss=25%, sqli_miss_enc=25%, token_decoy=25%, token_tamper=25%; alerts alert=0.9992, trap=0.9968
+    Coverage (timing samples / expected): SHORTFALL html_comments.detect=1.000, html_comments.inject=0.999, http_headers.inject=1.000, cookies.inject=1.000, decoy_paths.inject=0.999, form_fields.inject=0.999, sql_injection.detect=0.996, sql_injection_encoded.detect=0.997, sql_injection_miss.detect=0.996, sql_injection_miss_encoded.detect=0.998
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=4.33us/tail=0.23%  inject=2.53us/tail=0.18%
+      http_headers                 detect=2.97us/tail=0.10%  inject=0.89us/tail=0.05%
+      cookies                      detect=4.61us/tail=0.37%  inject=0.61us/tail=0.04%
+      decoy_paths                  detect=1.93us/tail=0.03%  inject=3.71us/tail=0.14%
+      form_fields                  detect=1.57us/tail=0.17%  inject=3.51us/tail=0.27%
+      sql_injection                detect=16.57us/tail=0.54%
+      sql_injection_encoded        detect=18.05us/tail=0.57%
+      sql_injection_miss           detect=19.38us/tail=0.67%
+      sql_injection_miss_encoded   detect=20.90us/tail=0.57%
+
+==============================================================================
+Envoy+Lua
+==============================================================================
+  Marginal CPU, bare : 269.26 us/request   (idle 6316 us/s, rates [1, 10, 100])
+  Marginal CPU, silent: 313.72 us/request   (idle 6500 us/s, rates [1, 10, 100])
+  Marginal CPU, wadm : 359.51 us/request   (idle 6188 us/s, rates [1, 10, 100])
+  Marginal CPU, WADM (silent) - bare: +45.491 us/req (range +39.344..+49.545, 5/5 agree in sign)  <- headline
+  Marginal CPU, timing lines (wadm - silent): +41.213 us/req (range +38.970..+63.427, 5/5 agree in sign)
+  Marginal CPU, WADM (instrumented) - bare: +90.314 us/req (range +79.900..+108.930, 5/5 agree in sign)
+
+  rate 1/s — 5 paired replicates (headline: WADM (silent) - bare)
+    CPU, WADM (silent) - bare         +42.387 us/req (range +12.970..+94.774, 5/5 agree in sign)  [user +36.8, system -3.9]
+    CPU, timing lines (wadm - silent) below noise floor (median +31.493 us/req, range -24.570..+63.037, 4/5 agree in sign)  [user +32.0, system +3.6]
+    CPU, WADM (instrumented) - bare   +76.007 us/req (range +12.689..+130.340, 5/5 agree in sign)  [user +43.9, system +4.9]
+      bare   absolute: 817.0 us/req, edge memory 17.2 MB
+      silent absolute: 859.3 us/req, edge memory 21.8 MB
+      wadm   absolute: 888.8 us/req, edge memory 21.9 MB
+    Slot spread:       1.474x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      below noise floor (median +0.090 ms, range -0.022..+0.117, 4/5 agree in sign)  [+10% of bare]
+      detect_query_duration    +0.282 ms (range +0.136..+0.290, 5/5 agree in sign)  [+31% of bare]
+      token_tamper_duration    +0.233 ms (range +0.183..+0.311, 5/5 agree in sign)  [+25% of bare]
+      token_decoy_duration     +0.205 ms (range +0.149..+0.250, 5/5 agree in sign)  [+22% of bare]
+      sqli_hit_duration        -0.377 ms (range -0.403..-0.347, 5/5 agree in sign)  [-40% of bare]
+      sqli_hit_enc_duration    -0.367 ms (range -0.392..-0.309, 5/5 agree in sign)  [-39% of bare]
+      sqli_miss_duration       -0.345 ms (range -0.444..-0.330, 5/5 agree in sign)  [-38% of bare]
+      sqli_miss_enc_duration   -0.378 ms (range -0.469..-0.326, 5/5 agree in sign)  [-40% of bare]
+    Latency added per GET, by quantile (shift function): med=+203us  p75=+200us  p90=+230us  p95=+243us
+    Above the origin floor, latency added per GET at the median, origin itself 552us:
+      bare proxy - origin      +0.396 ms (range +0.366..+0.400, 5/5 agree in sign)  [+72% of origin]
+      WADM (silent) - origin   +0.571 ms (range +0.540..+0.606, 5/5 agree in sign)  [+102% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+64us  detect_query=+28us  token_tamper=+71us  token_decoy=+21us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Functional wadm  : worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Coverage (timing samples / expected): complete on every kind
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=5.34us/tail=0.00%  inject=2.03us/tail=0.00%
+      http_headers                 detect=1.80us/tail=0.00%  inject=2.95us/tail=0.00%
+      cookies                      detect=3.01us/tail=0.00%  inject=2.17us/tail=0.00%
+      decoy_paths                  detect=0.77us/tail=0.00%  inject=1.55us/tail=0.04%
+      form_fields                  detect=1.04us/tail=0.00%  inject=1.46us/tail=0.00%
+      sql_injection                detect=8.72us/tail=0.00%
+      sql_injection_encoded        detect=10.20us/tail=0.00%
+      sql_injection_miss           detect=11.26us/tail=0.00%
+      sql_injection_miss_encoded   detect=12.69us/tail=0.00%
+
+  rate 10/s — 5 paired replicates (headline: WADM (silent) - bare)
+    CPU, WADM (silent) - bare         +54.581 us/req (range +39.118..+68.369, 5/5 agree in sign)  [user +42.8, system +9.5]
+    CPU, timing lines (wadm - silent) +26.328 us/req (range +18.217..+59.465, 5/5 agree in sign)  [user +14.2, system +26.1]
+    CPU, WADM (instrumented) - bare   +86.586 us/req (range +79.718..+105.227, 5/5 agree in sign)  [user +57.0, system +29.6]
+      bare   absolute: 408.7 us/req, edge memory 17.5 MB
+      silent absolute: 467.1 us/req, edge memory 23.2 MB
+      wadm   absolute: 494.8 us/req, edge memory 23.7 MB
+    Slot spread:       1.402x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      +0.096 ms (range +0.053..+0.104, 5/5 agree in sign)  [+11% of bare]
+      detect_query_duration    +0.196 ms (range +0.140..+0.210, 5/5 agree in sign)  [+21% of bare]
+      token_tamper_duration    +0.188 ms (range +0.135..+0.224, 5/5 agree in sign)  [+20% of bare]
+      token_decoy_duration     +0.185 ms (range +0.139..+0.199, 5/5 agree in sign)  [+20% of bare]
+      sqli_hit_duration        -0.383 ms (range -0.390..-0.359, 5/5 agree in sign)  [-40% of bare]
+      sqli_hit_enc_duration    -0.371 ms (range -0.392..-0.357, 5/5 agree in sign)  [-39% of bare]
+      sqli_miss_duration       -0.395 ms (range -0.439..-0.387, 5/5 agree in sign)  [-41% of bare]
+      sqli_miss_enc_duration   -0.387 ms (range -0.395..-0.359, 5/5 agree in sign)  [-41% of bare]
+    Latency added per GET, by quantile (shift function): med=+170us  p75=+189us  p90=+225us  p95=+134us  p99=+210us
+    Above the origin floor, latency added per GET at the median, origin itself 544us:
+      bare proxy - origin      +0.389 ms (range +0.384..+0.397, 5/5 agree in sign)  [+72% of origin]
+      WADM (silent) - origin   +0.557 ms (range +0.517..+0.566, 5/5 agree in sign)  [+102% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+83us  detect_query=+50us  token_tamper=+67us  token_decoy=+69us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Functional wadm  : worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Coverage (timing samples / expected): complete on every kind
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=2.77us/tail=0.00%  inject=2.03us/tail=0.00%
+      http_headers                 detect=0.74us/tail=0.00%  inject=3.26us/tail=0.00%
+      cookies                      detect=2.50us/tail=0.00%  inject=1.90us/tail=0.00%
+      decoy_paths                  detect=0.60us/tail=0.00%  inject=1.45us/tail=0.00%
+      form_fields                  detect=0.54us/tail=0.00%  inject=1.35us/tail=0.00%
+      sql_injection                detect=8.13us/tail=0.00%
+      sql_injection_encoded        detect=9.34us/tail=0.04%
+      sql_injection_miss           detect=8.55us/tail=0.00%
+      sql_injection_miss_encoded   detect=10.44us/tail=0.00%
+
+  rate 100/s — 5 paired replicates (headline: WADM (silent) - bare)
+    CPU, WADM (silent) - bare         +45.157 us/req (range +39.585..+49.482, 5/5 agree in sign)  [user +33.0, system +13.1]
+    CPU, timing lines (wadm - silent) +40.759 us/req (range +38.316..+63.068, 5/5 agree in sign)  [user +13.4, system +29.3]
+    CPU, WADM (instrumented) - bare   +90.183 us/req (range +80.148..+109.102, 5/5 agree in sign)  [user +46.8, system +43.4]
+      bare   absolute: 274.4 us/req, edge memory 20.9 MB
+      silent absolute: 318.8 us/req, edge memory 26.8 MB
+      wadm   absolute: 363.9 us/req, edge memory 27.5 MB
+    Slot spread:       1.05x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      +0.082 ms (range +0.077..+0.085, 5/5 agree in sign)  [+13% of bare]
+      detect_query_duration    +0.167 ms (range +0.161..+0.180, 5/5 agree in sign)  [+25% of bare]
+      token_tamper_duration    +0.165 ms (range +0.153..+0.183, 5/5 agree in sign)  [+25% of bare]
+      token_decoy_duration     +0.165 ms (range +0.146..+0.174, 5/5 agree in sign)  [+25% of bare]
+      sqli_hit_duration        -0.214 ms (range -0.217..-0.213, 5/5 agree in sign)  [-32% of bare]
+      sqli_hit_enc_duration    -0.209 ms (range -0.222..-0.198, 5/5 agree in sign)  [-31% of bare]
+      sqli_miss_duration       -0.225 ms (range -0.227..-0.213, 5/5 agree in sign)  [-34% of bare]
+      sqli_miss_enc_duration   -0.219 ms (range -0.230..-0.214, 5/5 agree in sign)  [-33% of bare]
+    Latency added per GET, by quantile (shift function): med=+147us  p75=+168us  p90=+217us  p95=+334us  p99=+543us
+    Above the origin floor, latency added per GET at the median, origin itself 348us:
+      bare proxy - origin      +0.309 ms (range +0.308..+0.312, 5/5 agree in sign)  [+89% of origin]
+      WADM (silent) - origin   +0.455 ms (range +0.448..+0.462, 5/5 agree in sign)  [+131% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+82us  detect_query=+86us  token_tamper=+94us  token_decoy=+70us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Functional wadm  : worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Coverage (timing samples / expected): complete on every kind
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=2.53us/tail=0.00%  inject=1.90us/tail=0.00%
+      http_headers                 detect=0.74us/tail=0.00%  inject=2.93us/tail=0.00%
+      cookies                      detect=2.32us/tail=0.01%  inject=1.66us/tail=0.00%
+      decoy_paths                  detect=0.55us/tail=0.00%  inject=1.17us/tail=0.00%
+      form_fields                  detect=0.48us/tail=0.00%  inject=1.20us/tail=0.00%
+      sql_injection                detect=7.41us/tail=0.00%
+      sql_injection_encoded        detect=8.41us/tail=0.01%
+      sql_injection_miss           detect=7.88us/tail=0.01%
+      sql_injection_miss_encoded   detect=9.40us/tail=0.01%
+
+==============================================================================
+Apache+Lua (LuaScope conn)
+==============================================================================
+  Marginal CPU, bare : 228.05 us/request   (idle 1941 us/s, rates [1, 10, 100])
+  Marginal CPU, wadm : 1550.24 us/request   (idle 5887 us/s, rates [1, 10])
+  Marginal CPU, WADM (instrumented) - bare: +1312.591 us/req (range +1302.956..+1355.387, 5/5 agree in sign)  <- headline
+
+  rate 1/s — 5 paired replicates (headline: WADM (instrumented) - bare)
+    CPU, WADM (instrumented) - bare   +1846.623 us/req (range +1764.101..+1959.435, 5/5 agree in sign)  [user +1146.4, system +742.1]
+      bare   absolute: 341.1 us/req, edge memory 7.2 MB
+      wadm   absolute: 2211.4 us/req, edge memory 15.8 MB
+    Slot spread:       1.685x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (instrumented) - bare), median request:
+      inject_get_duration      +0.319 ms (range +0.252..+0.432, 5/5 agree in sign)  [+33% of bare]
+      detect_query_duration    +1.911 ms (range +1.793..+2.181, 5/5 agree in sign)  [+194% of bare]
+      token_tamper_duration    +0.445 ms (range +0.290..+0.601, 5/5 agree in sign)  [+47% of bare]
+      token_decoy_duration     +0.427 ms (range +0.338..+0.535, 5/5 agree in sign)  [+43% of bare]
+      sqli_hit_duration        +1.330 ms (range +1.245..+1.361, 5/5 agree in sign)  [+132% of bare]
+      sqli_hit_enc_duration    +1.151 ms (range +0.280..+1.238, 5/5 agree in sign)  [+117% of bare]
+      sqli_miss_duration       +0.891 ms (range +0.597..+1.218, 5/5 agree in sign)  [+87% of bare]
+      sqli_miss_enc_duration   below noise floor (median -0.111 ms, range -0.236..+0.142, 4/5 agree in sign)  [-11% of bare]
+    Latency added per GET, by quantile (shift function): med=+797us  p75=+3338us  p90=+3878us  p95=+3966us
+    Functional bare  : worst intact 100.00%; alerts alert=0.0, trap=0.0
+    Functional wadm  : worst intact 100.00%; reconnects detect_query=24%, inject_get=25%, sqli_hit=13%, sqli_hit_enc=12%, sqli_miss=25%, sqli_miss_enc=25%, token_decoy=24%, token_tamper=24%; alerts alert=1.0, trap=1.0
+    Coverage (timing samples / expected): complete on every kind
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=4.64us/tail=0.00%  inject=4.38us/tail=0.04%
+      http_headers                 detect=1.68us/tail=0.00%  inject=0.83us/tail=0.00%
+      cookies                      detect=7.21us/tail=0.00%  inject=0.63us/tail=0.00%
+      decoy_paths                  detect=1.34us/tail=0.00%  inject=3.67us/tail=0.00%
+      form_fields                  detect=1.54us/tail=0.00%  inject=14.83us/tail=0.00%
+      sql_injection                detect=9.97us/tail=0.00%
+      sql_injection_encoded        detect=11.51us/tail=0.00%
+      sql_injection_miss           detect=13.05us/tail=0.00%
+      sql_injection_miss_encoded   detect=14.69us/tail=0.00%
+
+  rate 10/s — 5 paired replicates (headline: WADM (instrumented) - bare)
+    CPU, WADM (instrumented) - bare   +1318.872 us/req (range +1309.684..+1334.461, 5/5 agree in sign)  [user +834.1, system +480.2]
+      bare   absolute: 291.8 us/req, edge memory 10.5 MB
+      wadm   absolute: 1610.8 us/req, edge memory 28.7 MB
+    Slot spread:       1.538x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (instrumented) - bare), median request:
+      inject_get_duration      +0.279 ms (range +0.248..+0.299, 5/5 agree in sign)  [+28% of bare]
+      detect_query_duration    +0.376 ms (range +0.334..+0.418, 5/5 agree in sign)  [+37% of bare]
+      token_tamper_duration    +0.338 ms (range +0.321..+0.401, 5/5 agree in sign)  [+33% of bare]
+      token_decoy_duration     +0.353 ms (range +0.342..+0.400, 5/5 agree in sign)  [+36% of bare]
+      sqli_hit_duration        +1.195 ms (range +1.131..+1.225, 5/5 agree in sign)  [+121% of bare]
+      sqli_hit_enc_duration    +0.909 ms (range +0.873..+0.957, 5/5 agree in sign)  [+91% of bare]
+      sqli_miss_duration       -0.195 ms (range -0.230..-0.168, 5/5 agree in sign)  [-20% of bare]
+      sqli_miss_enc_duration   -0.274 ms (range -0.351..-0.223, 5/5 agree in sign)  [-28% of bare]
+    Latency added per GET, by quantile (shift function): med=+342us  p75=+2968us  p90=+3619us  p95=+3714us  p99=+4060us
+    Functional bare  : worst intact 100.00%; reconnects detect_query=1%, inject_get=1%, sqli_hit=1%, sqli_hit_enc=1%, sqli_miss=1%, sqli_miss_enc=1%, token_decoy=1%, token_tamper=1%; alerts alert=0.0, trap=0.0
+    Functional wadm  : worst intact 100.00%; reconnects detect_query=25%, inject_get=25%, sqli_hit=13%, sqli_hit_enc=12%, sqli_miss=25%, sqli_miss_enc=25%, token_decoy=25%, token_tamper=25%; alerts alert=1.0, trap=1.0
+    Coverage (timing samples / expected): complete on every kind
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=3.88us/tail=0.00%  inject=3.50us/tail=0.00%
+      http_headers                 detect=1.82us/tail=0.00%  inject=0.89us/tail=0.00%
+      cookies                      detect=5.57us/tail=0.04%  inject=0.67us/tail=0.00%
+      decoy_paths                  detect=1.57us/tail=0.04%  inject=3.77us/tail=0.01%
+      form_fields                  detect=1.29us/tail=0.00%  inject=8.58us/tail=0.00%
+      sql_injection                detect=10.34us/tail=0.00%
+      sql_injection_encoded        detect=11.43us/tail=0.00%
+      sql_injection_miss           detect=13.99us/tail=0.04%
+      sql_injection_miss_encoded   detect=16.23us/tail=0.09%
+
+  rate 100/s — 0 paired replicates (headline: WADM (instrumented) - bare)
+    ! rejected wadm rep1: http_req_failed 1.602% > 0.5%; dropped_iterations 117/3000 > 1%; 1.04% of internal samples (29) above 1000 us (host preemption)
+    ! rejected wadm rep2: http_req_failed 1.286% > 0.5%; dropped_iterations 73/3000 > 1%
+    ! rejected wadm rep3: http_req_failed 1.223% > 0.5%; dropped_iterations 50/3000 > 1%; 1.11% of internal samples (32) above 1000 us (host preemption)
+    ! rejected wadm rep4: http_req_failed 1.296% > 0.5%; dropped_iterations 52/3000 > 1%
+    ! rejected wadm rep5: http_req_failed 1.920% > 0.5%; dropped_iterations 191/3000 > 1%; achieved only 93.7% of offered rate; 1.63% of internal samples (44) above 1000 us (host preemption)
+    CPU, WADM (instrumented) - bare   no paired data
+      bare   absolute: 228.1 us/req, edge memory 29.7 MB
+    Slot spread:       1.064x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (instrumented) - bare), median request:
+      inject_get_duration      no paired data
+      detect_query_duration    no paired data
+      token_tamper_duration    no paired data
+      token_decoy_duration     no paired data
+      sqli_hit_duration        no paired data
+      sqli_hit_enc_duration    no paired data
+      sqli_miss_duration       no paired data
+      sqli_miss_enc_duration   no paired data
+    Functional bare  : worst intact 100.00%; reconnects detect_query=1%, inject_get=1%, sqli_hit=1%, sqli_hit_enc=1%, sqli_miss=1%, sqli_miss_enc=1%, token_decoy=1%, token_tamper=1%; alerts alert=0.0, trap=0.0
+
+==============================================================================
+OpenResty (in-server)
+==============================================================================
+  Marginal CPU, bare : 143.66 us/request   (idle 2455 us/s, rates [1, 10, 100])
+  Marginal CPU, silent: 175.40 us/request   (idle 2331 us/s, rates [1, 10, 100])
+  Marginal CPU, wadm : 200.00 us/request   (idle 2470 us/s, rates [1, 10, 100])
+  Marginal CPU, WADM (silent) - bare: +31.771 us/req (range +25.454..+35.591, 5/5 agree in sign)  <- headline
+  Marginal CPU, timing lines (wadm - silent): +21.147 us/req (range +11.702..+42.665, 5/5 agree in sign)
+  Marginal CPU, WADM (instrumented) - bare: +56.738 us/req (range +43.473..+68.119, 5/5 agree in sign)
+
+  rate 1/s — 5 paired replicates (headline: WADM (silent) - bare)
+    ~ WARN wadm rep5: 1 sample(s) above 1000 us (1.10%) — too few to judge the run contaminated
+    CPU, WADM (silent) - bare         below noise floor (median +25.763 us/req, range -20.388..+72.247, 4/5 agree in sign)  [user +57.4, system -39.3]
+    CPU, timing lines (wadm - silent) +53.321 us/req (range +5.464..+63.567, 5/5 agree in sign)  [user +44.1, system +9.2]
+    CPU, WADM (instrumented) - bare   +77.711 us/req (range +37.334..+95.548, 5/5 agree in sign)  [user +99.1, system -21.4]
+      bare   absolute: 277.4 us/req, edge memory 9.0 MB
+      silent absolute: 295.8 us/req, edge memory 14.0 MB
+      wadm   absolute: 356.4 us/req, edge memory 14.5 MB
+    Slot spread:       1.229x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      below noise floor (median +0.025 ms, range -0.039..+0.058, 4/5 agree in sign)  [+5% of bare]
+      detect_query_duration    +0.056 ms (range +0.037..+0.119, 5/5 agree in sign)  [+11% of bare]
+      token_tamper_duration    +0.137 ms (range +0.090..+0.164, 5/5 agree in sign)  [+27% of bare]
+      token_decoy_duration     +0.059 ms (range +0.018..+0.095, 5/5 agree in sign)  [+11% of bare]
+      sqli_hit_duration        -0.035 ms (range -0.050..-0.003, 5/5 agree in sign)  [-7% of bare]
+      sqli_hit_enc_duration    -0.039 ms (range -0.061..-0.008, 5/5 agree in sign)  [-8% of bare]
+      sqli_miss_duration       -0.037 ms (range -0.068..-0.003, 5/5 agree in sign)  [-7% of bare]
+      sqli_miss_enc_duration   -0.041 ms (range -0.099..-0.017, 5/5 agree in sign)  [-8% of bare]
+    Latency added per GET, by quantile (shift function): med=+69us  p75=+69us  p90=+123us  p95=+71us
+    Above the origin floor, latency added per GET at the median, origin itself 569us:
+      bare server - origin     -0.058 ms (range -0.102..-0.036, 5/5 agree in sign)  [-10% of origin]
+      WADM (silent) - origin   below noise floor (median +0.012 ms, range -0.024..+0.016, 3/5 agree in sign)  [+2% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+99us  detect_query=+8us  token_tamper=+65us  token_decoy=+60us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Functional wadm  : worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Coverage (timing samples / expected): complete on every kind
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=3.79us/tail=0.00%  inject=1.58us/tail=0.00%
+      http_headers                 detect=1.92us/tail=0.00%  inject=0.39us/tail=0.00%
+      cookies                      detect=3.51us/tail=0.22%  inject=2.42us/tail=0.00%
+      decoy_paths                  detect=1.63us/tail=0.00%  inject=1.13us/tail=0.00%
+      form_fields                  detect=1.01us/tail=0.00%  inject=1.07us/tail=0.00%
+      sql_injection                detect=9.07us/tail=0.00%
+      sql_injection_encoded        detect=9.52us/tail=0.00%
+      sql_injection_miss           detect=9.53us/tail=0.00%
+      sql_injection_miss_encoded   detect=11.79us/tail=0.00%
+
+  rate 10/s — 5 paired replicates (headline: WADM (silent) - bare)
+    CPU, WADM (silent) - bare         +19.093 us/req (range +12.279..+45.999, 5/5 agree in sign)  [user +42.0, system -22.2]
+    CPU, timing lines (wadm - silent) +19.290 us/req (range +17.344..+36.982, 5/5 agree in sign)  [user +0.4, system +31.6]
+    CPU, WADM (instrumented) - bare   +54.037 us/req (range +29.623..+65.289, 5/5 agree in sign)  [user +42.7, system +22.1]
+      bare   absolute: 230.8 us/req, edge memory 9.0 MB
+      silent absolute: 253.2 us/req, edge memory 15.9 MB
+      wadm   absolute: 284.9 us/req, edge memory 16.5 MB
+    Slot spread:       1.225x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      +0.036 ms (range +0.021..+0.052, 5/5 agree in sign)  [+8% of bare]
+      detect_query_duration    +0.081 ms (range +0.051..+0.091, 5/5 agree in sign)  [+16% of bare]
+      token_tamper_duration    +0.146 ms (range +0.114..+0.156, 5/5 agree in sign)  [+30% of bare]
+      token_decoy_duration     +0.067 ms (range +0.046..+0.077, 5/5 agree in sign)  [+13% of bare]
+      sqli_hit_duration        -0.029 ms (range -0.046..-0.018, 5/5 agree in sign)  [-6% of bare]
+      sqli_hit_enc_duration    -0.026 ms (range -0.033..-0.025, 5/5 agree in sign)  [-5% of bare]
+      sqli_miss_duration       -0.036 ms (range -0.061..-0.005, 5/5 agree in sign)  [-7% of bare]
+      sqli_miss_enc_duration   -0.028 ms (range -0.044..-0.005, 5/5 agree in sign)  [-5% of bare]
+    Latency added per GET, by quantile (shift function): med=+81us  p75=+116us  p90=+207us  p95=+349us  p99=+1155us
+    Above the origin floor, latency added per GET at the median, origin itself 552us:
+      bare server - origin     -0.049 ms (range -0.073..-0.039, 5/5 agree in sign)  [-9% of origin]
+      WADM (silent) - origin   +0.029 ms (range +0.016..+0.042, 5/5 agree in sign)  [+5% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+89us  detect_query=+8us  token_tamper=+33us  token_decoy=+34us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Functional wadm  : worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Coverage (timing samples / expected): complete on every kind
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=2.58us/tail=0.00%  inject=1.40us/tail=0.01%
+      http_headers                 detect=1.70us/tail=0.00%  inject=0.35us/tail=0.00%
+      cookies                      detect=3.05us/tail=0.00%  inject=1.53us/tail=0.01%
+      decoy_paths                  detect=1.28us/tail=0.00%  inject=1.15us/tail=0.01%
+      form_fields                  detect=0.83us/tail=0.00%  inject=1.04us/tail=0.00%
+      sql_injection                detect=8.34us/tail=0.00%
+      sql_injection_encoded        detect=9.78us/tail=0.00%
+      sql_injection_miss           detect=8.62us/tail=0.00%
+      sql_injection_miss_encoded   detect=10.95us/tail=0.04%
+
+  rate 100/s — 5 paired replicates (headline: WADM (silent) - bare)
+    CPU, WADM (silent) - bare         +32.113 us/req (range +25.440..+35.604, 5/5 agree in sign)  [user +23.7, system +4.5]
+    CPU, timing lines (wadm - silent) +21.549 us/req (range +11.674..+42.746, 5/5 agree in sign)  [user +7.6, system +11.4]
+    CPU, WADM (instrumented) - bare   +57.153 us/req (range +43.787..+68.186, 5/5 agree in sign)  [user +32.7, system +22.5]
+      bare   absolute: 145.7 us/req, edge memory 10.1 MB
+      silent absolute: 177.7 us/req, edge memory 20.5 MB
+      wadm   absolute: 200.4 us/req, edge memory 20.5 MB
+    Slot spread:       1.104x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      +0.030 ms (range +0.029..+0.038, 5/5 agree in sign)  [+9% of bare]
+      detect_query_duration    +0.071 ms (range +0.064..+0.080, 5/5 agree in sign)  [+19% of bare]
+      token_tamper_duration    +0.115 ms (range +0.110..+0.126, 5/5 agree in sign)  [+33% of bare]
+      token_decoy_duration     +0.072 ms (range +0.051..+0.074, 5/5 agree in sign)  [+20% of bare]
+      sqli_hit_duration        -0.013 ms (range -0.028..-0.004, 5/5 agree in sign)  [-4% of bare]
+      sqli_hit_enc_duration    -0.013 ms (range -0.020..-0.005, 5/5 agree in sign)  [-3% of bare]
+      sqli_miss_duration       -0.017 ms (range -0.029..-0.013, 5/5 agree in sign)  [-5% of bare]
+      sqli_miss_enc_duration   -0.019 ms (range -0.027..-0.007, 5/5 agree in sign)  [-5% of bare]
+    Latency added per GET, by quantile (shift function): med=+72us  p75=+83us  p90=+98us  p95=+129us  p99=+179us
+    Above the origin floor, latency added per GET at the median, origin itself 344us:
+      bare server - origin     +0.010 ms (range +0.004..+0.016, 5/5 agree in sign)  [+3% of origin]
+      WADM (silent) - origin   +0.082 ms (range +0.079..+0.086, 5/5 agree in sign)  [+24% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+67us  detect_query=+14us  token_tamper=+32us  token_decoy=+12us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Functional wadm  : worst intact 100.00%; alerts alert=1.0, trap=1.0
+    Coverage (timing samples / expected): complete on every kind
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=1.85us/tail=0.00%  inject=1.34us/tail=0.00%
+      http_headers                 detect=1.69us/tail=0.01%  inject=0.32us/tail=0.00%
+      cookies                      detect=2.76us/tail=0.00%  inject=1.36us/tail=0.00%
+      decoy_paths                  detect=1.02us/tail=0.01%  inject=0.82us/tail=0.00%
+      form_fields                  detect=0.54us/tail=0.01%  inject=0.90us/tail=0.00%
+      sql_injection                detect=6.88us/tail=0.01%
+      sql_injection_encoded        detect=8.18us/tail=0.00%
+      sql_injection_miss           detect=7.52us/tail=0.00%
+      sql_injection_miss_encoded   detect=9.10us/tail=0.03%
+
+==============================================================================
+Apache (in-server)
+==============================================================================
+  Marginal CPU, bare : 176.74 us/request   (idle 4294 us/s, rates [1, 10, 100])
+  Marginal CPU, silent: 455.06 us/request   (idle 2808 us/s, rates [1, 10, 100])
+  Marginal CPU, wadm : fit rejected (negative coefficient)
+  Marginal CPU, WADM (silent) - bare: +261.431 us/req (range +229.498..+333.904, 5/5 agree in sign)  <- headline
+  Marginal CPU, timing lines (wadm - silent): +144.500 us/req point estimate only (n=2, too few replicates for an interval)
+  Marginal CPU, WADM (instrumented) - bare: +398.161 us/req point estimate only (n=2, too few replicates for an interval)
+
+  rate 1/s — 5 paired replicates (headline: WADM (silent) - bare)
+    ~ WARN wadm rep1: 1 sample(s) above 1000 us (1.10%) — too few to judge the run contaminated
+    CPU, WADM (silent) - bare         +279.419 us/req (range +171.842..+386.267, 5/5 agree in sign)  [user +118.6, system +110.9]
+    CPU, timing lines (wadm - silent) below noise floor (median -64.941 us/req, range -144.350..+76.576, 3/5 agree in sign)  [user -8.4, system +3.7]
+    CPU, WADM (instrumented) - bare   +217.241 us/req (range +211.465..+253.974, 5/5 agree in sign)  [user +116.7, system +129.3]
+      bare   absolute: 369.8 us/req, edge memory 7.5 MB
+      silent absolute: 649.2 us/req, edge memory 58.6 MB
+      wadm   absolute: 599.0 us/req, edge memory 59.1 MB
+    Slot spread:       1.155x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      +0.162 ms (range +0.149..+0.202, 5/5 agree in sign)  [+25% of bare]
+      detect_query_duration    +0.231 ms (range +0.150..+0.281, 5/5 agree in sign)  [+40% of bare]
+      token_tamper_duration    +0.285 ms (range +0.252..+0.320, 5/5 agree in sign)  [+41% of bare]
+      token_decoy_duration     +0.236 ms (range +0.188..+0.348, 5/5 agree in sign)  [+41% of bare]
+      sqli_hit_duration        +0.347 ms (range +0.342..+0.398, 5/5 agree in sign)  [+60% of bare]
+      sqli_hit_enc_duration    +0.327 ms (range +0.289..+0.442, 5/5 agree in sign)  [+54% of bare]
+      sqli_miss_duration       +0.261 ms (range +0.248..+0.309, 5/5 agree in sign)  [+46% of bare]
+      sqli_miss_enc_duration   +0.251 ms (range +0.192..+0.339, 5/5 agree in sign)  [+44% of bare]
+    Latency added per GET, by quantile (shift function): med=+244us  p75=+334us  p90=+620us  p95=+880us
+    Above the origin floor, latency added per GET at the median, origin itself 575us:
+      bare server - origin     +0.046 ms (range +0.012..+0.102, 5/5 agree in sign)  [+8% of origin]
+      WADM (silent) - origin   +0.286 ms (range +0.243..+0.333, 5/5 agree in sign)  [+50% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+135us  detect_query=-17us  token_tamper=+37us  token_decoy=-12us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 100.00%; reconnects detect_query=24%, inject_get=25%, sqli_hit=13%, sqli_hit_enc=12%, sqli_miss=25%, sqli_miss_enc=25%, token_decoy=24%, token_tamper=24%; alerts alert=1.0, trap=1.0; BAIT MISSING: detect_query, token_decoy
+    Functional wadm  : worst intact 100.00%; reconnects detect_query=24%, inject_get=25%, sqli_hit=13%, sqli_hit_enc=12%, sqli_miss=25%, sqli_miss_enc=25%, token_decoy=24%, token_tamper=24%; alerts alert=1.0, trap=1.0; BAIT MISSING: detect_query, token_decoy
+    Coverage (timing samples / expected): SHORTFALL html_comments.inject=0.600, decoy_paths.inject=0.600
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=4.55us/tail=0.00%  inject=2.81us/tail=0.00%
+      http_headers                 detect=3.16us/tail=0.00%  inject=0.94us/tail=0.00%
+      cookies                      detect=5.44us/tail=0.00%  inject=0.66us/tail=0.00%
+      decoy_paths                  detect=2.27us/tail=0.00%  inject=4.91us/tail=0.00%
+      form_fields                  detect=2.03us/tail=0.00%  inject=3.78us/tail=0.22%
+      sql_injection                detect=18.05us/tail=0.00%
+      sql_injection_encoded        detect=18.93us/tail=0.00%
+      sql_injection_miss           detect=20.16us/tail=0.22%
+      sql_injection_miss_encoded   detect=22.02us/tail=0.00%
+
+  rate 10/s — 5 paired replicates (headline: WADM (silent) - bare)
+    ~ WARN wadm rep2: edge crashed 3x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN wadm rep4: edge crashed 3x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN silent rep5: edge crashed 2x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    CPU, WADM (silent) - bare         +182.657 us/req (range +169.081..+224.287, 5/5 agree in sign)  [user +65.6, system +103.5]
+    CPU, timing lines (wadm - silent) below noise floor (median +65.624 us/req, range -25.848..+164.724, 3/5 agree in sign)  [user +45.8, system +14.3]
+    CPU, WADM (instrumented) - bare   +243.218 us/req (range +156.490..+347.381, 5/5 agree in sign)  [user +121.3, system +137.2]
+      bare   absolute: 338.1 us/req, edge memory 7.5 MB
+      silent absolute: 551.3 us/req, edge memory 92.1 MB
+      wadm   absolute: 578.6 us/req, edge memory 93.9 MB
+    Slot spread:       1.135x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      +0.134 ms (range +0.121..+0.157, 5/5 agree in sign)  [+20% of bare]
+      detect_query_duration    +0.200 ms (range +0.175..+0.230, 5/5 agree in sign)  [+35% of bare]
+      token_tamper_duration    +0.260 ms (range +0.246..+0.267, 5/5 agree in sign)  [+39% of bare]
+      token_decoy_duration     +0.176 ms (range +0.139..+0.203, 5/5 agree in sign)  [+31% of bare]
+      sqli_hit_duration        +0.357 ms (range +0.349..+0.369, 5/5 agree in sign)  [+62% of bare]
+      sqli_hit_enc_duration    +0.349 ms (range +0.326..+0.369, 5/5 agree in sign)  [+59% of bare]
+      sqli_miss_duration       +0.211 ms (range +0.206..+0.240, 5/5 agree in sign)  [+35% of bare]
+      sqli_miss_enc_duration   +0.239 ms (range +0.197..+0.248, 5/5 agree in sign)  [+42% of bare]
+    Latency added per GET, by quantile (shift function): med=+198us  p75=+240us  p90=+426us  p95=+622us  p99=+954us
+    Above the origin floor, latency added per GET at the median, origin itself 552us:
+      bare server - origin     +0.071 ms (range +0.066..+0.112, 5/5 agree in sign)  [+13% of origin]
+      WADM (silent) - origin   +0.271 ms (range +0.252..+0.283, 5/5 agree in sign)  [+49% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+158us  detect_query=+18us  token_tamper=+68us  token_decoy=+6us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; reconnects detect_query=1%, inject_get=1%, sqli_hit=1%, sqli_hit_enc=1%, sqli_miss=1%, sqli_miss_enc=1%, token_decoy=1%, token_tamper=1%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 99.78%; reconnects detect_query=25%, inject_get=25%, sqli_hit=13%, sqli_hit_enc=12%, sqli_miss=25%, sqli_miss_enc=25%, token_decoy=25%, token_tamper=25%; alerts alert=1.0, trap=1.0; BAIT MISSING: detect_query, token_decoy
+    Functional wadm  : worst intact 99.78%; reconnects detect_query=25%, inject_get=25%, sqli_hit=13%, sqli_hit_enc=12%, sqli_miss=25%, sqli_miss_enc=25%, token_decoy=25%, token_tamper=25%; alerts alert=1.0, trap=1.0; BAIT MISSING: detect_query, token_decoy
+    Coverage (timing samples / expected): SHORTFALL html_comments.inject=0.600, http_headers.detect=0.998, http_headers.inject=1.000, cookies.detect=0.998, cookies.inject=1.000, decoy_paths.inject=0.600, form_fields.detect=0.998, form_fields.inject=0.998
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=4.64us/tail=0.00%  inject=2.66us/tail=0.01%
+      http_headers                 detect=3.13us/tail=0.00%  inject=0.93us/tail=0.00%
+      cookies                      detect=5.25us/tail=0.00%  inject=0.65us/tail=0.00%
+      decoy_paths                  detect=2.22us/tail=0.00%  inject=4.50us/tail=0.00%
+      form_fields                  detect=1.69us/tail=0.00%  inject=3.27us/tail=0.00%
+      sql_injection                detect=17.30us/tail=0.09%
+      sql_injection_encoded        detect=18.89us/tail=0.00%
+      sql_injection_miss           detect=19.71us/tail=0.00%
+      sql_injection_miss_encoded   detect=21.32us/tail=0.04%
+
+  rate 100/s — 5 paired replicates (headline: WADM (silent) - bare)
+    ~ WARN silent rep1: edge crashed 10x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN wadm rep1: edge crashed 9x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN wadm rep2: edge crashed 10x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN silent rep2: edge crashed 10x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN silent rep3: edge crashed 11x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN wadm rep3: edge crashed 10x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN wadm rep4: edge crashed 12x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN silent rep4: edge crashed 10x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN silent rep5: edge crashed 12x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    ~ WARN wadm rep5: edge crashed 11x during this run (child pid \d+ exit signal, segmentation fault) — surviving samples are gated below
+    CPU, WADM (silent) - bare         +260.448 us/req (range +229.901..+334.241, 5/5 agree in sign)  [user +101.4, system +143.7]
+    CPU, timing lines (wadm - silent) +125.356 us/req (range +80.845..+246.756, 5/5 agree in sign)  [user +17.9, system +143.6]
+    CPU, WADM (instrumented) - bare   +406.873 us/req (range +385.804..+476.657, 5/5 agree in sign)  [user +113.1, system +298.0]
+      bare   absolute: 178.6 us/req, edge memory 24.3 MB
+      silent absolute: 443.4 us/req, edge memory 131.9 MB
+      wadm   absolute: 583.1 us/req, edge memory 134.7 MB
+    Slot spread:       1.054x across 8 positions   (common-mode under rotation, cancels in the delta)
+    End-to-end latency delta (WADM (silent) - bare), median request:
+      inject_get_duration      +0.133 ms (range +0.109..+0.148, 5/5 agree in sign)  [+34% of bare]
+      detect_query_duration    +0.191 ms (range +0.180..+0.216, 5/5 agree in sign)  [+50% of bare]
+      token_tamper_duration    +0.246 ms (range +0.218..+0.269, 5/5 agree in sign)  [+62% of bare]
+      token_decoy_duration     +0.172 ms (range +0.159..+0.192, 5/5 agree in sign)  [+47% of bare]
+      sqli_hit_duration        +0.316 ms (range +0.287..+0.319, 5/5 agree in sign)  [+85% of bare]
+      sqli_hit_enc_duration    +0.301 ms (range +0.291..+0.323, 5/5 agree in sign)  [+81% of bare]
+      sqli_miss_duration       +0.216 ms (range +0.196..+0.219, 5/5 agree in sign)  [+58% of bare]
+      sqli_miss_enc_duration   +0.201 ms (range +0.179..+0.228, 5/5 agree in sign)  [+53% of bare]
+    Latency added per GET, by quantile (shift function): med=+183us  p75=+228us  p90=+478us  p95=+1491us  p99=+9433us
+    Above the origin floor, latency added per GET at the median, origin itself 345us:
+      bare server - origin     +0.035 ms (range +0.031..+0.051, 5/5 agree in sign)  [+10% of origin]
+      WADM (silent) - origin   +0.224 ms (range +0.218..+0.240, 5/5 agree in sign)  [+64% of origin]
+    Probe effect on latency (timing lines on - off): inject_get=+143us  detect_query=+38us  token_tamper=+79us  token_decoy=+31us
+    Functional origin: worst intact 100.00%
+    Functional bare  : worst intact 100.00%; reconnects detect_query=1%, inject_get=1%, sqli_hit=1%, sqli_hit_enc=1%, sqli_miss=1%, sqli_miss_enc=1%, token_decoy=1%, token_tamper=1%; alerts alert=0.0, trap=0.0
+    Functional silent: worst intact 99.77%; reconnects detect_query=25%, inject_get=25%, sqli_hit=13%, sqli_hit_enc=12%, sqli_miss=25%, sqli_miss_enc=25%, token_decoy=25%, token_tamper=25%; alerts alert=1.0, trap=1.0; BAIT MISSING: detect_query, token_decoy
+    Functional wadm  : worst intact 99.63%; reconnects detect_query=25%, inject_get=25%, sqli_hit=13%, sqli_hit_enc=13%, sqli_miss=25%, sqli_miss_enc=25%, token_decoy=25%, token_tamper=25%; alerts alert=0.9992, trap=0.9993; BAIT MISSING: detect_query, token_decoy
+    Coverage (timing samples / expected): SHORTFALL html_comments.detect=0.998, html_comments.inject=0.599, http_headers.detect=0.998, http_headers.inject=0.998, cookies.detect=0.997, cookies.inject=0.998, decoy_paths.detect=0.998, decoy_paths.inject=0.599, form_fields.detect=0.997, form_fields.inject=0.996, sql_injection.detect=0.998, sql_injection_encoded.detect=0.997, sql_injection_miss.detect=0.998, sql_injection_miss_encoded.detect=0.998
+    Internal timings (5%-trimmed mean us, preemption tail %):
+      html_comments                detect=4.37us/tail=0.11%  inject=2.52us/tail=0.04%
+      http_headers                 detect=2.97us/tail=0.05%  inject=0.93us/tail=0.01%
+      cookies                      detect=4.80us/tail=0.13%  inject=0.68us/tail=0.01%
+      decoy_paths                  detect=2.02us/tail=0.07%  inject=4.21us/tail=0.06%
+      form_fields                  detect=1.58us/tail=0.05%  inject=3.26us/tail=0.06%
+      sql_injection                detect=15.97us/tail=0.21%
+      sql_injection_encoded        detect=17.38us/tail=0.17%
+      sql_injection_miss           detect=18.72us/tail=0.15%
+      sql_injection_miss_encoded   detect=20.15us/tail=0.25%
+
+Saved /home/kali/Desktop/HoneyPotThesis/benchmarks/results/paired_summary.json
+
+The plotters' input files were NOT touched. Re-run with --write-legacy to regenerate them from this paired data.
+=== 00:46:56 [attempt 1] python3 -u benchmarks/compare_deployments.py
+# Proxy deployment against in-server deployment
+
+Generated by `benchmarks/compare_deployments.py`. Every figure is a **paired difference measured inside one session** (median of the per-replicate differences, with their range across replicates in brackets; `spans 0` = the range includes zero). The two deployments were measured in **separate sessions**, so they are compared as two paired differences, never by subtracting raw latencies across sessions. *Overlap* says whether the two ranges overlap: `no` means the deployments differ by more than either session's replicate spread; `yes` means this harness cannot order them.
+
+Latency is per GET (mean of the four GET probes within a replicate) in microseconds. CPU is microseconds per request: for the module cost, of the host container (the server running the module); above the origin, of the stack (host container + origin container; on the origin tier only the origin serves).
+
+## OpenResty: `openresty` (proxy) vs `openresty_inserver` (in-server)
+
+Sessions: proxy 2026-10-14T20:38:39.901431+00:00 (5 replicates); in-server 2026-10-18T21:40:51.026547+00:00 (5 replicates).
+
+### Module cost (silent − bare)
+
+| Rate (it/s) | Deployment | Δp50 per GET (µs) | Δp95 per GET (µs) | ΔCPU (µs/req) |
+|---|---|---|---|---|
+| 1 | proxy | +145 [+105..+165] | +674 [-24..+1165, spans 0] | +60.7 [+25.7..+81.1] |
+| 1 | in-server | +69 [+51..+97] | +71 [+24..+251] | +25.8 [-20.4..+72.2, spans 0] |
+| 10 | proxy | +114 [+101..+148] | +331 [+159..+645] | +30.7 [+27.4..+44.1] |
+| 10 | in-server | +81 [+68..+89] | +349 [+89..+474] | +19.1 [+12.3..+46.0] |
+| 100 | proxy | +111 [+107..+117] | +335 [+287..+423] | +31.4 [+25.4..+34.3] |
+| 100 | in-server | +72 [+64..+78] | +129 [+53..+204] | +32.1 [+25.4..+35.6] |
+
+- rate 1: p50 overlap no — deployments differ; CPU overlap yes — not ordered
+- rate 10: p50 overlap no — deployments differ; CPU overlap yes — not ordered
+- rate 100: p50 overlap no — deployments differ; CPU overlap yes — not ordered
+
+### Deployed stack above origin (silent − origin)
+
+| Rate (it/s) | Deployment | Δp50 per GET (µs) | Δp95 per GET (µs) | ΔCPU (µs/req) |
+|---|---|---|---|---|
+| 1 | proxy | +409 [+373..+414] | +958 [+259..+1390] | +203.0 [+135.2..+225.8] |
+| 1 | in-server | +12 [-24..+16, spans 0] | -344 [-383..-162] | -0.6 [-33.4..+62.4, spans 0] |
+| 10 | proxy | +388 [+351..+394] | +439 [+382..+664] | +113.2 [+102.0..+116.8] |
+| 10 | in-server | +29 [+16..+42] | -115 [-442..+244, spans 0] | -27.8 [-60.8..-0.4] |
+| 100 | proxy | +294 [+293..+302] | +417 [+404..+538] | +113.6 [+109.4..+127.0] |
+| 100 | in-server | +82 [+79..+86] | -52 [-578..+98, spans 0] | +21.2 [+6.4..+26.9] |
+
+- rate 1: p50 overlap no — deployments differ; CPU overlap no — deployments differ
+- rate 10: p50 overlap no — deployments differ; CPU overlap no — deployments differ
+- rate 100: p50 overlap no — deployments differ; CPU overlap no — deployments differ
+
+### Bare − origin (proxy hop / server swap)
+
+| Rate (it/s) | Deployment | Δp50 per GET (µs) | Δp95 per GET (µs) | ΔCPU (µs/req) |
+|---|---|---|---|---|
+| 1 | proxy | +260 [+250..+291] | +283 [+225..+465] | +186.5 [+164.3..+245.2] |
+| 1 | in-server | -58 [-102..-36] | -413 [-430..-359] | -13.1 [-39.2..-4.4] |
+| 10 | proxy | +255 [+245..+282] | +74 [+18..+223] | +145.3 [+132.5..+159.8] |
+| 10 | in-server | -49 [-73..-39] | -229 [-569..-128] | -58.3 [-106.8..-12.7] |
+| 100 | proxy | +184 [+183..+190] | +88 [+60..+130] | +129.8 [+127.8..+138.4] |
+| 100 | in-server | +10 [+4..+16] | -161 [-714..-106] | -11.2 [-25.7..-8.7] |
+
+- rate 1: p50 overlap no — deployments differ; CPU overlap no — deployments differ
+- rate 10: p50 overlap no — deployments differ; CPU overlap no — deployments differ
+- rate 100: p50 overlap no — deployments differ; CPU overlap no — deployments differ
+
+In the proxy deployment this row is the proxy hop. In the in-server deployment there is no hop: it is the host server serving files against the nginx:alpine origin, which is part of the in-server `silent − origin` figure above and must be read with it.
+
+### Sanity: origin CPU per request on the edge tiers
+
+On the in-server tiers the origin is idle, so its CPU per request must be about zero. On the proxy tiers it serves every forwarded request.
+
+| Rate (it/s) | Deployment | bare | silent | wadm |
+|---|---|---|---|---|
+| 1 | proxy | 215.36 (max 226.64) | 151.84 (max 166.00) | 147.82 (max 157.04) |
+| 1 | in-server | 0.23 (max 0.34) | 0.25 (max 0.33) | 0.25 (max 0.57) |
+| 10 | proxy | 210.31 (max 214.07) | 138.70 (max 140.79) | 139.27 (max 176.26) |
+| 10 | in-server | 0.00 (max 0.00) | 0.00 (max 0.00) | 0.00 (max 0.00) |
+| 100 | proxy | 137.50 (max 142.84) | 91.67 (max 98.06) | 93.39 (max 103.15) |
+| 100 | in-server | 0.00 (max 0.00) | 0.00 (max 0.00) | 0.00 (max 0.00) |
+
+### Same work per iteration? (wadm-tier timing coverage)
+
+Timing samples logged per iteration against what the proxy deployment's probes produce (analyze_paired.py's EXPECTED_SAMPLES_PER_ITERATION). A ratio below 1 means the module ran that region on fewer requests, so its cost in that deployment covers less work.
+
+| Rate (it/s) | Deployment | Regions below 1 (worst ratio) |
+|---|---|---|
+| 1 | proxy | none |
+| 1 | in-server | none |
+| 10 | proxy | none |
+| 10 | in-server | none |
+| 100 | proxy | none |
+| 100 | in-server | none |
+
+## Apache httpd: `apache_lua` (proxy) vs `apache_inserver` (in-server)
+
+Sessions: proxy 2026-10-14T23:44:24.978951+00:00 (5 replicates); in-server 2026-10-18T23:13:29.970728+00:00 (5 replicates).
+
+### Module cost (silent − bare)
+
+| Rate (it/s) | Deployment | Δp50 per GET (µs) | Δp95 per GET (µs) | ΔCPU (µs/req) |
+|---|---|---|---|---|
+| 1 | proxy | +233 [+177..+266] | +1162 [+314..+1681] | +294.6 [+94.5..+307.9] |
+| 1 | in-server | +244 [+185..+252] | +880 [+341..+1717] | +279.4 [+171.8..+386.3] |
+| 10 | proxy | +189 [+168..+196] | +371 [-2..+836, spans 0] | +129.2 [+89.6..+215.5] |
+| 10 | in-server | +198 [+171..+206] | +622 [+586..+1057] | +182.7 [+169.1..+224.3] |
+| 100 | proxy | +295 [+235..+544] | +83946 [+4577..+133537] | +494.6 [+305.1..+724.0] |
+| 100 | in-server | +183 [+170..+206] | +1491 [+1101..+4132] | +260.4 [+229.9..+334.2] |
+
+- rate 1: p50 overlap yes — not ordered; CPU overlap yes — not ordered
+- rate 10: p50 overlap yes — not ordered; CPU overlap yes — not ordered
+- rate 100: p50 overlap no — deployments differ; CPU overlap yes — not ordered
+
+### Deployed stack above origin (silent − origin)
+
+| Rate (it/s) | Deployment | Δp50 per GET (µs) | Δp95 per GET (µs) | ΔCPU (µs/req) |
+|---|---|---|---|---|
+| 1 | proxy | +545 [+534..+557] | +1637 [+548..+1713] | +483.5 [+265.8..+513.7] |
+| 1 | in-server | +286 [+243..+333] | +407 [-315..+1478, spans 0] | +360.0 [+245.5..+434.2] |
+| 10 | proxy | +553 [+539..+569] | +845 [+457..+1295] | +293.7 [+246.6..+372.7] |
+| 10 | in-server | +271 [+252..+283] | +66 [-96..+766, spans 0] | +275.8 [+224.7..+292.4] |
+| 100 | proxy | +580 [+514..+825] | +84170 [+4698..+133740] | +812.3 [+490.0..+1095.9] |
+| 100 | in-server | +224 [+218..+240] | +1364 [+941..+4120] | +290.2 [+251.1..+359.9] |
+
+- rate 1: p50 overlap no — deployments differ; CPU overlap yes — not ordered
+- rate 10: p50 overlap no — deployments differ; CPU overlap yes — not ordered
+- rate 100: p50 overlap no — deployments differ; CPU overlap no — deployments differ
+
+### Bare − origin (proxy hop / server swap)
+
+| Rate (it/s) | Deployment | Δp50 per GET (µs) | Δp95 per GET (µs) | ΔCPU (µs/req) |
+|---|---|---|---|---|
+| 1 | proxy | +324 [+280..+358] | +291 [+32..+495] | +256.1 [+240.2..+267.0] |
+| 1 | in-server | +46 [+12..+102] | -410 [-788..-238] | +80.5 [+48.3..+126.8] |
+| 10 | proxy | +372 [+354..+380] | +274 [+193..+847] | +223.9 [+208.0..+312.2] |
+| 10 | in-server | +71 [+66..+112] | -520 [-697..-292] | +62.6 [+42.1..+114.8] |
+| 100 | proxy | +279 [+275..+285] | +203 [+108..+265] | +203.9 [+195.8..+206.1] |
+| 100 | in-server | +35 [+31..+51] | -127 [-160..-12] | +25.7 [+21.2..+29.7] |
+
+- rate 1: p50 overlap no — deployments differ; CPU overlap no — deployments differ
+- rate 10: p50 overlap no — deployments differ; CPU overlap no — deployments differ
+- rate 100: p50 overlap no — deployments differ; CPU overlap no — deployments differ
+
+In the proxy deployment this row is the proxy hop. In the in-server deployment there is no hop: it is the host server serving files against the nginx:alpine origin, which is part of the in-server `silent − origin` figure above and must be read with it.
+
+### Sanity: origin CPU per request on the edge tiers
+
+On the in-server tiers the origin is idle, so its CPU per request must be about zero. On the proxy tiers it serves every forwarded request.
+
+| Rate (it/s) | Deployment | bare | silent | wadm |
+|---|---|---|---|---|
+| 1 | proxy | 204.72 (max 213.46) | 136.20 (max 145.97) | 147.52 (max 166.83) |
+| 1 | in-server | 0.24 (max 0.61) | 0.24 (max 0.25) | 0.19 (max 0.20) |
+| 10 | proxy | 204.63 (max 246.32) | 134.59 (max 139.46) | 144.54 (max 147.32) |
+| 10 | in-server | 0.00 (max 0.00) | 0.00 (max 0.00) | 0.00 (max 0.00) |
+| 100 | proxy | 133.53 (max 135.69) | 247.33 (max 323.28) | 289.65 (max 289.65) |
+| 100 | in-server | 0.00 (max 0.00) | 0.00 (max 0.00) | 0.00 (max 0.00) |
+
+### Same work per iteration? (wadm-tier timing coverage)
+
+Timing samples logged per iteration against what the proxy deployment's probes produce (analyze_paired.py's EXPECTED_SAMPLES_PER_ITERATION). A ratio below 1 means the module ran that region on fewer requests, so its cost in that deployment covers less work.
+
+| Rate (it/s) | Deployment | Regions below 1 (worst ratio) |
+|---|---|---|
+| 1 | proxy | none |
+| 1 | in-server | decoy_paths.inject 0.6000, html_comments.inject 0.6000 |
+| 10 | proxy | cookies.detect 0.9978, cookies.inject 0.9996, decoy_paths.inject 0.9996, form_fields.detect 0.9978, form_fields.inject 0.9978, html_comments.inject 0.9996, http_headers.detect 0.9978, http_headers.inject 0.9996, sql_injection.detect 0.9956, sql_injection_miss.detect 0.9978 |
+| 10 | in-server | cookies.detect 0.9978, cookies.inject 0.9996, decoy_paths.inject 0.5996, form_fields.detect 0.9978, form_fields.inject 0.9978, html_comments.inject 0.5996, http_headers.detect 0.9978, http_headers.inject 0.9996 |
+| 100 | proxy | cookies.inject 0.9999, decoy_paths.inject 0.9993, form_fields.inject 0.9993, html_comments.detect 0.9997, html_comments.inject 0.9991, http_headers.inject 0.9999, sql_injection.detect 0.9963, sql_injection_encoded.detect 0.9967, sql_injection_miss.detect 0.9960, sql_injection_miss_encoded.detect 0.9977 |
+| 100 | in-server | cookies.detect 0.9973, cookies.inject 0.9983, decoy_paths.detect 0.9980, decoy_paths.inject 0.5989, form_fields.detect 0.9970, form_fields.inject 0.9963, html_comments.detect 0.9980, html_comments.inject 0.5989, http_headers.detect 0.9980, http_headers.inject 0.9983, sql_injection.detect 0.9977, sql_injection_encoded.detect 0.9973, sql_injection_miss.detect 0.9983, sql_injection_miss_encoded.detect 0.9977 |
+
+Saved /home/kali/Desktop/HoneyPotThesis/benchmarks/results/deployment_comparison.md
+Saved /home/kali/Desktop/HoneyPotThesis/benchmarks/results/deployment_comparison.csv
+Saved /home/kali/Desktop/HoneyPotThesis/benchmarks/results/plots/deployment_comparison.png
+=== 00:47:33 done. Log: benchmarks/results/inserver_suite_20261018T214050Z.log  Status: benchmarks/results/inserver_suite_20261018T214050Z.status

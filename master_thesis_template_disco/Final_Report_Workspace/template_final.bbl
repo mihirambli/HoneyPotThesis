@@ -1,161 +1,307 @@
 \begin{thebibliography}{10}
 
 \bibitem{verizon2026dbir}
-{Verizon Business}, ``2026 data breach investigations report.'' \url{https://web.archive.org/web/20261014053535/https://www.verizon.com/business/resources/reports/dbir/}, 2026.
+{Verizon Business}, ``2026 data breach investigations report.''
+  \url{https://web.archive.org/web/20261014053535/https://www.verizon.com/business/resources/reports/dbir/},
+  2026.
 \newblock Accessed: 18.10.2026.
 
 \bibitem{zhang2021three}
-L.~Zhang and V.~L.~L. Thing, ``Three decades of deception techniques in active cyber defense -- retrospect and outlook,'' {\em Computers \& Security}, vol.~106, p.~102288, 2021.
+L.~Zhang and V.~L.~L. Thing, ``Three decades of deception techniques in active
+  cyber defense -- retrospect and outlook,'' {\em Computers \& Security},
+  vol.~106, p.~102288, 2021.
 
 \bibitem{axelsson2000base}
-S.~Axelsson, ``The base-rate fallacy and the difficulty of intrusion detection,'' {\em ACM Transactions on Information and System Security}, vol.~3, no.~3, pp.~186--205, 2000.
+S.~Axelsson, ``The base-rate fallacy and the difficulty of intrusion
+  detection,'' {\em ACM Transactions on Information and System Security},
+  vol.~3, no.~3, pp.~186--205, 2000.
 
 \bibitem{denning2014framework}
-D.~E. Denning, ``Framework and principles for active cyber defense,'' {\em Computers \& Security}, vol.~40, pp.~108--113, 2014.
+D.~E. Denning, ``Framework and principles for active cyber defense,'' {\em
+  Computers \& Security}, vol.~40, pp.~108--113, 2014.
 
 \bibitem{owasp_about}
-{OWASP Foundation}, ``About the {OWASP} foundation.'' \url{https://web.archive.org/web/20261013085208/https://owasp.org/about/}.
+{OWASP Foundation}, ``About the {OWASP} foundation.''
+  \url{https://web.archive.org/web/20261013085208/https://owasp.org/about/}.
 \newblock Accessed: 18.10.2026.
 
 \bibitem{owasp2020wstg}
 {OWASP Foundation}, {\em Web Security Testing Guide, Version 4.2}, 2020.
-\newblock Tests WSTG-INFO-03, WSTG-INFO-05 and WSTG-INPV-05. Release of 03.12.2020: \url{https://github.com/OWASP/wstg/releases/tag/v4.2}. Accessed: 12.10.2026.
+\newblock Tests WSTG-INFO-03, WSTG-INFO-05 and WSTG-INPV-05. Release of
+  03.12.2020: \url{https://github.com/OWASP/wstg/releases/tag/v4.2}. Accessed:
+  12.10.2026.
 
 \bibitem{han2017evaluation}
-X.~Han, N.~Kheir, and D.~Balzarotti, ``Evaluation of deception-based web attacks detection,'' in {\em Proceedings of the 2017 Workshop on Moving Target Defense (MTD)}, pp.~65--73, 2017.
+X.~Han, N.~Kheir, and D.~Balzarotti, ``Evaluation of deception-based web
+  attacks detection,'' in {\em Proceedings of the 2017 Workshop on Moving
+  Target Defense (MTD)}, pp.~65--73, 2017.
 
 \bibitem{kahlhofer2024application}
-M.~Kahlhofer and S.~Rass, ``Application layer cyber deception without developer interaction,'' in {\em Proceedings of the IEEE European Symposium on Security and Privacy Workshops (EuroS\&PW)}, pp.~416--429, 2024.
-
-\bibitem{nginx_proxy}
-{nginx}, ``Module ngx\_http\_proxy\_module.'' \url{https://web.archive.org/web/20261003190217/https://nginx.org/en/docs/http/ngx_http_proxy_module.html}.
-\newblock Accessed: 18.10.2026.
-
-\bibitem{apache_modproxy}
-{The Apache Software Foundation}, ``Apache module \texttt{mod\_proxy}, apache {HTTP} server version 2.4 documentation.'' \url{https://web.archive.org/web/20261005043655/https://httpd.apache.org/docs/2.4/mod/mod_proxy.html}.
-\newblock Accessed: 18.10.2026.
-
-\bibitem{luanginx}
-{OpenResty}, ``lua-nginx-module: Embed the power of {Lua} into {NGINX} {HTTP} servers.'' \url{https://web.archive.org/web/20260905133050/https://github.com/openresty/lua-nginx-module}.
-\newblock Accessed: 13.10.2026.
-
-\bibitem{apache_modlua}
-{The Apache Software Foundation}, ``Apache module \texttt{mod\_lua}, apache {HTTP} server version 2.4 documentation.'' \url{https://web.archive.org/web/20260915203410/https://httpd.apache.org/docs/2.4/mod/mod_lua.html}.
-\newblock Accessed: 13.10.2026.
+M.~Kahlhofer and S.~Rass, ``Application layer cyber deception without developer
+  interaction,'' in {\em Proceedings of the IEEE European Symposium on Security
+  and Privacy Workshops (EuroS\&PW)}, pp.~416--429, 2024.
 
 \bibitem{envoy_what}
-{The Envoy Project Authors}, ``What is {Envoy}, envoy 1.30 documentation.'' \url{https://web.archive.org/web/20260415194608/https://www.envoyproxy.io/docs/envoy/v1.30.0/intro/what_is_envoy}.
+{The Envoy Project Authors}, ``What is {Envoy}, envoy 1.30 documentation.''
+  \url{https://web.archive.org/web/20260415194608/https://www.envoyproxy.io/docs/envoy/v1.30.0/intro/what_is_envoy}.
 \newblock Accessed: 18.10.2026.
 
 \bibitem{zhu2023dissecting}
-X.~Zhu, G.~She, B.~Xue, Y.~Zhang, Y.~Zhang, X.~K. Zou, X.~Duan, P.~He, A.~Krishnamurthy, M.~Lentz, D.~Zhuo, and R.~Mahajan, ``Dissecting overheads of service mesh sidecars,'' in {\em Proceedings of the ACM Symposium on Cloud Computing (SoCC)}, pp.~142--157, 2023.
+X.~Zhu, G.~She, B.~Xue, Y.~Zhang, Y.~Zhang, X.~K. Zou, X.~Duan, P.~He,
+  A.~Krishnamurthy, M.~Lentz, D.~Zhuo, and R.~Mahajan, ``Dissecting overheads
+  of service mesh sidecars,'' in {\em Proceedings of the ACM Symposium on Cloud
+  Computing (SoCC)}, pp.~142--157, 2023.
+
+\bibitem{apache_httpd_program}
+{The Apache Software Foundation}, ``httpd -- apache hypertext transfer protocol
+  server, apache {HTTP} server version 2.4 documentation.''
+  \url{https://httpd.apache.org/docs/2.4/programs/httpd.html}.
+\newblock Accessed: 21.10.2026; archived copy pending, the Internet Archive
+  refused requests.
+
+\bibitem{nginx_proxy}
+{nginx}, ``Module ngx\_http\_proxy\_module.''
+  \url{https://web.archive.org/web/20261003190217/https://nginx.org/en/docs/http/ngx_http_proxy_module.html}.
+\newblock Accessed: 18.10.2026.
+
+\bibitem{apache_modproxy}
+{The Apache Software Foundation}, ``Apache module \texttt{mod\_proxy}, apache
+  {HTTP} server version 2.4 documentation.''
+  \url{https://web.archive.org/web/20261005043655/https://httpd.apache.org/docs/2.4/mod/mod_proxy.html}.
+\newblock Accessed: 18.10.2026.
+
+\bibitem{luanginx}
+{OpenResty}, ``lua-nginx-module: Embed the power of {Lua} into {NGINX} {HTTP}
+  servers.''
+  \url{https://web.archive.org/web/20260905133050/https://github.com/openresty/lua-nginx-module}.
+\newblock Accessed: 13.10.2026.
+
+\bibitem{apache_modlua}
+{The Apache Software Foundation}, ``Apache module \texttt{mod\_lua}, apache
+  {HTTP} server version 2.4 documentation.''
+  \url{https://web.archive.org/web/20260915203410/https://httpd.apache.org/docs/2.4/mod/mod_lua.html}.
+\newblock Accessed: 13.10.2026.
 
 \bibitem{openresty_about}
-{OpenResty Inc.}, ``{OpenResty}.'' \url{https://web.archive.org/web/20261013082229/https://openresty.org/en/}.
+{OpenResty Inc.}, ``{OpenResty}.''
+  \url{https://web.archive.org/web/20261013082229/https://openresty.org/en/}.
 \newblock Accessed: 18.10.2026.
 
 \bibitem{lua_about}
-{Lua.org, PUC-Rio}, ``About {Lua}.'' \url{https://web.archive.org/web/20261008163524/https://www.lua.org/about.html}.
+{Lua.org, PUC-Rio}, ``About {Lua}.''
+  \url{https://web.archive.org/web/20261008163524/https://www.lua.org/about.html}.
 \newblock Accessed: 18.10.2026.
 
 \bibitem{rfc9110}
-R.~T. Fielding, M.~Nottingham, and J.~Reschke, ``{HTTP} semantics.'' RFC 9110, Internet Engineering Task Force, June 2022.
+R.~T. Fielding, M.~Nottingham, and J.~Reschke, ``{HTTP} semantics.'' RFC 9110,
+  Internet Engineering Task Force, June 2022.
 
 \bibitem{rfc3986}
-T.~Berners-Lee, R.~T. Fielding, and L.~Masinter, ``Uniform resource identifier ({URI}): Generic syntax.'' RFC 3986, Internet Engineering Task Force, Jan. 2005.
+T.~Berners-Lee, R.~T. Fielding, and L.~Masinter, ``Uniform resource identifier
+  ({URI}): Generic syntax.'' RFC 3986, Internet Engineering Task Force, Jan.
+  2005.
 
 \bibitem{rfc9112}
-R.~T. Fielding, M.~Nottingham, and J.~Reschke, ``{HTTP/1.1}.'' RFC 9112, Internet Engineering Task Force, June 2022.
+R.~T. Fielding, M.~Nottingham, and J.~Reschke, ``{HTTP/1.1}.'' RFC 9112,
+  Internet Engineering Task Force, June 2022.
 
 \bibitem{whatwg_forms}
-{WHATWG}, ``{HTML} living standard, section 4.10.22: Form submission.'' \url{https://web.archive.org/web/20261013090759/https://html.spec.whatwg.org/multipage/form-control-infrastructure.html}.
+{WHATWG}, ``{HTML} living standard, section 4.10.22: Form submission.''
+  \url{https://web.archive.org/web/20261013090759/https://html.spec.whatwg.org/multipage/form-control-infrastructure.html}.
 \newblock Accessed: 18.10.2026.
 
 \bibitem{rfc6265}
-A.~Barth, ``{HTTP} state management mechanism.'' RFC 6265, Internet Engineering Task Force, Apr. 2011.
+A.~Barth, ``{HTTP} state management mechanism.'' RFC 6265, Internet Engineering
+  Task Force, Apr. 2011.
 
 \bibitem{whatwg_syntax}
-{WHATWG}, ``{HTML} living standard, section 13.1.6: Comments.'' \url{https://web.archive.org/web/20261013081125/https://html.spec.whatwg.org/multipage/syntax.html}.
+{WHATWG}, ``{HTML} living standard, section 13.1.6: Comments.''
+  \url{https://web.archive.org/web/20261013081125/https://html.spec.whatwg.org/multipage/syntax.html}.
 \newblock Accessed: 18.10.2026.
 
 \bibitem{whatwg_input}
-{WHATWG}, ``{HTML} living standard, section 4.10.5.1.1: Hidden state.'' \url{https://web.archive.org/web/20261013122918/https://html.spec.whatwg.org/multipage/input.html}.
+{WHATWG}, ``{HTML} living standard, section 4.10.5.1.1: Hidden state.''
+  \url{https://web.archive.org/web/20261013122918/https://html.spec.whatwg.org/multipage/input.html}.
 \newblock Accessed: 18.10.2026.
 
 \bibitem{han2018deception}
-X.~Han, N.~Kheir, and D.~Balzarotti, ``Deception techniques in computer security: A research perspective,'' {\em ACM Computing Surveys}, vol.~51, no.~4, pp.~1--36, 2018.
+X.~Han, N.~Kheir, and D.~Balzarotti, ``Deception techniques in computer
+  security: A research perspective,'' {\em ACM Computing Surveys}, vol.~51,
+  no.~4, pp.~1--36, 2018.
 
 \bibitem{spitzner2003insider}
-L.~Spitzner, ``Honeypots: Catching the insider threat,'' in {\em Proceedings of the 19th Annual Computer Security Applications Conference (ACSAC)}, pp.~170--179, 2003.
+L.~Spitzner, ``Honeypots: Catching the insider threat,'' in {\em Proceedings of
+  the 19th Annual Computer Security Applications Conference (ACSAC)},
+  pp.~170--179, 2003.
 
 \bibitem{nginx_about}
-{nginx}, ``nginx.'' \url{https://web.archive.org/web/20261015150421/https://nginx.org/en/}.
+{nginx}, ``nginx.''
+  \url{https://web.archive.org/web/20261015150421/https://nginx.org/en/}.
+\newblock Accessed: 18.10.2026.
+
+\bibitem{nginx_core}
+{nginx}, ``Module ngx\_http\_core\_module.''
+  \url{https://web.archive.org/web/20261015150358/https://nginx.org/en/docs/http/ngx_http_core_module.html}.
+\newblock Accessed: 18.10.2026.
+
+\bibitem{apache_request}
+{The Apache Software Foundation}, ``Request processing in the apache {HTTP}
+  server 2.4, apache {HTTP} server version 2.4 documentation.''
+  \url{https://web.archive.org/web/20260915203602/https://httpd.apache.org/docs/2.4/developer/request.html}.
 \newblock Accessed: 18.10.2026.
 
 \bibitem{envoy_httpfilters}
-{The Envoy Project Authors}, ``{HTTP} filters, envoy 1.30 documentation.'' \url{https://web.archive.org/web/20250615000955/https://www.envoyproxy.io/docs/envoy/v1.30.0/intro/arch_overview/http/http_filters}.
+{The Envoy Project Authors}, ``{HTTP} filters, envoy 1.30 documentation.''
+  \url{https://web.archive.org/web/20250615000955/https://www.envoyproxy.io/docs/envoy/v1.30.0/intro/arch_overview/http/http_filters}.
 \newblock Accessed: 13.10.2026.
 
+\bibitem{nginx_devguide}
+{nginx}, ``Development guide.''
+  \url{https://web.archive.org/web/20261011192353/http://nginx.org/en/docs/dev/development_guide.html}.
+\newblock Accessed: 18.10.2026.
+
 \bibitem{envoy_lua}
-{The Envoy Project Authors}, ``{Lua} filter, envoy 1.30 documentation.'' \url{https://web.archive.org/web/20250810044910/https://www.envoyproxy.io/docs/envoy/v1.30.0/configuration/http/http_filters/lua_filter}.
+{The Envoy Project Authors}, ``{Lua} filter, envoy 1.30 documentation.''
+  \url{https://web.archive.org/web/20250810044910/https://www.envoyproxy.io/docs/envoy/v1.30.0/configuration/http/http_filters/lua_filter}.
 \newblock Accessed: 13.10.2026.
 
 \bibitem{envoy_wasm_filter}
-{The Envoy Project Authors}, ``Wasm filter, envoy 1.30 documentation.'' \url{https://web.archive.org/web/20250713074605/https://www.envoyproxy.io/docs/envoy/v1.30.0/configuration/http/http_filters/wasm_filter}.
+{The Envoy Project Authors}, ``Wasm filter, envoy 1.30 documentation.''
+  \url{https://web.archive.org/web/20250713074605/https://www.envoyproxy.io/docs/envoy/v1.30.0/configuration/http/http_filters/wasm_filter}.
 \newblock Accessed: 13.10.2026.
 
+\bibitem{haas2017wasm}
+A.~Haas, A.~Rossberg, D.~L. Schuff, B.~L. Titzer, M.~Holman, D.~Gohman,
+  L.~Wagner, A.~Zakai, and J.~F. Bastien, ``Bringing the web up to speed with
+  {WebAssembly},'' in {\em Proceedings of the 38th ACM SIGPLAN Conference on
+  Programming Language Design and Implementation (PLDI)}, pp.~185--200, 2017.
+
 \bibitem{proxywasm_spec}
-{Proxy-Wasm Project}, ``{WebAssembly} for proxies ({ABI} specification).'' \url{https://web.archive.org/web/20260830061200/https://github.com/proxy-wasm/spec}.
+{Proxy-Wasm Project}, ``{WebAssembly} for proxies ({ABI} specification).''
+  \url{https://web.archive.org/web/20260830061200/https://github.com/proxy-wasm/spec}.
 \newblock Accessed: 13.10.2026.
 
 \bibitem{envoy_wasm}
-{The Envoy Project Authors}, ``Wasm, envoy documentation.'' \url{https://web.archive.org/web/20260513065059/https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/advanced/wasm}.
+{The Envoy Project Authors}, ``Wasm, envoy documentation.''
+  \url{https://web.archive.org/web/20260513065059/https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/advanced/wasm}.
 \newblock Accessed: 13.10.2026.
 
+\bibitem{envoy_route}
+{The Envoy Project Authors}, ``{HTTP} route components ({API} v3), envoy 1.30
+  documentation.''
+  \url{https://web.archive.org/web/20260516172838/https://www.envoyproxy.io/docs/envoy/v1.30.0/api-v3/config/route/v3/route_components.proto}.
+\newblock Accessed: 18.10.2026.
+
 \bibitem{ierusalimschy2005lua}
-R.~Ierusalimschy, L.~H. de~Figueiredo, and W.~Celes, ``The implementation of {Lua} 5.0,'' {\em Journal of Universal Computer Science}, vol.~11, no.~7, pp.~1159--1176, 2005.
+R.~Ierusalimschy, L.~H. de~Figueiredo, and W.~Celes, ``The implementation of
+  {Lua} 5.0,'' {\em Journal of Universal Computer Science}, vol.~11, no.~7,
+  pp.~1159--1176, 2005.
 
 \bibitem{luajit}
-M.~Pall, ``{LuaJIT}.'' \url{https://web.archive.org/web/20261012063453/https://luajit.org/luajit.html}.
+M.~Pall, ``{LuaJIT}.''
+  \url{https://web.archive.org/web/20261012063453/https://luajit.org/luajit.html}.
 \newblock Accessed: 13.10.2026.
 
 \bibitem{luajit_running}
-M.~Pall, ``Running {LuaJIT}.'' \url{https://web.archive.org/web/20261011192338/https://luajit.org/running.html}.
+M.~Pall, ``Running {LuaJIT}.''
+  \url{https://web.archive.org/web/20261011192338/https://luajit.org/running.html}.
 \newblock Option \texttt{-O}, parameter \texttt{hotloop}. Accessed: 13.10.2026.
 
-\bibitem{haas2017wasm}
-A.~Haas, A.~Rossberg, D.~L. Schuff, B.~L. Titzer, M.~Holman, D.~Gohman, L.~Wagner, A.~Zakai, and J.~F. Bastien, ``Bringing the web up to speed with {WebAssembly},'' in {\em Proceedings of the 38th ACM SIGPLAN Conference on Programming Language Design and Implementation (PLDI)}, pp.~185--200, 2017.
+\bibitem{v8_home}
+{The V8 Project Authors}, ``{V8} {JavaScript} engine.'' \url{https://v8.dev/}.
+\newblock Accessed: 20.10.2026; archived copy pending, the Internet Archive was
+  offline.
+
+\bibitem{v8_wasm_pipeline}
+{The V8 Project Authors}, ``{WebAssembly} compilation pipeline, {V8}
+  documentation.'' \url{https://v8.dev/docs/wasm-compilation-pipeline}.
+\newblock Accessed: 20.10.2026; archived copy pending, the Internet Archive was
+  offline.
 
 \bibitem{hoefler2015scientific}
-T.~Hoefler and R.~Belli, ``Scientific benchmarking of parallel computing systems: Twelve ways to tell the masses when reporting performance results,'' in {\em Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis (SC)}, pp.~1--12, 2015.
+T.~Hoefler and R.~Belli, ``Scientific benchmarking of parallel computing
+  systems: Twelve ways to tell the masses when reporting performance results,''
+  in {\em Proceedings of the International Conference for High Performance
+  Computing, Networking, Storage and Analysis (SC)}, pp.~1--12, 2015.
 
 \bibitem{docker_overview}
-{Docker Inc.}, ``What is {Docker}?.'' \url{https://web.archive.org/web/20261012110729/https://docs.docker.com/get-started/docker-overview/}.
+{Docker Inc.}, ``What is {Docker}?.''
+  \url{https://web.archive.org/web/20261012110729/https://docs.docker.com/get-started/docker-overview/}.
 \newblock Accessed: 18.10.2026.
 
 \bibitem{kernel_cgroup2}
-{The Linux Kernel Documentation}, ``Control group v2.'' \url{https://web.archive.org/web/20261007110448/https://docs.kernel.org/admin-guide/cgroup-v2.html}.
+{The Linux Kernel Documentation}, ``Control group v2.''
+  \url{https://web.archive.org/web/20261007110448/https://docs.kernel.org/admin-guide/cgroup-v2.html}.
 \newblock Accessed: 18.10.2026.
 
 \bibitem{sahin2020sundew}
-M.~Sahin, C.~Hebert, and A.~S. de~Oliveira, ``Lessons learned from {SunDEW}: A self defense environment for web applications,'' in {\em Proceedings of the Workshop on Measurements, Attacks, and Defenses for the Web (MADWeb)}, 2020.
+M.~Sahin, C.~Hebert, and A.~S. de~Oliveira, ``Lessons learned from {SunDEW}: A
+  self defense environment for web applications,'' in {\em Proceedings of the
+  Workshop on Measurements, Attacks, and Defenses for the Web (MADWeb)}, 2020.
 
 \bibitem{fraunholz2018cloxy}
-D.~Fraunholz, D.~Reti, S.~D. Anton, and H.~D. Schotten, ``Cloxy: A context-aware deception-as-a-service reverse proxy for web services,'' in {\em Proceedings of the 5th ACM Workshop on Moving Target Defense (MTD)}, pp.~40--47, 2018.
+D.~Fraunholz, D.~Reti, S.~D. Anton, and H.~D. Schotten, ``Cloxy: A
+  context-aware deception-as-a-service reverse proxy for web services,'' in
+  {\em Proceedings of the 5th ACM Workshop on Moving Target Defense (MTD)},
+  pp.~40--47, 2018.
 
 \bibitem{kahlhofer2025koney}
-M.~Kahlhofer, M.~Golinelli, and S.~Rass, ``Koney: A cyber deception orchestration framework for {Kubernetes},'' in {\em Proceedings of the IEEE European Symposium on Security and Privacy Workshops (EuroS\&PW)}, pp.~690--702, 2025.
+M.~Kahlhofer, M.~Golinelli, and S.~Rass, ``Koney: A cyber deception
+  orchestration framework for {Kubernetes},'' in {\em Proceedings of the IEEE
+  European Symposium on Security and Privacy Workshops (EuroS\&PW)},
+  pp.~690--702, 2025.
 
 \bibitem{reti2023honeyinfiltrator}
-D.~Reti, T.~Angeli, and H.~D. Schotten, ``Honey infiltrator: Injecting honeytoken using netfilter,'' in {\em Proceedings of the IEEE European Symposium on Security and Privacy Workshops (EuroS\&PW)}, pp.~465--469, 2023.
+D.~Reti, T.~Angeli, and H.~D. Schotten, ``Honey infiltrator: Injecting
+  honeytoken using netfilter,'' in {\em Proceedings of the IEEE European
+  Symposium on Security and Privacy Workshops (EuroS\&PW)}, pp.~465--469, 2023.
 
 \bibitem{vanderkouwe2019sok}
-E.~van~der Kouwe, G.~Heiser, D.~Andriesse, H.~Bos, and C.~Giuffrida, ``{SoK}: Benchmarking flaws in systems security,'' in {\em Proceedings of the IEEE European Symposium on Security and Privacy (EuroS\&P)}, pp.~310--325, 2019.
+E.~van~der Kouwe, G.~Heiser, D.~Andriesse, H.~Bos, and C.~Giuffrida, ``{SoK}:
+  Benchmarking flaws in systems security,'' in {\em Proceedings of the IEEE
+  European Symposium on Security and Privacy (EuroS\&P)}, pp.~310--325, 2019.
 
 \bibitem{mytkowicz2009wrong}
-T.~Mytkowicz, A.~Diwan, M.~Hauswirth, and P.~F. Sweeney, ``Producing wrong data without doing anything obviously wrong!,'' in {\em Proceedings of the 14th International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS)}, pp.~265--276, 2009.
+T.~Mytkowicz, A.~Diwan, M.~Hauswirth, and P.~F. Sweeney, ``Producing wrong data
+  without doing anything obviously wrong!,'' in {\em Proceedings of the 14th
+  International Conference on Architectural Support for Programming Languages
+  and Operating Systems (ASPLOS)}, pp.~265--276, 2009.
+
+\bibitem{nginx_index}
+{nginx}, ``Module ngx\_http\_index\_module.''
+  \url{https://web.archive.org/web/20260913194145/https://nginx.org/en/docs/http/ngx_http_index_module.html}.
+\newblock Accessed: 18.10.2026.
+
+\bibitem{docker_logging}
+{Docker Inc.}, ``Configure logging drivers, {Docker} documentation.''
+  \url{https://web.archive.org/web/20261010131533/https://docs.docker.com/engine/logging/configure/}.
+\newblock Accessed: 21.10.2026.
+
+\bibitem{kernel_mm_concepts}
+{The Linux Kernel Documentation}, ``Concepts overview, memory management, the
+  linux kernel documentation.''
+  \url{https://web.archive.org/web/20260923022222/https://docs.kernel.org/admin-guide/mm/concepts.html}.
+\newblock Accessed: 21.10.2026.
 
 \bibitem{williams1949designs}
-E.~J. Williams, ``Experimental designs balanced for the estimation of residual effects of treatments,'' {\em Australian Journal of Scientific Research, Series A}, vol.~2, no.~2, pp.~149--168, 1949.
+E.~J. Williams, ``Experimental designs balanced for the estimation of residual
+  effects of treatments,'' {\em Australian Journal of Scientific Research,
+  Series A}, vol.~2, no.~2, pp.~149--168, 1949.
+
+\bibitem{schroeder2006open}
+B.~Schroeder, A.~Wierman, and M.~Harchol-Balter, ``Open versus closed: A
+  cautionary tale,'' in {\em Proceedings of the 3rd USENIX Symposium on
+  Networked Systems Design and Implementation (NSDI)}, (San Jose, CA, USA),
+  pp.~239--252, 2006.
+
+\bibitem{k6_openclosed}
+{Grafana Labs}, ``Open and closed models, grafana k6 documentation.''
+  \url{https://web.archive.org/web/20260612171554/https://grafana.com/docs/k6/latest/using-k6/scenarios/concepts/open-vs-closed/}.
+\newblock Accessed: 19.10.2026.
+
+\bibitem{k6_dropped}
+{Grafana Labs}, ``Dropped iterations, grafana k6 documentation.''
+  \url{https://web.archive.org/web/20260417065835/https://grafana.com/docs/k6/latest/using-k6/scenarios/concepts/dropped-iterations/}.
+\newblock Accessed: 19.10.2026.
 
 \end{thebibliography}

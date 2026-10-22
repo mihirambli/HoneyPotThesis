@@ -1,0 +1,6 @@
+2026-10-20T22:18:55Z START inserver size 20261020T221855Z
+2026-10-20T22:30:47Z OK     python3 -u benchmarks/run_paired_benchmark.py --edge openresty_inserver --mix size --rates 10 --replicates 3
+2026-10-20T22:45:20Z OK     python3 -u benchmarks/run_paired_benchmark.py --edge apache_inserver --mix size --rates 10 --replicates 3
+2026-10-20T22:46:28Z OK     python3 -u benchmarks/analyze_paired.py
+2026-10-20T22:46:30Z OK     python3 -u benchmarks/plot_mechanisms.py
+2026-10-20T22:46:30Z DONE

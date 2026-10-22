@@ -1455,3 +1455,369 @@ percentages are relative to a very fast static origin.
 Every other number the thesis draws from the paired dataset should now be re-read from
 `paired_headline.md`, `origin_floor.md` and the regenerated figures of this run, not from the
 archived three-tier files.
+
+---
+
+## 2026-10-18 — The in-server deployment: HDM inside the web server that serves the pages
+
+This entry records why two in-server variants were added, how they were built and checked, what
+their tiers mean, how the two deployments may be compared, and what was found before the full
+benchmark run. It uses the thesis's terms (§1 below) so passages can be lifted directly. The full
+paired run (`run_inserver_suite.sh`) and therefore every RQ5 number are **still pending**; nothing
+below is a reportable cost.
+
+### 1. Terms (changed in the thesis on this date)
+
+| Term | Meaning |
+|---|---|
+| **HDM**, HTTP Deception Module | a deception module that runs in the extension mechanism of an HTTP server (was "Reverse Proxy Deception Module, RPDM"; the code, log prefixes and file names keep "WADM") |
+| **host server** | the server whose extension mechanism runs HDM (was "host proxy") |
+| **proxy deployment** | HDM in a reverse proxy in front of an unmodified origin server |
+| **in-server deployment** | HDM in the web server that serves the pages itself; no proxy |
+| **six variants** | four proxy variants on three reverse proxies (OpenResty, Envoy Lua, Envoy WebAssembly, Apache httpd) and two in-server variants (OpenResty in-server, Apache in-server) |
+
+RQ1–RQ4 are answered for the four proxy variants. The new RQ5 compares the two deployments:
+
+* **RQ5.** How do the cost and the correctness of HDM change when it runs inside the web server
+  that serves the pages instead of in a reverse proxy in front of it?
+  * RQ5.1 Does the same HDM code add the same latency and CPU time per request in the in-server
+    deployment as in the proxy deployment of the same server?
+  * RQ5.2 How much latency and CPU time does each deployment add over direct access to the origin
+    server, and how much of the difference between the deployments is the proxy hop?
+  * RQ5.3 Do compressed pages, partial content and responses to `HEAD` requests behave differently
+    in the in-server deployment?
+
+### 2. Why an in-server deployment is possible, and why Envoy has none
+
+nginx and Apache httpd are web servers that act as reverse proxies only through their proxy
+modules. Their extension hooks are not tied to proxying:
+
+* **nginx** processes a request in fixed phases: an access phase, a pre-content phase in which
+  `try_files` acts, and a content phase in which, for example, the static-file module produces the
+  response. Then "both header and body are passed through a chain of filters and eventually get
+  written to the client socket" (nginx Development Guide). lua-nginx-module's `access_by_lua_block`
+  "acts as an access phase handler … for every request", and `header_filter_by_lua_block` /
+  `body_filter_by_lua_block` "define an output header filter" / "an output body filter" (README).
+  So the same Lua code sees a file served from disk exactly as it sees a proxied response.
+* **Apache httpd**: "All requests pass through `ap_process_request_internal()` … including
+  subrequests and internal redirects", with `translate_name` (where mod_alias acts, and where the
+  core prepends `DocumentRoot`) before `access_checker` (Request Processing in Apache 2.4). The
+  filter chain "enables applications to … post-process outgoing data … regardless of where the data
+  comes from" (Filters, Apache 2.4 docs). One exception, error pages, is in §5.
+* **Envoy** is a dedicated proxy. In its route API "precisely one of `route`, `redirect`,
+  `direct_response` must be set": forward to an upstream cluster, return a redirect, or "return an
+  arbitrary HTTP response directly, without proxying", whose status and body are fixed in the route
+  configuration. None of them serves the files of a document root, so Envoy hosts HDM only as a
+  proxy. (The claim is deliberately no stronger than that.)
+
+Related work: Kahlhofer and Rass treat reverse proxies as one deployment method (their §5.3) and
+divide the application layer into finer levels, including a *plugin-system level* ("applications
+that provide means for third parties to easily add custom code"). Classifying the in-server
+deployment at the plugin-system level of the web server is this thesis's mapping, not theirs. They
+do not discuss web-server modules for deception.
+
+### 3. How the in-server variants were built
+
+| | OpenResty in-server (`nginx/nginx-inserver.conf`, port 8084) | Apache in-server (`httpd-inserver.conf`, port 8085) |
+|---|---|---|
+| Removed | `upstream backend`, `proxy_pass`, every `proxy_*` | `mod_proxy`, `mod_proxy_http`, `ProxyPass*` |
+| Content | `root /srv/www` (`backend/www`, read-only) | `DocumentRoot "/srv/www"`, `TypesConfig conf/mime.types` |
+| Module code | `lua_shared_dict` + `init_by_lua_block` copied **verbatim** (754 lines); `parity_check.py` diffs it against `nginx.conf` before every run and stops on any difference (tested with a tampered copy) | the same `apache_scripts/` directory, mounted into both services |
+| Hooks | the three `*_by_lua_block` calls at server level, inherited by every location | identical to `httpd.conf` |
+| `/` | `location = / { try_files /index.html =404; }` | `AliasMatch "^/$" "/srv/www/index.html"` |
+| gzip test page | `location /test/gz/ { gzip on; … }` | `<Location "/test/gz/"> AddOutputFilterByType DEFLATE text/html` |
+| 204 test page | `try_files /__no_such_file__ =204` | `RedirectMatch 204 "^/test/empty$"` |
+| Bare tier | the same file without the module's lines | the same file without mod_lua, mod_headers and the `Lua*` / filter directives |
+| Image | the same local `openresty/openresty:latest` (`sha256:12c49073…`) | the same local `httpd:2.4-alpine` (`sha256:c9e51ef5…`, Apache 2.4.67) |
+
+**Why `/` is mapped directly, measured rather than assumed.** nginx's `index` directive "causes an
+internal redirect" (nginx docs), and internal redirects "will destroy the original request
+`ngx.ctx` data" (lua-nginx-module README). A copy of `nginx-inserver.conf` without the `location = /`
+block raised **two** `WADM ALERT` lines for one trigger to `/` (one for `/about.html`). `try_files`
+"uses the first found file for request processing; the processing is performed in the current
+context", so the shipped mapping raises one.
+
+The plan assumed the same for Apache, because mod_dir looks the index up with a sub-request
+(`ap_sub_req_lookup_uri`, then `ap_internal_fast_redirect`, in `modules/mappers/mod_dir.c`). **That
+assumption was wrong.** A copy of `httpd-inserver.conf` with `DirectoryIndex index.html` in place of
+the `AliasMatch` raised **one** alert for one trigger to `/`, and `detect.lua` ran once: one
+`WADM TOKEN http_headers inject` line, a line it writes on every request. Apache keeps the
+`AliasMatch` for symmetry with OpenResty, and the config comments, READMEs, `docs/EDGE_LEVELING.md`
+and the thesis say so. (Not traced in source: why the sub-request does not re-run the access hook.
+Do not state a mechanism for it.)
+
+**Why the 204s differ.** `try_files … =204` runs in nginx's pre-content phase, after the access
+phase, so detection and baits apply. Apache's `RedirectMatch` with a non-3xx status and no URL is
+documented in mod_alias ("If the status is not between 300 and 399, the URL argument must be
+omitted"). mod_alias acts at `translate_name`, before `access_checker`, so Apache's 204 carries no
+bait header and raises no alert. No benchmark probe requests it.
+
+### 4. What the tiers mean in-server, and how the deployments may be compared
+
+* `silent − bare` keeps its meaning in both deployments: the module's cost on the same server.
+* `bare − origin` changes meaning. In the proxy deployment it is the proxy hop. In-server it is
+  **OpenResty or Apache serving files, against nginx:alpine serving the same files** (the "server
+  swap"). It is part of the in-server `silent − origin`, which is therefore confounded by the choice
+  of file server, most for Apache. `analyze_paired.py` labels it "bare server - origin".
+* The deployments are measured in **separate sessions**. Each difference is paired inside its own
+  session, so the deployments are compared as **two paired differences with their replicate
+  ranges**, never as a subtraction of raw latencies across sessions. `compare_deployments.py`
+  reports whether the ranges overlap and prints no difference of the medians.
+* **Core allocation.** Proxy deployment: the work is spread over the proxy's two cores plus the
+  origin's core. In-server: all of it is on the host server's two cores, and the origin's core is
+  idle. Latency and CPU per request are comparable at the measured rates; **capacity is not
+  compared**, and no in-server capacity run was made.
+* **Stack CPU** (for the comparisons with origin) = host container + origin container CPU per
+  request, because the proxy deployment splits the work between two containers. On the in-server
+  edge tiers the origin's CPU per request should be about zero: that is the check that nothing was
+  proxied.
+
+### 5. Verification results (2026-10-18)
+
+* All four in-server configs parse (`openresty -t`, `httpd -t`).
+* The four proxy variants are untouched: `git diff` on their configs, scripts, `config.json`,
+  `test.js` and `backend/` is empty. The modified `analyze_paired.py` reproduces the archived
+  `paired_summary.json` **byte for byte** (the bootstrap is seeded).
+* **Parity check** (`results/parity_check_2026-10-18.txt`): the Lua sync check passes. Envoy+Lua,
+  Envoy+WASM and Apache are identical to OpenResty as before. **Both in-server variants are identical
+  under the in-server rules**: the same 11 `WADM ALERT` lines and one `WADM TRAP` line, matching
+  status/baits on every probe and bodies on every 200, and **no request at the origin**.
+* **Functional matrix** (`results/functional_matrix.md`): the four proxy columns are identical,
+  verdicts and reasons, to the 2026-10-04 matrix. In-server, against each variant's own bare tier:
+
+| Case | OpenResty proxy | OpenResty in-server | Apache proxy | Apache in-server |
+|---|---|---|---|---|
+| HTML, gzip-encoded | BROKEN | **injected** (decodes) | BROKEN | **injected** (decodes) |
+| HEAD | changed | changed | BROKEN | **preserved** |
+| Range `bytes=0-99` | BROKEN | BROKEN by the matrix's rule: 200 with the whole injected page | BROKEN | **preserved**: 206 of the injected page, `Content-Range: bytes 0-99/975` |
+| 204 | changed (bait header) | changed | changed | **preserved** (answered before the access hook) |
+| 404 page | injected | injected | injected | **preserved**: bait header and cookie, no body tokens |
+| everything else | as proxy | as proxy | as proxy | as proxy |
+
+  How to read it:
+  * **gzip works in-server.** The decoded page carries the tokens and decodes cleanly, so in both
+    servers the module's body filter ran before the server compressed the page (observed; the
+    filter order was not traced in source). In every proxy variant the page arrives already
+    compressed and the tokens are spliced into compressed bytes.
+  * **OpenResty's range answer is valid HTTP.** "A server MAY ignore the Range header field"
+    (RFC 9110 §14.2). The matrix calls any status change BROKEN, but the client receives the full
+    injected page with 200.
+  * **Apache does not inject into its own error pages.** `ap_send_error_response`
+    (`modules/http/http_protocol.c`) resets `r->output_filters = r->proto_output_filters`, with the
+    comment "get rid of any RESOURCE filters that might be lurking around". mod_lua registers
+    `LuaOutputFilter` filters with `AP_FTYPE_RESOURCE` (`modules/lua/mod_lua.c`). Headers staged in
+    `err_headers_out` survive. In the proxy deployment the 404 came from the origin as an ordinary
+    proxied response and was injected.
+
+**Consequence for RQ5.1 (important).** Two of the four benchmark GETs (`detect_query` =
+`/api/login?password=…`, `token_decoy` = `/api/v1/debug`) are 404s. On Apache in-server the module
+therefore inserts body tokens into **three of the five** HTML responses per iteration rather than
+five. Its wadm-tier html_comments and decoy_paths inject coverage is 3/5 by construction, and its
+`BAIT MISSING` lines for those two probes are expected. Its `silent − bare` therefore covers less
+body-injection work than the proxy variant's. `compare_deployments.py` prints the coverage beside
+the costs so this cannot be overlooked. OpenResty in-server injects into nginx's own error pages
+(they pass through the Lua body filter), so it does the same work as its proxy counterpart.
+
+**A correction to earlier text (proxy deployment).** The thesis said that Envoy Lua is the only
+variant that sends `Content-Length` with an injected page. The functional matrices of 2026-10-04 and
+2026-10-18 show **Apache (proxy) sending a `Content-Length` that matches the injected body** too
+(975 bytes for the 864-byte `about.html`), despite `Header always unset Content-Length`; the
+mechanism was not traced. Only OpenResty and Envoy+WASM send injected pages chunked. Corrected in
+§5.3 (Envoy Lua), §5.5 (Apache), §5.7 (levelling), `tab:impl.residuals` and `docs/EDGE_LEVELING.md`. Apache in-server sends a matching
+`Content-Length` as well, and drops the file's `ETag` on its WADM tier.
+
+**A mechanism verified for later use (C8).** lua-nginx-module's header filter sets
+`r->filter_need_in_memory = 1` whenever a body filter is configured (`ngx_http_lua_header_filter`,
+`src/ngx_http_lua_headerfilterby.c`). With the hook at server level, every in-server response is
+therefore read into memory instead of being handed to `sendfile`; the bare tier keeps `sendfile`.
+That is part of the module's in-server cost, and it does not arise in the proxy deployment, where a
+proxied body arrives in memory anyway.
+
+### 6. Harness smoke run (2026-10-18; one replicate, 20 s windows; NOT reportable)
+
+`run_paired_benchmark.py --preset smoke --results <scratch>` for `openresty_inserver`,
+`apache_inserver` and, as a check that the proxy path still works, `openresty`.
+
+**The guest was untuned and busy**: THP `[always]`, swap on, load average 7.5–10 on 8 vCPUs (VS Code,
+two Claude sessions, Xorg, and an unidentified `rphcp` process at ~38 % CPU for 5 h). The origin
+control, the same nginx:alpine doing the same work, burned 280–1,520 µs of CPU per request, against
+153–287 µs in the tuned 2026-10-15 run. **All smoke CPU figures are inflated 2–6× by host
+contention** and say nothing about the variants.
+
+What the smoke run does show:
+
+* **Harness path.** Every tier ran and was gated. OpenResty in-server 8/12 cells valid, Apache
+  in-server 7/12. All rejections are at 100/s or are host-contention gates (the origin tier itself
+  dropped 5–7 % of iterations at 100/s; one origin cell failed the origin-CPU control).
+* **Tier self-checks (both variants, 1 and 10/s; OpenResty also 100/s):** exactly **7 `WADM ALERT`
+  + 2 `WADM TRAP` per iteration** on silent and wadm, 0 on bare; timing lines only on wadm (0 on bare
+  and silent); **origin CPU per request 0.0 on every in-server edge tier** (nothing proxied); no
+  crash indicator in any cell.
+* **Coverage.** OpenResty in-server: complete on every kind. Apache in-server: html_comments and
+  decoy_paths inject at **0.600**, exactly 3/5, the error-page finding of §5; every other region is
+  complete. `analyze_paired.py` also prints `BAIT MISSING: detect_query, token_decoy` there, as
+  expected, and no spurious `DIFFERS FROM ORIGIN` on the bare tier (the 404-origin rule works).
+* **Apache reconnects.** ~25 % of Apache in-server's silent/wadm requests open a new connection,
+  the same pattern as Apache proxy's silent tier in the real dataset (0.249 per probe, about half
+  that on the two SQLi-hit probes). It is not specific to the in-server deployment.
+* **Apache in-server at 100/s collapsed on the WADM tiers**: 19–20 % of the offered rate achieved
+  (393 of 2,000 iterations), 500 VUs in use, 1,250–1,424 dropped iterations. Its bare tier sustained
+  100 %, with 0.54 % failed requests. Started-but-unfinished iterations still log their alerts, which
+  is why alerts per *completed* iteration read 9.7–11.2 there. Part of this is host contention, but
+  bare survived the same host, so on two cores **Apache in-server with HDM is close to or past its
+  limit at 100 iterations/s** (≈ 900 requests/s), where the proxy Apache (two cores plus the
+  origin's core) sustained the rate in the real dataset. This is a capacity-flavoured observation
+  from one contended replicate, not a result. Watch this cell in the full run.
+* **The proxy path still works.** `--edge openresty` after the changes: 9/12 cells valid, labels
+  `bare proxy - origin`, alert recall 1.0, coverage complete. Its 100/s cells were rejected for
+  dropped iterations, as the in-server ones were; all 60 OpenResty cells were valid in the tuned
+  2026-10-15 run, which again points at the host.
+* **`compare_deployments.py`** runs end to end on these files (OpenResty pair) and on the real
+  `paired_apache_lua.json` with the Apache smoke file (Apache pair). It writes the `.md`, `.csv` and
+  `.png`, shows "n/a (too few replicates)" for one-replicate overlaps, and its coverage table shows
+  Apache in-server's 0.6000.
+
+**Before the full run.** Tune the guest (`sudo ./benchmarks/tune_guest.sh apply`), disable host
+sleep, and stop what is not needed (the `rphcp` process, extra editors and sessions). Then
+`./benchmarks/run_inserver_suite.sh` in the background (~3.3 h). Afterwards check for clock jumps
+(`journalctl -k | grep "Radical host time change"`), 5/5 valid replicates per cell, and Apache crash
+counts; and check that the four proxy entries in the regenerated `paired_summary.json` are byte for
+byte the archived ones.
+
+### 7. Sources verified for this work
+
+All archived copies were downloaded and read (not only looked up). Accessed 18.10.2026.
+
+| Key | What it supports | Archived URL |
+|---|---|---|
+| `nginx_core` | `try_files` serves "in the current context"; `=code`; `root` | web.archive.org/web/20261015150358/https://nginx.org/en/docs/http/ngx_http_core_module.html |
+| `nginx_index` | `index` "causes an internal redirect" | web.archive.org/web/20260913194145/https://nginx.org/en/docs/http/ngx_http_index_module.html |
+| `nginx_devguide` | phases; header and body pass through filter chains | web.archive.org/web/20261011192353/http://nginx.org/en/docs/dev/development_guide.html |
+| `apache_alias` | `AliasMatch`; numeric non-3xx `Redirect` status omits the URL | web.archive.org/web/20261010105038/https://httpd.apache.org/docs/2.4/mod/mod_alias.html |
+| `apache_request` | hook order; all requests incl. subrequests pass through one path; DocumentRoot fallback | web.archive.org/web/20260915203602/https://httpd.apache.org/docs/2.4/developer/request.html |
+| `apache_filters` | filters process outgoing data "regardless of where the data comes from" | web.archive.org/web/20260915201917/https://httpd.apache.org/docs/2.4/filter.html |
+| `apache_httpprotocol_src` | error responses drop RESOURCE filters | web.archive.org/web/20250125180822/https://github.com/apache/httpd/blob/2.4.x/modules/http/http_protocol.c |
+| `envoy_route` | route = upstream, redirect or direct response | web.archive.org/web/20260516172838/https://www.envoyproxy.io/docs/envoy/v1.30.0/api-v3/config/route/v3/route_components.proto |
+| `rfc9110` (existing) | §14.2 "A server MAY ignore the Range header field" | web.archive.org/web/20261013083737/https://www.rfc-editor.org/rfc/rfc9110.html |
+| `luanginx` (existing) | the three directive descriptions quoted above (checked on the live README; the archived GitHub page holds only its table of contents) | existing entry |
+
+Read in source but **without an archived copy**, so not yet citable under the department's rule:
+`modules/lua/mod_lua.c` (`AP_FTYPE_RESOURCE`; marked `\todo` in thesis §5.6),
+lua-nginx-module `src/ngx_http_lua_headerfilterby.c` (`filter_need_in_memory`; needed only if C8
+explains the in-server cost through `sendfile`), and `modules/mappers/mod_dir.c` (sub-request;
+used in these notes only). The lua-nginx-module README sentence on `ngx.ctx` and internal
+redirects was read on the live file (line 4468), which the existing `luanginx` entry covers.
+
+---
+
+## 2026-10-19 — Results of the in-server run: what RQ5 measured
+
+This entry records the full in-server run and what it answers. It uses the thesis's terms (HDM,
+host server, proxy deployment, in-server deployment; see the 2026-10-18 entry). The thesis section
+"RQ5: Deployment inside the Web Server" (Chapter 7) is drafted from exactly these numbers.
+
+### 1. The run
+
+`run_inserver_suite.sh` (log `results/inserver_suite_20261018T214050Z.log`) ran on the tuned guest
+from 21:40 to 00:47 UTC: `--preset full`, 5 replicates × 3 rates (1, 10, 100 iterations/s) × 4 tiers
+(origin, bare, silent, wadm) for each in-server variant.
+
+* **120 of 120 cells valid**, 5/5 replicates everywhere. No clock jump, no soft lockup, no host
+  stall.
+* Apache in-server's workers segfaulted 9–12 times per HDM run at 100/s and 2–3 times in three HDM
+  runs at 10/s, never without HDM. This is the same mod_lua crash as proxy Apache (12–16 per run at
+  100/s).
+* `paired_summary.json` was regenerated, and its five earlier entries are byte-identical to the
+  archived copy.
+* On every in-server tier with a host server, the origin's CPU was 0.00–0.61 µs per request. This
+  is the direct evidence that nothing was proxied.
+
+**Correction to the 2026-10-18 entry.** The smoke run had Apache in-server's HDM tiers collapsing at
+100/s. On the tuned guest every one of those cells reached 3,000 iterations, 100 % of the offered
+rate. The collapse was host contention, not the variant. The smoke CPU figures (2–6× inflated) are
+superseded too.
+
+### 2. The numbers (from `results/deployment_comparison.md`)
+
+Median per GET of the paired differences; proxy figures are the 2026-10-15 run. "Overlap" compares
+the two replicate ranges. The medians are **not** subtracted from each other: the deployments were
+measured in different sessions.
+
+| | 1 / 10 / 100 per s | proxy | in-server | overlap |
+|---|---|---|---|---|
+| OpenResty | HDM's latency (silent − bare) | +145 / +114 / +111 µs | +69 / +81 / +72 µs | no / no / no |
+| | HDM's CPU (silent − bare) | +61 / +31 / +31 µs/req | +26 / +19 / +32 µs/req | yes / yes / yes |
+| | stack above origin (silent − origin) | +409 / +388 / +294 µs | +12 (spans 0) / +29 / +82 µs | no / no / no |
+| | bare − origin | +260 / +255 / +184 (proxy hop) | −58 / −49 / +10 (server swap) | no |
+| | stack CPU above origin | +203 / +113 / +114 µs/req | −0.6 (spans 0) / −28 / +21 µs/req | no |
+| Apache | HDM's latency (silent − bare) | +233 / +189 / +295 µs | +244 / +198 / +183 µs | yes / yes / no |
+| | HDM's p95 at 100/s | +83,946 µs | +1,491 µs | no |
+| | HDM's CPU (silent − bare) | +295 / +129 / +495 µs/req | +279 / +183 / +260 µs/req | yes / yes / yes |
+| | stack above origin (silent − origin) | +545 / +553 / +580 µs | +286 / +271 / +224 µs | no / no / no |
+| | bare − origin | +324 / +372 / +279 (proxy hop) | +46 / +71 / +35 (server swap) | no |
+| | stack CPU above origin | +484 / +294 / +812 µs/req | +360 / +276 / +290 µs/req | yes / yes / no |
+
+### 3. What it means, sub-question by sub-question
+
+**RQ5.1, the same code in two places.**
+
+* *OpenResty.* HDM adds less latency in-server, 69–81 µs against 111–145 µs per GET, with ranges
+  that do not overlap at any rate. The CPU it adds cannot be told apart between the deployments.
+  The measurements do not say why. A plausible candidate is that in the proxy deployment the body
+  filter waits for a body arriving from the upstream in pieces, but this was not measured, so it
+  must not appear in the thesis as an explanation.
+* *Apache.* At 1 and 10/s the two deployments cannot be ordered, in latency or in CPU. At 100/s the
+  proxy variant's median is not a stable quantity (+2,174 and +295 µs in two runs), so compare the
+  tail: p95 +1,491 µs in-server against +83,946 µs proxy, with similar crash counts.
+* *Apache caveat.* Apache in-server inserts into only 3 of 5 HTML responses per iteration (error
+  pages bypass HDM; coverage 0.60), so its cost covers less body work. Any sentence comparing
+  Apache's module cost across deployments must say so.
+
+**RQ5.2, cost above the origin, and the proxy hop.** In the in-server deployment the stack adds
+12–82 µs per GET above direct access to the origin for OpenResty and 224–286 µs for Apache. In the
+proxy deployment it adds 294–580 µs, and the proxy hop alone (bare − origin, paired within its own
+session) accounts for 184–372 µs of that. In-server there is no hop. What bare − origin measures
+there is the server swap: OpenResty serves these files slightly faster than the nginx:alpine origin
+at 1 and 10/s (−58, −49 µs) and 10 µs slower at 100/s (range +4..+16); Apache serves them 35–71 µs
+slower. Apache's in-server stack figure therefore includes that file-server difference, which is
+not HDM's cost. Stack CPU follows the same pattern: OpenResty in-server's stack uses between 28 µs
+less and 21 µs more CPU per request than the origin alone (−0.6 spans zero at 1/s; −28 and +21 are
+resolved at 10 and 100/s), against +113 to +203 µs/req in the proxy deployment.
+
+**RQ5.3, responses.** From the functional matrix (2026-10-18, see the previous entry):
+
+* in-server, gzip pages receive their tokens and still decode, where every proxy variant breaks
+  them;
+* Apache in-server answers HEAD and range requests correctly (proxy Apache: BROKEN for both);
+* OpenResty in-server answers a range request with 200 and the whole injected page, which is legal
+  (RFC 9110 §14.2) but counted BROKEN by the matrix's rule;
+* Apache in-server's own 404 pages carry baits but no body tokens, and its 204 carries no bait.
+
+Under load, OpenResty in-server is 100 % intact with recall 1.0 at every rate. Apache in-server's
+worst intact share is 99.78 % (10/s) and 99.63 % (100/s), with alert recall ≥ 0.9978 and trap
+recall ≥ 0.998, close to proxy Apache (99.36–99.78 %, 0.9979–0.9997).
+
+### 4. Draft answer (as written into the thesis)
+
+> In OpenResty, the same HDM code added less latency in-server than in the proxy deployment, 69–81
+> against 111–145 µs per GET, at a CPU cost that the measurements cannot distinguish (RQ5.1). In
+> Apache httpd, the module's cost could not be ordered at 1 and 10 iterations/s; at 100, its latency
+> tail stayed below 5 ms in-server, where the proxy variant's reached tens of milliseconds, and
+> Apache in-server does less insertion work because its own error pages bypass HDM. Above the
+> origin server, the in-server deployments add far less: 12–82 µs per GET for OpenResty and
+> 224–286 µs for Apache, which includes 35–71 µs of Apache serving files, against 294–580 µs in the
+> proxy deployments, in which the proxy hop alone accounts for 184–372 µs (RQ5.2). In-server,
+> compressed pages receive their honeytokens without being broken, Apache answers HEAD and range
+> requests correctly, OpenResty answers a range request with the whole page, and Apache inserts no
+> honeytokens into its own error pages (RQ5.3).
+
+### 5. Limits to state alongside it
+
+* Two sessions, compared through paired differences only. The origin floors of the sessions agree
+  (0.551 ms vs 0.543/0.545 ms at 10/s), which supports but does not replace the pairing.
+* Two cores for the in-server host server against two plus one in the proxy deployment. No capacity
+  comparison was made, and none may be claimed.
+* The server swap confound (largest for Apache) and Apache's reduced insertion work, both above.
+* "In-server costs less" is a statement about this static site, where the origin answers in
+  ~0.35–0.55 ms. In front of a slow application server, the proxy deployment's extra hop would be a
+  smaller share.

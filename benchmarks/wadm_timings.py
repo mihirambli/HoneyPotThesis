@@ -457,7 +457,9 @@ def parse_vus(raw: str | None) -> list[int]:
 # the old (deleted) network, and the next `docker compose up` reuses them and
 # fails with "network <id> not found" (exit 128). Enabling all profiles here
 # forces every edge container to be removed, so `up` always creates fresh ones.
-CLEANUP_PROFILES = ["openresty", "envoy", "wasm", "apache", "loadtest"]
+CLEANUP_PROFILES = [
+    "openresty", "envoy", "wasm", "apache", "openresty-inserver", "apache-inserver", "loadtest",
+]
 
 
 def ensure_compose_cleanup(base_env: dict[str, str]) -> None:

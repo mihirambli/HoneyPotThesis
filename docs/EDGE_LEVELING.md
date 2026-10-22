@@ -453,6 +453,10 @@ configs must *not* reproduce them:
 - **Apache framing.** `Header always unset Content-Length` is required with WADM because
   injection changes the body size, so WADM responses are close-delimited while bare ones carry
   their upstream `Content-Length`.
+  *Correction, 2026-10-18:* the functional matrices of 2026-10-04 and 2026-10-18 show Apache's WADM
+  tier sending a `Content-Length` that matches the injected body (975 bytes for the 864-byte
+  `about.html`), not a close-delimited response. The directive still removes the upstream length;
+  a correct one is sent anyway (mechanism not traced).
 - **Body size.** An injected page is a few hundred bytes larger on every edge.
 
 ### The two Envoy baselines are deliberately redundant
@@ -806,3 +810,86 @@ Envoy+WASM read a nanosecond host clock and logged `floor(t_end − t_start)`, w
 internal-timer comparison. `elapsed_us` in `lib.rs` now subtracts the two timestamps after
 truncating each to whole microseconds, the same quantity the other three log. Timer results from
 before this change (everything up to the 2026-09-30 paired dataset) carry the old WASM bias.
+
+## In-server deployment (2026-10-18)
+
+Two further variants run the module inside the web server that serves the pages, with no proxy
+hop: `openresty-inserver` (`nginx/nginx-inserver.conf`) and `apache-inserver`
+(`httpd-inserver.conf`). They are levelled against their **proxy counterparts** (the same module
+code) and against their **own bare tier** (the same server without the module), under the rules
+below. `docs/BENCHMARK_METHODOLOGY.md` §10 says what the tiers mean in this deployment and how the
+two deployments are compared.
+
+### Same module code
+
+* **OpenResty.** `nginx-inserver.conf` carries `nginx.conf`'s `lua_shared_dict wadm_state` and the
+  whole `init_by_lua_block` **verbatim**: 754 lines, assembled by copying, not retyping. The three
+  phase hooks are the same one-line calls (`wadm.access()`, `wadm.header_filter()`,
+  `wadm.body_filter()`), at server level so every location inherits them. Because these are two
+  files, `benchmarks/parity_check.py` runs `assert_inserver_lua_in_sync()` before probing. It
+  extracts the text from `lua_shared_dict wadm_state` through the closing brace of
+  `init_by_lua_block` in both files and stops with a unified diff if they differ. A tampered copy
+  was used to confirm that the check fails.
+* **Apache.** `apache_scripts/` is mounted into both services: the same files, not copies. The hook
+  directives (`LuaHookAccessChecker … early`, `LuaMapHandler "^/api/login$"`, `LuaOutputFilter`,
+  `SetOutputFilter WADM_INJECT`, `Header always unset Content-Length`) and the Lua runtime settings
+  (`LuaScope thread`, `LuaCodeCache forever`, `LuaPackagePath`) are copied from `httpd.conf`.
+* **Same images.** No image was pulled for this work. Both in-server services use the local images
+  their proxy counterparts ran on (`openresty/openresty:latest` `sha256:12c49073…`,
+  `httpd:2.4-alpine` `sha256:c9e51ef5…`, Apache 2.4.67), so worker counts and MPM defaults are
+  inherited unchanged.
+
+### What replaces the proxy, and why each mapping is written as it is
+
+| Concern | OpenResty in-server | Apache in-server | Why |
+|---|---|---|---|
+| Content source | `root /srv/www` | `DocumentRoot "/srv/www"`, `Options None`, `AllowOverride None` | `backend/www` mounted read-only, the same files the origin serves |
+| `/` | `location = / { try_files /index.html =404; }` | `AliasMatch "^/$" "/srv/www/index.html"` | nginx's `index` resolves `/` by an **internal redirect**, which re-runs the access phase: measured with an `index`-based copy of the config, one trigger to `/` raised **two** `WADM ALERT` lines. Apache's mod_dir looks the index up with a sub-request, but measured the same way it ran `detect.lua` **once** (one alert, one header-staging timing line), so in Apache the direct mapping is for symmetry with OpenResty, not a fix. With the shipped mappings, one trigger to `/` raises exactly one `WADM ALERT` on both |
+| gzip test page | `location /test/gz/ { gzip on; gzip_types text/html; gzip_min_length 0; }` | `<Location "/test/gz/"> AddOutputFilterByType DEFLATE text/html` + `mod_deflate` | mirrors `backend/nginx.conf`, so the functional matrix exercises the same case. `gzip_proxied` is dropped because nothing is proxied |
+| 204 test response | `location = /test/empty { try_files /__no_such_file__ =204; }` | `RedirectMatch 204 "^/test/empty$"` | nginx: `try_files` runs after the access phase, so detection and baits apply as when the proxy forwarded the request (`return 204` would skip it). Apache: see the residual below |
+| MIME types | `include mime.types` (unchanged) | `TypesConfig conf/mime.types` added | without it Apache sends no `text/html`, and `inject.lua` injects only into `text/html` |
+| Removed | `upstream backend`, every `proxy_*` | `mod_proxy`, `mod_proxy_http`, `ProxyPass*` | no proxy hop |
+| Kept identical in both tiers | `sendfile on`, `tcp_nopush on`, `access_log off`, worker/event settings, every location | MPM, `ErrorLog`, no access log, `mod_filter`, `mod_deflate`, `mod_alias`, every mapping | the bare tier must serve exactly what the WADM tier serves, minus the module |
+
+The bare tiers are derived by deletion only, as for the proxy variants:
+
+| Baseline config | Deleted from its WADM counterpart |
+|---|---|
+| `nginx/nginx-inserver-baseline.conf` | `lua_shared_dict wadm_state`, `init_by_lua_block`, the three `*_by_lua_block` hooks |
+| `httpd-inserver-baseline.conf` | `mod_lua`, `mod_headers`, every `Lua*` directive, `SetOutputFilter`, `Header always unset Content-Length` |
+
+`mod_filter` stays in the Apache bare tier, unlike `httpd-baseline.conf`, because the gz
+`<Location>` needs it in both tiers. `sendfile on` stays in both nginx tiers. With the module
+loaded, lua-nginx-module's header filter sets `r->filter_need_in_memory = 1` whenever a body filter
+is configured (`ngx_http_lua_header_filter`, `src/ngx_http_lua_headerfilterby.c`). The hook sits at
+server level, so this applies to **every** in-server response, HTML or not, and the file is read
+into memory rather than handed to `sendfile`. The bare tier keeps `sendfile`. That difference is
+part of the module's cost in this deployment, so it must not be levelled away. In the proxy
+deployment it does not arise, because a proxied body arrives from the upstream in memory anyway.
+
+### Residual differences, measured and left as they are
+
+* **Apache error pages carry no body tokens.** `ap_send_error_response` drops RESOURCE-level
+  output filters and mod_lua's `LuaOutputFilter` is one, so Apache's own 404 page passes through
+  without `WADM_INJECT`. The header baits, staged in `err_headers_out` by `detect.lua`, are still
+  sent. The benchmark's `detect_query` and `token_decoy` GETs are 404s, so on Apache in-server the
+  module injects into three of the five HTML responses per iteration (five on every proxy variant
+  and on OpenResty in-server, where nginx's own error pages do pass through the Lua body filter).
+  Levelling this away would need an `ErrorDocument` pointing at a local page, which is an internal
+  redirect that re-runs detection and replaces Apache's error page with a different body. It is
+  reported, not changed.
+* **Apache's 204 has no bait header.** `RedirectMatch` answers at translate-name time, before the
+  access hook. The client still gets 204, but without the bait header and without any detection.
+  No benchmark probe requests it.
+* **404 bodies differ from the origin's.** Each server renders its own error page (OpenResty's,
+  Apache's), not nginx:alpine's. `parity_check.py` compares body hashes in-server only where the
+  reference answered 200, and `analyze_paired.py` ignores the origin-match check for in-server
+  probes whose origin reference is not 200.
+* **The keyword strip has no downstream observer.** The query is still rewritten
+  (`ngx.req.set_uri_args`, `r.args = …`), but nothing reads it after the file is chosen, so in-server
+  the strip is verified only through the alert lines.
+* **Framing.** Apache in-server sends a correct `Content-Length` on injected pages (observed: 1,071
+  bytes for the 960-byte `index.html` plus its tokens; the mechanism was not traced), as Apache proxy
+  and Envoy+Lua do; both OpenResty variants and Envoy+WASM send chunked responses. Its WADM tier also
+  drops the file's `ETag`, which the bare tier sends. The functional matrix records framing as a
+  note, not a failure.
