@@ -1,9 +1,12 @@
 % Shared preamble for the final report, built against the local rptuma.cls by build.sh,
 % so the report renders exactly as a thesis written in the department template would.
+% KOMA-Script option: list the bibliography in the table of contents like a chapter.
+\KOMAoptions{bibliography=totoc}
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{tabularx}
 \usepackage{enumitem}
+\usepackage{placeins}
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta,shapes.geometric}
 \usepackage{listings}
@@ -29,9 +32,9 @@
 \setcounter{tocdepth}{2}
 % KOMA appends a period to section numbers once appendices exist; the department sample has none.
 \KOMAoptions{numbers=noendperiod}
-\addto\captionsenglish{\renewcommand{\bibname}{Sources Used for This Proposal}}
+\addto\captionsenglish{\renewcommand{\bibname}{Bibliography}}
 
-\newdate{thesisDate}{07}{10}{2026}
+\newdate{thesisDate}{31}{10}{2026}
 \author{Mihir Mahesh Ambli}
 \department{University of Kaiserslautern-Landau\\Department of Computer Science\\Distributed Systems Lab}
 \supervisortitle{Examiner:}
@@ -40,6 +43,11 @@
 
 
 % Section references name the section's heading as well, so the reader need not page back.
+% The whole phrase "Figure 7.3" is the link, not only its number.
+\newcommand{\figref}[1]{\hyperref[#1]{Figure~\ref*{#1}}}
+\newcommand{\tabref}[1]{\hyperref[#1]{Table~\ref*{#1}}}
+% A bulleted row in a one-column table; wrapped lines align with the text, not the bullet.
+\newcommand{\tbullet}{\leavevmode\hangindent=1em\hangafter=1\makebox[1em][l]{\textbullet}}
 \newcommand{\secref}[1]{Section~\ref{#1} (\emph{\nameref{#1}})}
 \newcommand{\secrefp}[1]{Section~\ref{#1}, \emph{\nameref{#1}}}
 

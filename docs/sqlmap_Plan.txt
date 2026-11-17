@@ -1,0 +1,48 @@
+Yes, sqlmap can fit inside the current RQs. The trick is to use it as the source of the SQL-injection workload, not as an experiment with its own question.
+
+The idea: realistic payloads in the existing harness
+Today the four POST probes send two fixed, hand-written bodies, admin' and alice', each plain and percent-encoded. I'd replace them in one supplementary run, alongside the request-type and page-size runs (§6.6), with requests recorded from sqlmap:
+
+Record: run sqlmap once, without load, against /api/login of the parity reference (OpenResty in-server), logging every request it sends with -t.
+Sort: split the recorded requests offline into the existing two-by-two design: signature or none, plain or percent-encoded. sqlmap percent-encodes POST data by default, so the plain cells need a second run with --skip-urlencode.
+Measure: run the normal paired harness. The iteration stays exactly as it is: 4 GET probes plus 4 POST probes, but each POST probe takes its body from its own pool of sqlmap requests. Tiers bare, silent and instrumented, 5 replicates, rates 10 and 100 per second.
+Everything about the method stays the same: tiers, pairing, the Williams probe order, validity gates and analysis. Only the payloads change, so each result can be reported as an extra row, "with sqlmap's payloads", next to the existing one.
+
+
+
+
+Where the results go
+RQ	What the sqlmap run adds	Wording change
+RQ2.1, CPU time per request; RQ2 utilisation	HDM's CPU time and utilisation with realistic attack requests in the mix	none
+RQ2.2, "for which requests"	CPU time per request to the SQL-injection trap with real attack payloads, next to the current hand-written ones	none
+RQ4.2, cost of decoding and scanning in each runtime	the largest gain. sqlmap's payloads are longer and more varied than admin'. Decoding and scanning depend on input length and on where a signature matches, so this shows the cost on realistic input, per runtime	none
+RQ3.3, every expected alert raised	whether every variant writes the expected alert line or SQL-injection trap line for each sqlmap request, with and without load. "Expected" is set by the 22 signatures, worked out offline per request	none
+RQ3.2, responses intact under load	the trap's pages are compared with their references, now for varied inputs; the reflected input changes per request	none
+RQ1.3, change with load	only if we also run the flood (see below)	none, if the load is read as including attack traffic
+RQ4.3, reverse proxy vs in-server	Envoy WebAssembly still forwards every trap request to nginx, so under attack nginx's CPU time shows a deployment-dependent cost	none
+
+
+
+What doesn't fit, and where it goes
+sqlmap's verdict (does it think the field is injectable, and which database does it name?) concerns how convincing the deception is, not cost or correctness. Two places fit without a new RQ:
+
+§5.7, Verifying Equivalence: sqlmap becomes a second parity check with a real tool. All four variants should send sqlmap the same responses, so sqlmap should send them the same requests and reach the same verdict. This is a real equivalence test.
+Discussion: the verdict itself, as an observation about how the SQL-injection trap looks to an automated tool, plus the share of sqlmap's requests that contain none of the 22 signatures. That share shows what the signature list does not cover.
+The flood (option 5)
+The harness raises visitors and attackers together, because load is iterations per second. A pure flood, with the visitors fixed and only the attack rate rising, needs a second load stream in k6. It can be reported under RQ1.3 and RQ2 as "load made of attack traffic", but it's an extension. I'd do the realistic-payload run first and add the flood only if there's time.
+
+The flood (option 5)
+The harness raises visitors and attackers together, because load is iterations per second. A pure flood, with the visitors fixed and only the attack rate rising, needs a second load stream in k6. It can be reported under RQ1.3 and RQ2 as "load made of attack traffic", but it's an extension. I'd do the realistic-payload run first and add the flood only if there's time.
+
+Effort and caveats
+Code:
+a script that runs sqlmap, records its traffic and sorts it into the four cells;
+a mix option in test.js that reads each POST probe's bodies from a file;
+small additions to the analysis and plots.
+Runtime:
+The request-type runs took about 40 minutes per variant, so expect about 3–4 hours for all four with three tiers.
+Recording with sqlmap takes about 15 minutes.
+The same precautions apply as before: tune_guest.sh applied and the host laptop kept awake.
+Unknowns: I don't know in advance how sqlmap's requests split across the four cells. If one cell ends up nearly empty, for example plain requests without a signature, its probe reuses a small pool, and the thesis has to say so.
+Rule for the thesis: the payloads come from one sqlmap version and one set of options, and the thesis has to state both, because the payloads define the workload.
+If this direction works for you, the open choices are sqlmap's intensity (default level 1 / risk 1 or level 3 / risk 2) and whether to add the flood. I'll then write the implementation plan for approval.

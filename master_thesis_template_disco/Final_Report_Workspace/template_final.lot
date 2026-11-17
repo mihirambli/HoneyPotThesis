@@ -1,0 +1,25 @@
+\babel@toc {english}{}\relax 
+\babel@toc {german}{}\relax 
+\babel@toc {english}{}\relax 
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {4.1}{\ignorespaces The five honeytoken types of HDM and the signal by which each is detected.}}{19}{table.44}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {5.1}{\ignorespaces Differences between the variants that remain after levelling.}}{31}{table.111}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {6.1}{\ignorespaces The experiments and metrics that answer each research question.}}{33}{table.114}%
+\contentsline {table}{\numberline {6.2}{\ignorespaces The nine requests of an iteration.}}{35}{table.117}%
+\contentsline {table}{\numberline {6.3}{\ignorespaces The four tiers in which every variant is measured.}}{37}{table.119}%
+\contentsline {table}{\numberline {6.4}{\ignorespaces The three measurement planes.}}{42}{table.132}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {7.1}{\ignorespaces CPU utilisation without and with HDM.}}{50}{table.156}%
+\contentsline {table}{\numberline {7.2}{\ignorespaces CPU time that HDM adds per \texttt {GET} request and per request to the SQL-injection trap.}}{52}{table.161}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {8.1}{\ignorespaces The main results per variant.}}{62}{table.181}%
+\contentsline {table}{\numberline {8.2}{\ignorespaces Advantages and disadvantages of running HDM in a reverse proxy in front of the origin server.}}{63}{table.185}%
+\contentsline {table}{\numberline {8.3}{\ignorespaces Advantages and disadvantages of running HDM in the web server that serves the pages.}}{64}{table.187}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\providecommand \tocbasic@end@toc@file {}\tocbasic@end@toc@file 

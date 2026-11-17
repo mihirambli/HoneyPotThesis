@@ -1,0 +1,29 @@
+\babel@toc {english}{}\relax 
+\babel@toc {german}{}\relax 
+\babel@toc {english}{}\relax 
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {4.1}{\ignorespaces HDM in the server that runs it in the two deployments, which differ only in where the response comes from.}}{19}{figure.42}%
+\contentsline {figure}{\numberline {4.2}{\ignorespaces Per-request processing of HDM: steps 1 to 4 run in the request phase and step 5 in the response phase.}}{23}{figure.88}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {5.1}{\ignorespaces How Envoy and the WebAssembly module of the WebAssembly variant communicate.}}{27}{figure.99}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {6.1}{\ignorespaces One run of a variant at one rate.}}{39}{figure.120}%
+\contentsline {figure}{\numberline {6.2}{\ignorespaces The worked example, from the recorded durations to the comparison of two variants.}}{41}{figure.130}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {7.1}{\ignorespaces Latency that HDM adds to the \texttt {GET} probes.}}{47}{figure.147}%
+\contentsline {figure}{\numberline {7.2}{\ignorespaces Median latency of the \texttt {GET} probes in the Envoy variants.}}{48}{figure.149}%
+\contentsline {figure}{\numberline {7.3}{\ignorespaces CPU time that HDM adds per request.}}{49}{figure.154}%
+\contentsline {figure}{\numberline {7.4}{\ignorespaces CPU utilisation that HDM adds.}}{50}{figure.157}%
+\contentsline {figure}{\numberline {7.5}{\ignorespaces Three measures of HDM's cost per iteration.}}{51}{figure.159}%
+\contentsline {figure}{\numberline {7.6}{\ignorespaces Latency that HDM adds against the size of the page.}}{53}{figure.163}%
+\contentsline {figure}{\numberline {7.7}{\ignorespaces Responses of each variant with HDM in the functional matrix.}}{54}{figure.167}%
+\contentsline {figure}{\numberline {7.8}{\ignorespaces Mean duration of HDM's detection (left) and injection (right) per honeytoken type at 10 iterations per second.}}{57}{figure.172}%
+\contentsline {figure}{\numberline {7.9}{\ignorespaces Duration of the SQL-injection trap's work.}}{58}{figure.174}%
+\contentsline {figure}{\numberline {7.10}{\ignorespaces Envoy Lua and OpenResty, the two variants on LuaJIT.}}{59}{figure.177}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\providecommand \tocbasic@end@toc@file {}\tocbasic@end@toc@file 

@@ -68,19 +68,121 @@ Median [min..max] of paired replicates, µs.
 - cost_scope e2e_get wasm 100/s per iteration: +485 [+445..+544]
 - cost_scope e2e_get openresty_inserver 100/s per iteration: +288 [+254..+310]
 - cost_scope e2e_get apache_inserver 100/s per iteration: +732 [+681..+825]
-- page_size envoy_lua 1 KiB: +103 [+72..+106] (n=3)
-- page_size envoy_lua 16 KiB: +132 [+122..+146] (n=3)
-- page_size envoy_lua 256 KiB: +524 [+481..+615] (n=3)
-- page_size envoy_lua 768 KiB: +1372 [+1289..+1492] (n=3)
-- page_size wasm 1 KiB: +57 [+29..+66] (n=3)
-- page_size wasm 16 KiB: +45 [+37..+117] (n=3)
-- page_size wasm 256 KiB: +308 [+258..+345] (n=3)
-- page_size wasm 768 KiB: +889 [+787..+932] (n=3)
-- page_size openresty_inserver 1 KiB: +49 [+43..+58] (n=3)
-- page_size openresty_inserver 16 KiB: +206 [+199..+252] (n=3)
-- page_size openresty_inserver 256 KiB: +534 [+476..+575] (n=3)
-- page_size openresty_inserver 768 KiB: +1628 [+1584..+1657] (n=3)
-- page_size apache_inserver 1 KiB: -9 [-28..+10] (spans zero) (n=2)
-- page_size apache_inserver 16 KiB: +70 [+57..+84] (n=2)
-- page_size apache_inserver 256 KiB: +754 [+644..+863] (n=2)
-- page_size apache_inserver 768 KiB: +2167 [+2066..+2269] (n=2)
+- page_size envoy_lua 1 KB: +103 [+72..+106] (n=3)
+- page_size envoy_lua 16 KB: +132 [+122..+146] (n=3)
+- page_size envoy_lua 256 KB: +524 [+481..+615] (n=3)
+- page_size envoy_lua 768 KB: +1372 [+1289..+1492] (n=3)
+- page_size wasm 1 KB: +57 [+29..+66] (n=3)
+- page_size wasm 16 KB: +45 [+37..+117] (n=3)
+- page_size wasm 256 KB: +308 [+258..+345] (n=3)
+- page_size wasm 768 KB: +889 [+787..+932] (n=3)
+- page_size openresty_inserver 1 KB: +49 [+43..+58] (n=3)
+- page_size openresty_inserver 16 KB: +206 [+199..+252] (n=3)
+- page_size openresty_inserver 256 KB: +534 [+476..+575] (n=3)
+- page_size openresty_inserver 768 KB: +1628 [+1584..+1657] (n=3)
+- page_size apache_inserver 1 KB: -9 [-28..+10] (spans zero) (n=2)
+- page_size apache_inserver 16 KB: +70 [+57..+84] (n=2)
+- page_size apache_inserver 256 KB: +754 [+644..+863] (n=2)
+- page_size apache_inserver 768 KB: +2167 [+2066..+2269] (n=2)
+- util_added envoy_lua 10/s: (0.24500000000000008, 0.17500000000000016, 0.30999999999999983)
+- util_added wasm 10/s: (0.49499999999999994, 0.4800000000000002, 0.5399999999999998)
+- util_added openresty_inserver 10/s: (0.085, 0.059999999999999984, 0.20499999999999996)
+- util_added apache_inserver 10/s: (0.8250000000000001, 0.765, 1.005)
+- util_added envoy_lua 100/s: (2.0299999999999985, 1.7800000000000011, 2.2300000000000013)
+- util_added wasm 100/s: (4.865, 4.489999999999999, 5.434999999999998)
+- util_added openresty_inserver 100/s: (1.444999999999999, 1.1450000000000002, 1.6049999999999995)
+- util_added apache_inserver 100/s: (11.725, 10.350000000000001, 15.045)
+- matrix envoy_lua HTML page: injected
+- matrix wasm HTML page: injected
+- matrix openresty_inserver HTML page: injected
+- matrix apache_inserver HTML page: injected
+- matrix envoy_lua HTML page, compressed with gzip: broken
+- matrix wasm HTML page, compressed with gzip: broken
+- matrix openresty_inserver HTML page, compressed with gzip: injected
+- matrix apache_inserver HTML page, compressed with gzip: injected
+- matrix envoy_lua HEAD request: broken
+- matrix wasm HEAD request: changed
+- matrix openresty_inserver HEAD request: changed
+- matrix apache_inserver HEAD request: preserved
+- matrix envoy_lua Conditional request: changed
+- matrix wasm Conditional request: changed
+- matrix openresty_inserver Conditional request: changed
+- matrix apache_inserver Conditional request: changed
+- matrix envoy_lua Range request (first 100 bytes): broken
+- matrix wasm Range request (first 100 bytes): broken
+- matrix openresty_inserver Range request (first 100 bytes): broken
+- matrix apache_inserver Range request (first 100 bytes): preserved
+- matrix envoy_lua Empty response (204): changed
+- matrix wasm Empty response (204): changed
+- matrix openresty_inserver Empty response (204): changed
+- matrix apache_inserver Empty response (204): preserved
+- matrix envoy_lua Page not found (404): injected
+- matrix wasm Page not found (404): injected
+- matrix openresty_inserver Page not found (404): injected
+- matrix apache_inserver Page not found (404): preserved
+- matrix envoy_lua JSON document: changed
+- matrix wasm JSON document: changed
+- matrix openresty_inserver JSON document: changed
+- matrix apache_inserver JSON document: changed
+- matrix envoy_lua Binary file: changed
+- matrix wasm Binary file: changed
+- matrix openresty_inserver Binary file: changed
+- matrix apache_inserver Binary file: changed
+- matrix envoy_lua HTML without </body>: injected
+- matrix wasm HTML without </body>: injected
+- matrix openresty_inserver HTML without </body>: injected
+- matrix apache_inserver HTML without </body>: injected
+- matrix envoy_lua HTML page of 768 KB: injected
+- matrix wasm HTML page of 768 KB: injected
+- matrix openresty_inserver HTML page of 768 KB: injected
+- matrix apache_inserver HTML page of 768 KB: injected
+- matrix envoy_lua HTML page of 2 MB: broken
+- matrix wasm HTML page of 2 MB: broken
+- matrix openresty_inserver HTML page of 2 MB: injected
+- matrix apache_inserver HTML page of 2 MB: injected
+- matrix envoy_lua HTTP/1.0 request: not exercised
+- matrix wasm HTTP/1.0 request: not exercised
+- matrix openresty_inserver HTTP/1.0 request: injected
+- matrix apache_inserver HTTP/1.0 request: injected
+- sqli base envoy_lua 100/s: 7.43 [7.30..7.49] µs
+- sqli base wasm 100/s: 2.68 [2.67..2.76] µs
+- sqli base openresty_inserver 100/s: 6.90 [6.79..6.96] µs
+- sqli base apache_inserver 100/s: 16.01 [15.71..16.28] µs
+- sqli decode envoy_lua 100/s: 1.26 [1.22..1.30] µs
+- sqli decode wasm 100/s: 0.09 [0.08..0.10] µs
+- sqli decode openresty_inserver 100/s: 1.42 [1.36..1.57] µs
+- sqli decode apache_inserver 100/s: 1.43 [1.32..1.48] µs
+- sqli scan envoy_lua 100/s: 0.73 [0.67..0.78] µs
+- sqli scan wasm 100/s: 0.51 [0.50..0.53] µs
+- sqli scan openresty_inserver 100/s: 0.82 [0.70..0.85] µs
+- sqli scan apache_inserver 100/s: 2.84 [2.51..2.88] µs
+- same_runtime latency envoy_lua 1/s: +203 [+140..+210]
+- same_runtime latency envoy_lua 10/s: +170 [+120..+177]
+- same_runtime latency envoy_lua 100/s: +147 [+136..+152]
+- same_runtime latency openresty_inserver 1/s: +69 [+51..+97]
+- same_runtime latency openresty_inserver 10/s: +81 [+68..+89]
+- same_runtime latency openresty_inserver 100/s: +72 [+64..+78]
+- same_runtime cpu envoy_lua 1/s: +42 [+13..+95]
+- same_runtime cpu envoy_lua 10/s: +55 [+39..+68]
+- same_runtime cpu envoy_lua 100/s: +45 [+40..+49]
+- same_runtime cpu openresty_inserver 1/s: +26 [-20..+72] (spans zero)
+- same_runtime cpu openresty_inserver 10/s: +19 [+12..+46]
+- same_runtime cpu openresty_inserver 100/s: +32 [+25..+36]
+- utilisation server envoy_lua 1/s: bare 0.37 %, silent 0.39 %, added +0.02 [+0.01..+0.04] points
+- utilisation nginx envoy_lua 1/s: bare 0.19 %, silent 0.12 %, added -0.07 [-0.09..-0.06] points
+- utilisation server envoy_lua 10/s: bare 1.84 %, silent 2.10 %, added +0.25 [+0.18..+0.31] points
+- utilisation nginx envoy_lua 10/s: bare 1.95 %, silent 1.24 %, added -0.71 [-0.73..-0.61] points
+- utilisation server envoy_lua 100/s: bare 12.35 %, silent 14.35 %, added +2.03 [+1.78..+2.23] points
+- utilisation nginx envoy_lua 100/s: bare 11.94 %, silent 8.25 %, added -3.63 [-4.17..-3.06] points
+- utilisation server wasm 1/s: bare 0.35 %, silent 0.40 %, added +0.05 [+0.05..+0.06] points
+- utilisation nginx wasm 1/s: bare 0.19 %, silent 0.22 %, added +0.03 [+0.03..+0.07] points
+- utilisation server wasm 10/s: bare 1.80 %, silent 2.29 %, added +0.49 [+0.48..+0.54] points
+- utilisation nginx wasm 10/s: bare 1.91 %, silent 2.14 %, added +0.22 [+0.13..+0.29] points
+- utilisation server wasm 100/s: bare 12.67 %, silent 17.55 %, added +4.86 [+4.49..+5.44] points
+- utilisation nginx wasm 100/s: bare 12.15 %, silent 14.37 %, added +2.14 [+1.53..+4.68] points
+- utilisation server openresty_inserver 1/s: bare 0.12 %, silent 0.14 %, added +0.01 [-0.01..+0.03] points
+- utilisation server openresty_inserver 10/s: bare 1.04 %, silent 1.14 %, added +0.08 [+0.06..+0.21] points
+- utilisation server openresty_inserver 100/s: bare 6.56 %, silent 7.99 %, added +1.44 [+1.15..+1.60] points
+- utilisation server apache_inserver 1/s: bare 0.17 %, silent 0.29 %, added +0.12 [+0.08..+0.18] points
+- utilisation server apache_inserver 10/s: bare 1.52 %, silent 2.48 %, added +0.83 [+0.77..+1.01] points
+- utilisation server apache_inserver 100/s: bare 8.04 %, silent 19.96 %, added +11.72 [+10.35..+15.05] points
